@@ -3,7 +3,7 @@ export const messages = {
   Onboarding: {
     empecemosPorTi: "Empecemos por ti",
     estosDatosCompletanTuPerfilElPorcentaje:
-      "Estos datos completan tu perfil. El porcentaje graso es opcional.",
+      "Estos datos completan tu perfil y te permiten registrar tu progreso.",
     tuPuntoDePartida: "Tu punto de partida",
     eligeLoQueMejorDescribeTuExperiencia:
       "Elige lo que mejor describe tu experiencia. Podrás cambiarlo después.",
@@ -232,28 +232,6 @@ export const messages = {
       "Se guardará en tu catálogo con 2 series efectivas.",
     guardarEjercicioPersonalizado: "Guardar ejercicio personalizado",
   },
-  PhotoEstimate: {
-    demostracionSinAnalisisReal: "DEMOSTRACIÓN · SIN ANÁLISIS REAL",
-    cuerpoRelajadoSinContraerEIluminacionUniforme:
-      "Cuerpo relajado, sin contraer e iluminación uniforme. No necesitas mostrar la cara. Las referencias a las imágenes se eliminan después de la simulación o al salir; los originales de tu dispositivo no se borran.",
-    doyMiConsentimientoExplicito: "Doy mi consentimiento explícito",
-    autorizoLaSeleccionLocalDeFotografiasPara:
-      "Autorizo la selección local de fotografías para esta simulación estética.",
-    frontal: "Frontal",
-    lateral: "Lateral",
-    traseraOpcional: "Trasera (opcional)",
-    simularCargaYAnalisis: "Simular carga y análisis",
-    simulandoCargaLocalYAnalisis: "Simulando carga local y análisis…",
-    rangoFicticioConfianzaMediaSimulada:
-      "Rango ficticio · Confianza media simulada",
-    valorCentralEditable: "Valor central editable",
-    texto: "%",
-    lasReferenciasALasFotosYaSe:
-      "Las referencias a las fotos ya se han eliminado. Este valor no procede de tus imágenes.",
-    resultadoConfirmado: "Resultado confirmado",
-    confirmarResultado: "Confirmar resultado",
-    repetirSimulacion: "Repetir simulación",
-  },
   PhotoSelect: {
     fotoSeleccionada: "Foto seleccionada",
     noSeHaPodidoSeleccionarLaImagen:
@@ -272,15 +250,6 @@ export const messages = {
     pesoCorporal: "Peso corporal",
     kg: "kg",
     porEjemplo765: "Por ejemplo, 76,5",
-    porcentajeGraso: "Porcentaje graso",
-    noLoSe: "No lo sé",
-    puedesCrearTuRutinaSinEsteDato: "Puedes crear tu rutina sin este dato.",
-    introducirloManualmente: "Introducirlo manualmente",
-    estimarloMedianteFotografias: "Estimarlo mediante fotografías",
-    simulacionOpcionalYPrivada: "Simulación opcional y privada.",
-    disponibleUnicamenteParaMayoresDe18Anos:
-      "Disponible únicamente para mayores de 18 años.",
-    texto: "%",
   },
   ProgressionDemo: {
     ejemploInteractivoDatosSimulados: "EJEMPLO INTERACTIVO · DATOS SIMULADOS",

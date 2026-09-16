@@ -1,20 +1,49 @@
 import { messages } from "../content/es";
 import { Redirect, router } from "expo-router";
-import { Image, View } from "react-native";
+import { Image, Platform, View } from "react-native";
 import { APP, copy } from "../config";
 import { useStore } from "../state/Store";
 import { useTheme } from "../theme";
-import { Button, Heading, Icon, Page, Pill, Row, Txt } from "../components/ui";
-import { GoogleSignIn } from "../components/GoogleSignIn";
+import { Button, Card, Heading, Icon, Page, Pill, Row, Txt } from "../components/ui";
+import { AccountCard } from "../components/AccountCard";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { accountUrl } from "../services/account";
+import { useAccount } from "../state/Account";
 export default function Welcome() {
   const { state, update } = useStore();
+  const account = useAccount();
   const { colors } = useTheme();
+  const webAccountRequired = Platform.OS === "web" && !__DEV__ && !!accountUrl && !account.user;
+  if (webAccountRequired) return (
+    <Page>
+      <LanguageSelector />
+      <Row style={{ justifyContent: "space-between" }}>
+        <Row>
+          <Image source={require("../../assets/brand/icon.png")} style={{ width: 32, height: 32, borderRadius: 8 }} accessibilityLabel="Akhyles" />
+          <Txt size={22} weight="600">{APP.name}</Txt>
+        </Row>
+        <Pill>VERSIÓN WEB</Pill>
+      </Row>
+      <Heading
+        eyebrow="Tu entrenamiento, también en pantalla grande"
+        title="Entra en tu espacio Akhyles"
+        subtitle="Tus rutinas, sesiones y progreso son privados. Inicia sesión para verlos o crea tu cuenta para empezar."
+      />
+      <Card>
+        <Row><Icon name="shield" size={22} /><Txt weight="600">Tu información es solo tuya</Txt></Row>
+        <Txt muted size={13}>La web mostrará la misma rutina, historial y progreso que tengas en Akhyles cuando la sincronización esté activa.</Txt>
+      </Card>
+      <Button label="Iniciar sesión" icon="log-in" onPress={() => router.push("/account")} />
+      <Button label="Crear una cuenta" variant="secondary" icon="user-plus" onPress={() => router.push("/account?mode=register")} />
+      <Txt muted size={12} style={{ textAlign: "center" }}>No habrá acceso anónimo a tus entrenamientos desde la web.</Txt>
+    </Page>
+  );
   if (state.completed && !state.signedOut) return <Redirect href="/today" />;
   if (state.signedOut) return <Page>
+    <LanguageSelector />
     <Heading title={APP.name} subtitle="Has cerrado tu sesión local. Tus entrenamientos están guardados en este dispositivo." />
     <Button label="Continuar con mi perfil" onPress={() => { update(s => ({ ...s, signedOut: false })); router.replace("/today"); }} />
-    <GoogleSignIn enter />
-    <Txt muted size={12}>El perfil local se conserva en este dispositivo. Google permite acceder a tu cuenta de Comunidad.</Txt>
+    <AccountCard />
   </Page>;
   return (
     <Page>
@@ -33,6 +62,7 @@ export default function Welcome() {
           onPress={() => router.push("/settings")}
         />
       </Row>
+      <LanguageSelector />
       <View
         style={{
           height: 228,
@@ -137,7 +167,7 @@ export default function Welcome() {
         icon="arrow-right"
         onPress={() => router.push("/onboarding")}
       />
-      <GoogleSignIn enter />
+      <AccountCard />
       <Txt size={12} muted style={{ textAlign: "center" }}>
         {messages.Welcome.unos2Minutos}
         {copy.local}

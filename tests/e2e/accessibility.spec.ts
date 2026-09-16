@@ -40,11 +40,12 @@ test("corrupted local data are preserved and a friendly recovery message appears
   ).toBeVisible();
   await page.getByRole("button", { name: "Reintentar", exact: true }).click();
   await expect(
-    page.getByText(/Tus datos siguen sin poder leerse/),
+    page.getByText(/No hemos podido recuperar tus datos/),
   ).toBeVisible();
   expect(
     await page.evaluate(() => localStorage.getItem("gym60:state:v1")),
   ).toBe("{invalid data");
+  await expect(page.getByRole("button", { name: "Crear mi rutina", exact: true })).toHaveCount(0);
 });
 
 test("failed storage writes show a recoverable error", async ({ page }) => {

@@ -43,6 +43,8 @@ const images: Record<keyof typeof sources, ImageSourcePropType> = {
   pullup: require("../../assets/equipment/pullup.jpg"),
   dips: require("../../assets/equipment/dips.jpg"),
   "hip-bench": require("../../assets/equipment/hip-bench.jpg"),
+  "adductor-machine": require("../../assets/equipment/adductor-machine.png"),
+  "triceps-machine": require("../../assets/equipment/triceps-machine.png"),
 };
 
 type EquipmentKey = keyof typeof images;
@@ -64,7 +66,7 @@ export const exerciseEquipment: Record<string, EquipmentSetup> = {
   "neutral-pulldown": { photo: "pulldown", label: "Polea de jalón" },
   "wide-pulldown": { photo: "pulldown", label: "Polea de jalón" },
   "assisted-pullup": { photo: "assisted-pullup", label: "Dominadas asistidas" },
-  "t-row": { photo: "t-row", label: "Remo T con apoyo" },
+  "t-row": { photo: "t-row", label: "Remo en T" },
   "t-row-free": { photo: "t-row-free", label: "Remo T" },
   pullover: { photo: "cable", label: "Polea · cuerda" },
   "lateral-cable": { photo: "cable", label: "Polea ajustable" },
@@ -79,6 +81,7 @@ export const exerciseEquipment: Record<string, EquipmentSetup> = {
   "preacher-free": { photo: "preacher-bench", extra: "ez-bar", label: "Banco Scott · barra" },
   "triceps-extension": { photo: "cable", label: "Polea de tríceps" },
   "triceps-single": { photo: "cable", label: "Polea de tríceps" },
+  "triceps-machine": { photo: "triceps-machine", label: "Extensión de tríceps en máquina" },
   katana: { photo: "cable", label: "Polea · cuerda" },
   "katana-single": { photo: "cable", label: "Polea · agarre" },
   "dumbbell-bench": { photo: "bench", extra: "dumbbells", label: "Banco · mancuernas" },
@@ -113,6 +116,7 @@ export const exerciseEquipment: Record<string, EquipmentSetup> = {
   "hip-thrust-free": { photo: "hip-bench", extra: "barbell", label: "Banco · barra" },
   "hip-thrust-smith": { photo: "smith", extra: "hip-bench", label: "Multipower · banco" },
   abductor: { photo: "abductor", label: "Abductores" },
+  "adductor-machine": { photo: "adductor-machine", label: "Aductores en máquina" },
   "bulgarian-smith": { photo: "smith", extra: "bench", label: "Multipower · banco" },
   "bulgarian-free": { photo: "bench", extra: "dumbbells", label: "Banco · mancuernas" },
   kickback: { photo: "cable", label: "Polea · tobillera" },
@@ -126,6 +130,7 @@ export const exerciseEquipment: Record<string, EquipmentSetup> = {
   "rdl-dumbbell": { photo: "dumbbells", label: "Mancuernas" },
   "rdl-smith": { photo: "smith", label: "Multipower" },
   "rdl-machine": { photo: "rdl-machine", label: "Máquina de peso muerto" },
+  "deadlift-conventional": { photo: "barbell", label: "Barra olímpica" },
   "seated-curl": { photo: "seated-curl", label: "Curl femoral sentado" },
   "lying-curl": { photo: "lying-curl", label: "Curl femoral tumbado" },
   "standing-calf": { photo: "standing-calf", label: "Gemelo de pie" },
@@ -145,6 +150,11 @@ export function getEquipmentPhoto(exerciseId: string) {
     image: images[setup.photo],
     extraImage: setup.extra ? images[setup.extra] : undefined,
     sourceUrl: sources[setup.photo],
-    credit: setup.photo === "lateral-machine" ? "Skelcore" : "Gymleco",
+    credit:
+      setup.photo === "adductor-machine" || setup.photo === "triceps-machine"
+        ? "Akhyles · imagen generada"
+        : setup.photo === "lateral-machine"
+          ? "Skelcore"
+          : "Gymleco",
   };
 }

@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useRef } from "react";
 import { View } from "react-native";
@@ -11,6 +12,7 @@ export function PhotoSelect({
   onSelect: (name: string) => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useLanguage();
   const input = useRef<HTMLInputElement>(null);
   return (
     <View>
@@ -18,7 +20,7 @@ export function PhotoSelect({
         ref={input}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        aria-label={label}
+        aria-label={t(label)}
         style={{ display: "none" }}
         onChange={(event) => {
           const file = event.target.files?.[0];

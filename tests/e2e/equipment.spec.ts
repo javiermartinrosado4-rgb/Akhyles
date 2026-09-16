@@ -50,7 +50,7 @@ for (const theme of ["light", "dark"] as const) {
     expect(photo!.x + photo!.width).toBeLessThanOrEqual(360);
     expect(photo!.height).toBeLessThan(180);
     await page.screenshot({ path: `test-results/equipment-${theme}-mobile.png` });
-    await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).fill("35");
+    await page.getByRole("textbox", { name: "Peso total serie 1", exact: true }).fill("35");
     await page.getByTestId("equipment-photo").click();
     await expect(page.getByText("TU EQUIPAMIENTO", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Ver foto original de Gymleco" })).toBeVisible();
@@ -62,10 +62,10 @@ for (const theme of ["light", "dark"] as const) {
     })).toBe(true);
     await page.screenshot({ path: `test-results/equipment-${theme}-expanded.png` });
     await page.getByRole("button", { name: "Volver al ejercicio", exact: true }).click();
-    await expect(page.getByRole("textbox", { name: "Peso serie 1", exact: true })).toHaveValue("35");
+    await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toHaveValue("35");
     await page.reload();
     await expectLoadedPhoto(page);
-    await expect(page.getByRole("textbox", { name: "Peso serie 1", exact: true })).toHaveValue("35");
+    await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toHaveValue("35");
   });
 }
 
@@ -74,5 +74,5 @@ test("custom equipment is not misidentified as a catalog machine", async ({ page
   await loadWorkout(page, [exercise]);
   await expect(page.getByTestId("equipment-photo-fallback").getByText("Equipo personalizado", { exact: true })).toBeVisible();
   await expect(page.getByTestId("equipment-photo")).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Peso serie 1", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toBeVisible();
 });

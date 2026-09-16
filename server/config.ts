@@ -3,7 +3,7 @@ import { requirePublicHttps } from "../src/logic/endpoints";
 
 export function serverConfig(env: NodeJS.ProcessEnv = process.env) {
   const production = env.NODE_ENV === "production";
-  const database = env.GYM_DATABASE ?? "server/data/gym-buddy.sqlite";
+  const database = env.GYM_DATABASE ?? "server/data/akhyles.sqlite";
   const port = Number(env.GYM_API_PORT ?? 8082);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("GYM_API_PORT no válido.");
   if (production && (!env.GYM_DATABASE || !isAbsolute(database) || database === ":memory:"))
@@ -17,5 +17,10 @@ export function serverConfig(env: NodeJS.ProcessEnv = process.env) {
   }
   const googleClientId = env.GYM_GOOGLE_CLIENT_ID?.trim() ?? "";
   if (googleClientId && !/^[\w-]+\.apps\.googleusercontent\.com$/.test(googleClientId)) throw new Error("GYM_GOOGLE_CLIENT_ID no válido.");
-  return { database, origins, port, googleClientId, host: env.GYM_API_HOST ?? "127.0.0.1", trustProxy: env.GYM_TRUST_PROXY === "1" };
+  const accountFederationSecret = env.GYM_ACCOUNT_FEDERATION_SECRET?.trim() ?? "";
+  if (accountFederationSecret) {
+    const decoded = Buffer.from(accountFederationSecret, "base64");
+    if (decoded.length < 32) throw new Error("GYM_ACCOUNT_FEDERATION_SECRET debe contener al menos 32 bytes en base64.");
+  }
+  return { database, origins, port, googleClientId, accountFederationSecret, host: env.GYM_API_HOST ?? "127.0.0.1", trustProxy: env.GYM_TRUST_PROXY === "1" };
 }

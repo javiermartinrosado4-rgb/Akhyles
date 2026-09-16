@@ -1,6 +1,8 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { router } from "expo-router";
-import { Image, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
+import { useState } from "react";
 import { APP, copy } from "../config";
 import {
   Button,
@@ -14,7 +16,7 @@ import {
   Txt,
 } from "../components/ui";
 import { useStore } from "../state/Store";
-import { displayName, duration } from "../logic/routine";
+import { allExercises, displayName, duration } from "../logic/routine";
 import { isActiveWorkoutOnDate, resumeWorkout, startWorkout } from "../logic/workout";
 import {
   routineSchedule,
@@ -29,19 +31,27 @@ import {
 } from "../logic/performance";
 import { useTheme } from "../theme";
 import { Calories } from "../components/Calories";
-import { RoutineOverview } from "./Routine";
 import { motivationalQuoteForDate } from "../content/motivation";
+import { RoutineOverview } from "./Routine";
 
-const formatNumber = (value: number) =>
-  value.toLocaleString("es", { maximumFractionDigits: 0 });
+
 
 export default function Today() {
+  const { t, locale } = useLanguage();
   const { state, update } = useStore();
   const { colors } = useTheme();
+  const skippedName = (name: string) => {
+    const exercise = allExercises(state.preferences).find(item => (state.preferences.names[item.id] ?? item.name) === name);
+    return exercise ? displayName(exercise.id, state.preferences) : name;
+  };
+  const formatNumber = (value: number) => value.toLocaleString(locale, { maximumFractionDigits: 0 });
   const now = new Date();
   const quote = motivationalQuoteForDate(now);
-  const planned = scheduledWorkout(state.profile, state.routine, state.plannedWorkouts, now, state.skippedWorkoutDates);
+  const planned = scheduledWorkout(state.profile, state.routine, state.plannedWorkouts, now, state.skippedWorkoutDates, state.routineVersions);
   const activeToday = isActiveWorkoutOnDate(state.active, now) ? state.active : undefined;
+  // A session started before midnight is still recoverable, but must never be
+  // presented as the plan for the current calendar day.
+  const pendingActive = state.active && !activeToday ? state.active : undefined;
   const todayWorkouts = workoutsOnDate(state.history, now);
   const completed = [...todayWorkouts]
     .reverse()
@@ -51,13 +61,20 @@ export default function Today() {
           (!workout.dayId && workout.dayName === planned.name)
         : true,
     );
-  const session = activeToday?.day ?? (completed
+  const todaySession = activeToday?.day ?? (completed
     ? state.routine.find((day) => day.id === completed.dayId) ?? planned
     : planned);
   const latestStats = completed ? workoutStats(completed) : undefined;
   const trend = completed ? workoutTrend(completed, state.history) : undefined;
   const overall = overallStats(state.history);
   const schedule = routineSchedule(state.profile, state.routine);
+  // Opening the training tab should immediately show today's prescribed work,
+  // without expanding the rest of the weekly routine.
+  const [expandedDayId, setExpandedDayId] = useState<string | null>(() => planned?.id ?? null);
+  const [editingRoutine, setEditingRoutine] = useState(false);
+  const session = expandedDayId
+    ? (todaySession?.id === expandedDayId ? todaySession : state.routine.find(day => day.id === expandedDayId))
+    : undefined;
   const nextPlanned = Array.from({ length: 7 }, (_, offset) => {
     const date = new Date(now);
     date.setDate(now.getDate() + offset + 1);
@@ -72,11 +89,11 @@ export default function Today() {
 
   const trendMessage =
     trend?.status === "up"
-      ? `Vas progresando: +${trend.percent}% en ${trend.compared} ejercicios comparables. Buen trabajo; mantén la constancia.`
+      ? t("Vas progresando: +{value1}% en {value2} ejercicios comparables. Buen trabajo; mantén la constancia.", { value1: trend.percent, value2: trend.compared })
       : trend?.status === "down"
-        ? `Esta sesión ha bajado un ${Math.abs(trend.percent)}% en ${trend.compared} ejercicios comparables. Una sesión aislada no define tu progreso.`
+        ? t("Esta sesión ha bajado un {value1}% en {value2} ejercicios comparables. Una sesión aislada no define tu progreso.", { value1: Math.abs(trend.percent), value2: trend.compared })
         : trend?.status === "steady"
-          ? `Rendimiento estable (${trend.percent >= 0 ? "+" : ""}${trend.percent}%) en ${trend.compared} ejercicios comparables. Sigue acumulando sesiones con buena técnica.`
+          ? t("Rendimiento estable ({value1}{value2}%) en {value3} ejercicios comparables. Sigue acumulando sesiones con buena técnica.", { value1: trend.percent >= 0 ? "+" : "", value2: trend.percent, value3: trend.compared })
           : "Primera referencia comparable de esta sesión. A partir de la próxima podrás ver la tendencia.";
 
   return (
@@ -86,7 +103,7 @@ export default function Today() {
         <Pill>{messages.Today.unPasoALaVez}</Pill>
       </Row>
       <Heading
-        eyebrow={new Intl.DateTimeFormat("es", {
+        eyebrow={new Intl.DateTimeFormat(locale, {
           weekday: "long",
           day: "numeric",
           month: "long",
@@ -106,16 +123,31 @@ export default function Today() {
             : completed
               ? "Aquí tienes el resumen de tu entrenamiento y tu tendencia."
               : planned
-                ? `Tu calendario marca ${planned.name}.`
+                ? t("Tu calendario marca {name}.", { name: t(planned.name) })
                 : nextPlanned?.item
-                  ? `Próxima sesión: ${weekdayName(nextPlanned.item.weekday)}, ${nextPlanned.item.day.name}.`
+                  ? t("Próxima sesión: {value1}, {value2}.", { value1: t(weekdayName(nextPlanned.item.weekday)), value2: t(nextPlanned.item.day.name) })
                   : "No hay una sesión programada para hoy."
         }
       />
       <Card style={{ padding: 18 }}>
-        <Txt size={16} weight="600">“{quote.text}”</Txt>
-        {quote.author && <Txt muted size={12} style={{ marginTop: 6 }}>— {quote.author}</Txt>}
+        <Txt size={16} weight="600">“{t(quote.text)}”</Txt>
+        {quote.author && <Txt muted size={12} style={{ marginTop: 6 }} translate={false}>— {quote.author}</Txt>}
       </Card>
+
+      <Card style={{ padding: 14 }}>
+        <Txt weight="600">Tu semana</Txt>
+        <Row style={{ flexWrap: "wrap" }}>{schedule.map(({ day, weekday }) => <Pressable key={day.id} accessibilityRole="button" accessibilityLabel={`${t(weekdayName(weekday))} ${t(day.name)}`} onPress={() => setExpandedDayId(value => value === day.id ? null : day.id)} style={{ paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10, backgroundColor: expandedDayId === day.id ? colors.accentSoft : colors.soft }}><Txt size={12} weight="600">{t(weekdayName(weekday))} · {t(day.name)}</Txt></Pressable>)}</Row>
+      </Card>
+
+      <Button label={editingRoutine ? "Cerrar edición de rutina" : "Editar mi rutina"} variant="secondary" onPress={() => setEditingRoutine(value => !value)} />
+      {editingRoutine && <RoutineOverview />}
+      {activeToday && activeToday.day.id !== session?.id && <Button label={messages.Today.continuarEntrenamiento} icon="play" onPress={() => router.push("/workout")} />}
+      {pendingActive && <Card>
+        <Pill>ENTRENAMIENTO PENDIENTE</Pill>
+        <Txt weight="600" size={18}>{pendingActive.day.name}</Txt>
+        <Txt muted>Empezaste esta sesión otro día. Puedes retomarla sin alterar el plan de hoy.</Txt>
+        <Button label="Continuar entrenamiento pendiente" icon="play" onPress={() => router.push("/workout")} />
+      </Card>}
 
       {session && (
         <Card
@@ -126,22 +158,18 @@ export default function Today() {
           }}
         >
           <Pill>
-            {activeToday
+            {activeToday?.day.id === session.id
               ? "SESIÓN EN CURSO"
-              : completed
+                : completed && todaySession?.id === session.id
                 ? "SESIÓN TERMINADA"
-                : "SESIÓN DE HOY"}
+                : planned?.id === session.id ? "SESIÓN DE HOY" : "Vista previa de la rutina"}
           </Pill>
           <Txt size={34} weight="600">{session.name}</Txt>
           <Row>
             <Icon name="clock" size={16} />
-            <Txt size={14}>
-              ≈ {duration(session, state.preferences)} min estimados
-            </Txt>
+            <Txt size={14}>{t("≈ {value1} min estimados", { value1: duration(session, state.preferences) })}</Txt>
             <Txt muted>·</Txt>
-            <Txt size={14}>
-              {completed?.records.length ?? session.exercises.length} ejercicios
-            </Txt>
+            <Txt size={14}>{t(session.exercises.length === 1 ? "{count} ejercicio" : "{count} ejercicios", { count: session.exercises.length })}</Txt>
           </Row>
           <View
             style={{
@@ -171,17 +199,15 @@ export default function Today() {
                   {String(index + 1).padStart(2, "0")}
                 </Txt>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="600" size={14}>
+                  <Txt weight="600" size={14} translate={false}>
                     {displayName(entry.exerciseId, state.preferences)}
                   </Txt>
-                  <Txt muted size={12}>
-                    {entry.sets} series · {entry.range[0]}–{entry.range[1]} repeticiones
-                  </Txt>
+                  <Txt muted size={12}>{t(entry.sets === 1 ? "{value1} serie · {value2}–{value3} repeticiones" : "{value1} series · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
                 </View>
               </View>
             ))}
           </View>
-          {(activeToday || !completed) && (
+          {(activeToday?.day.id === session.id || (!activeToday && !completed && planned?.id === session.id)) && (
             <Button
               label={
                 activeToday
@@ -197,6 +223,9 @@ export default function Today() {
                       session,
                       stateBeforeStart.profile.weight,
                       stateBeforeStart.profile.level,
+                      stateBeforeStart.profile.sex,
+                      stateBeforeStart.preferences.barWeights,
+                      stateBeforeStart.preferences.apparatusWeights,
                     ),
                   }));
                 router.push("/workout");
@@ -212,7 +241,7 @@ export default function Today() {
         </Card>
       )}
 
-      {!session && (
+      {!todaySession && (
         <Card>
           <Pill>DÍA DE DESCANSO</Pill>
           <Txt weight="600" size={20}>No tienes entrenamiento programado hoy.</Txt>
@@ -234,20 +263,18 @@ export default function Today() {
           <Row>
             <Card style={{ flex: 1 }}>
               <Txt size={26} weight="500">{latestStats.sets}</Txt>
-              <Txt size={12} muted>series realizadas</Txt>
+              <Txt size={12} muted>{latestStats.sets === 1 ? "serie realizada" : "series realizadas"}</Txt>
             </Card>
             <Card style={{ flex: 1 }}>
               <Txt size={26} weight="500">{latestStats.reps}</Txt>
-              <Txt size={12} muted>repeticiones</Txt>
+              <Txt size={12} muted>{latestStats.reps === 1 ? "repetición" : "repeticiones"}</Txt>
             </Card>
           </Row>
           <Card>
             <Txt size={28} weight="500">{formatNumber(latestStats.volume)}</Txt>
             <Txt size={12} muted>kg × repeticiones de volumen registrado</Txt>
             {!!completed.skipped?.length && (
-              <Txt size={12} muted>
-                Omitidos hoy: {completed.skipped.join(", ")}
-              </Txt>
+              <Txt size={12} muted>{t("Omitidos hoy: {value1}", { value1: completed.skipped.map(skippedName).join(", ") })}</Txt>
             )}
           </Card>
           <Notice>{trendMessage}</Notice>
@@ -272,11 +299,11 @@ export default function Today() {
           <Row>
             <Card style={{ flex: 1 }}>
               <Txt size={26} weight="500">{overall.sessions}</Txt>
-              <Txt size={12} muted>sesiones</Txt>
+              <Txt size={12} muted>{overall.sessions === 1 ? "sesión" : "sesiones"}</Txt>
             </Card>
             <Card style={{ flex: 1 }}>
               <Txt size={26} weight="500">{overall.sets}</Txt>
-              <Txt size={12} muted>series totales</Txt>
+              <Txt size={12} muted>{overall.sets === 1 ? "serie total" : "series totales"}</Txt>
             </Card>
           </Row>
           <Card>
@@ -289,7 +316,6 @@ export default function Today() {
         </>
       )}
 
-      <RoutineOverview />
       {!completed && (
         <>
           <Row>
@@ -297,12 +323,7 @@ export default function Today() {
               <Txt size={30} weight="500">3–5</Txt>
               <Txt size={12} muted>minutos de descanso</Txt>
             </Card>
-            <Card style={{ flex: 1 }}>
-              <Txt size={30} weight="500">
-                {state.profile.level === "beginner" ? 5 : 6}
-              </Txt>
-              <Txt size={12} muted>ejercicios como máximo</Txt>
-            </Card>
+            <Card style={{ flex: 1 }}><Icon name="droplet" size={24} /><Txt size={12} muted>Bebe agua durante el entrenamiento</Txt></Card>
           </Row>
           <Notice>{copy.twoSets}</Notice>
         </>

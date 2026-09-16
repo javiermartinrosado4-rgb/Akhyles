@@ -1,7 +1,9 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { View } from "react-native";
 import { Button, Card, Choice, Field, Notice, Row, Txt } from "./ui";
+import { EquipmentPhoto } from "./EquipmentPhoto";
 import { useStore } from "../state/Store";
 import {
   candidates,
@@ -22,10 +24,15 @@ import {
 } from "../types";
 import { muscles, variants } from "../data/options";
 import { useTheme } from "../theme";
+import { localDateKey } from "../logic/schedule";
+import { useCommunity } from "../state/Community";
+
+const freshId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 /** Keep date-specific plans and an unfinished session aligned with the weekly routine. */
 function syncRoutineReferences(state: ReturnType<typeof useStore>["state"], routine: typeof state.routine) {
   const plannedWorkouts = state.plannedWorkouts?.map(item => {
+    if (localDateKey(item.date) < localDateKey(new Date())) return item;
     const source = routine.find(day => day.id === item.dayId || day.id === item.day.id);
     if (!source) return item;
     const exercises = source.exercises.map(entry => {
@@ -38,11 +45,27 @@ function syncRoutineReferences(state: ReturnType<typeof useStore>["state"], rout
   if (active) {
     const source = routine.find(day => day.id === active!.day.id || day.name === active!.day.name);
     if (source) {
-      const exercises = source.exercises.map(entry => {
-        const current = active!.day.exercises.find(previous => previous.id === entry.id);
-        return current ? { ...entry, weight: current.weight } : entry;
+      const recorded = new Map(active.records.map(record => [record.prescription.id, record.prescription]));
+      // A record is immutable evidence of what was actually performed. A later
+      // routine edit only changes future/pending work; reusing its prescription
+      // ID here would otherwise make the replacement look falsely completed.
+      const exercises: Prescription[] = active.day.exercises.flatMap(current => {
+        const completed = recorded.get(current.id);
+        if (completed) return [{ ...completed, range: [...completed.range] as Range }];
+        const planned = source.exercises.find(entry => entry.id === current.id);
+        return planned ? [{ ...planned, weight: current.weight, range: [...planned.range] as Range }] : [];
       });
-      active = { ...active, day: { ...source, exercises } };
+      for (const entry of source.exercises) {
+        if (!active.day.exercises.some(current => current.id === entry.id))
+          exercises.push({ ...entry, range: [...entry.range] as Range });
+      }
+      const previous = active.day.exercises[active.index];
+      const found = exercises.findIndex(entry => entry.id === previous?.id);
+      const index = found >= 0 ? found : Math.min(active.index, exercises.length - 1);
+      const selected = exercises[index];
+      const unchanged = selected?.id === previous?.id && selected?.exerciseId === previous?.exerciseId;
+      active = selected ? { ...active, index, day: { ...source, exercises },
+        draft: unchanged ? active.draft : active.drafts?.[selected.id] ?? Array.from({length:selected.sets}, () => ({weight:String(selected.weight),reps:""})) } : active;
     }
   }
   return { plannedWorkouts, active };
@@ -73,7 +96,9 @@ export function ExerciseEditor({
   close: () => void;
   report: (text: string) => void;
 }) {
+  const { t, locale } = useLanguage();
   const { state, update } = useStore();
+  const { user, request } = useCommunity();
   const prefs = state.preferences;
   const original = prescription
     ? getExercise(prescription.exerciseId, prefs)
@@ -81,9 +106,10 @@ export function ExerciseEditor({
   const [mode, setMode] = useState<"edit" | "pick" | "custom">(
     original ? "edit" : "pick",
   );
-  const [name, setName] = useState(
+  const [initialName] = useState(
     original ? displayName(original.id, prefs) : "",
   );
+  const [name, setName] = useState(initialName);
   const [weight, setWeight] = useState(String(prescription?.weight ?? 0));
   const [sets, setSets] = useState(String(prescription?.sets ?? 2));
   const [min, setMin] = useState(String(prescription?.range[0] ?? 8));
@@ -95,10 +121,14 @@ export function ExerciseEditor({
       ? "machine"
       : (prefs.equipment[0] ?? "machine"),
   );
+  const [submitToCommunity, setSubmitToCommunity] = useState(Boolean(user));
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [loadStep, setLoadStep] = useState(String(original ? prefs.loadSteps?.[original.id] ?? original.loadStep ?? 1.25 : 1.25));
   const day = state.routine.find((d) => d.id === dayId)!;
+  const options = original && muscle === original.muscle
+    ? [...new Map([...replacementCandidates(original, state.profile, prefs), ...candidates(muscle, state.profile, prefs)].map(candidate => [candidate.id, candidate])).values()]
+    : candidates(muscle, state.profile, prefs);
   const startCustom = (initialName = "") => {
     setMode("custom");
     setName(initialName);
@@ -111,6 +141,8 @@ export function ExerciseEditor({
     }
   };
   const apply = (exercise: Exercise, unavailable = false) => {
+    const appliesAfterRecordedWork = !!prescription && state.active?.day.id === dayId &&
+      state.active.records.some(record => record.prescription.id === prescription.id);
     update((s) => {
       const preferences = {
         ...s.preferences,
@@ -157,8 +189,22 @@ export function ExerciseEditor({
       });
       return { ...s, preferences, routine, ...syncRoutineReferences(s, routine) };
     });
+    if (mode === "custom" && submitToCommunity && user) {
+      void request("/exercise-proposals", "POST", {
+        name: exercise.name,
+        muscle: exercise.muscle,
+        secondary: exercise.secondary,
+        type: exercise.type,
+        variant: exercise.variant,
+        range: exercise.range,
+      }).then(() => report("Ejercicio guardado y enviado a revisión de Akhyles.")).catch(error => {
+        report(`Ejercicio guardado localmente. No se pudo enviar la propuesta: ${error.message}`);
+      });
+    }
     report(
-      unavailable
+      appliesAfterRecordedWork
+        ? "El ejercicio ya registrado se conserva en esta sesión. El cambio se aplicará a las próximas sesiones."
+        : unavailable
         ? messages.ExerciseEditor
             .preferenciaGuardadaHemosSustituidoEsteEjercicioEn
         : messages.ExerciseEditor
@@ -196,6 +242,17 @@ export function ExerciseEditor({
       close();
     }
   };
+  const remove = () => {
+    if (!prescription) return;
+    update((s) => {
+      const routine = s.routine.map(day => day.id === dayId
+        ? { ...day, exercises: day.exercises.filter(item => item.id !== prescription.id) }
+        : day);
+      return { ...s, routine, ...syncRoutineReferences(s, routine) };
+    });
+    report("Ejercicio eliminado de la rutina. Tus registros anteriores se conservan.");
+    close();
+  };
   const save = () => {
     if (![1.25, 2.5, 5, 10, 20].includes(number(loadStep))) return setError("Selecciona un incremento disponible.");
     const range: Range = [number(min), number(max)];
@@ -212,7 +269,7 @@ export function ExerciseEditor({
     const exercise: Exercise =
       mode === "custom"
         ? {
-            id: `custom-${Date.now()}`,
+            id: `custom-${freshId()}`,
             name: name.trim(),
             muscle,
             type,
@@ -241,13 +298,15 @@ export function ExerciseEditor({
     const preferences = {
       ...prefs,
       loadSteps: { ...prefs.loadSteps, [exercise.id]: number(loadStep) },
-      names: { ...prefs.names, [exercise.id]: name.trim() },
+      names: mode === "edit" && name.trim() === initialName.trim()
+        ? prefs.names
+        : { ...prefs.names, [exercise.id]: name.trim() },
       weights: { ...prefs.weights, [exercise.id]: kg },
       ranges: { ...prefs.ranges, [exercise.id]: range },
       custom: mode === "custom" ? [...prefs.custom, exercise] : prefs.custom,
     };
     const entry: Prescription = {
-      id: prescription?.id ?? `${Date.now()}-${exercise.id}`,
+      id: prescription?.id ?? `${freshId()}-${exercise.id}`,
       exerciseId: exercise.id,
       sets: count,
       weight: kg,
@@ -298,6 +357,7 @@ export function ExerciseEditor({
       </Row>
       {mode === "edit" && (
         <>
+          {original && <EquipmentPhoto exerciseId={original.id} exerciseName={displayName(original.id, prefs)} />}
           <Field
             label={messages.ExerciseEditor.nombreDelEjercicio}
             value={name}
@@ -318,6 +378,7 @@ export function ExerciseEditor({
               numeric
             />
           </Row>
+          {(number(min) < 4 || number(max) > 15) && <Notice>Rango guardable libremente. Para hipertrofia solemos recomendar entre 4 y 15 repeticiones; fuera de ese rango puede tener más sentido priorizar fuerza, técnica o resistencia.</Notice>}
           <Row>
             <Field
               label={messages.ExerciseEditor.repeticionesMinimas}
@@ -332,6 +393,7 @@ export function ExerciseEditor({
               numeric
             />
           </Row>
+          {(number(min) < 4 || number(max) > 15) && <Notice>El rango es libre. Para hipertrofia, la recomendación habitual es 4–15 repeticiones.</Notice>}
           {number(sets) > 2 && <Notice>{copy.extraSet}</Notice>}
           <Button
             label={messages.ExerciseEditor.guardarCambios}
@@ -343,6 +405,7 @@ export function ExerciseEditor({
             icon="repeat"
             onPress={() => setMode("pick")}
           />
+          <Button label="Eliminar ejercicio" variant="ghost" icon="trash-2" onPress={remove} />
           <Button
             label={messages.ExerciseEditor.miGimnasioNoLoTiene}
             variant="ghost"
@@ -353,22 +416,10 @@ export function ExerciseEditor({
       )}
       {mode === "pick" && (
         <>
-          {!prescription && (
-            <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-              {muscles
-                .filter((m) => m.id !== "balanced")
-                .map((m) => (
-                  <Button
-                    key={m.id}
-                    compact
-                    label={m.name}
-                    variant={muscle === m.id ? "primary" : "secondary"}
-                    onPress={() => setMuscle(m.id as Muscle)}
-                  />
-                ))}
-            </View>
-          )}
-          {original && <Notice>Priorizamos sustituciones con el mismo patrón de movimiento cuando están disponibles.</Notice>}
+          <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+            {muscles.filter((m) => m.id !== "balanced").map((m) => <Button key={m.id} compact label={m.name} variant={muscle === m.id ? "primary" : "secondary"} onPress={() => setMuscle(m.id as Muscle)} />)}
+          </View>
+          {original && <Notice>Elige cualquier grupo muscular. En el grupo original priorizamos el mismo patrón de movimiento.</Notice>}
           <Field
             label="Buscar o escribir otro ejercicio"
             value={query}
@@ -378,9 +429,7 @@ export function ExerciseEditor({
           <Txt muted size={13}>
             {original ? "Sugerencias compatibles, ordenadas por patrón y tier." : messages.ExerciseEditor.porPrioridadCompatiblesConTuNivelY}
           </Txt>
-          {(original
-            ? replacementCandidates(original, state.profile, prefs)
-            : candidates(muscle, state.profile, prefs))
+          {options
             .filter(
               (e) =>
                 e.id !== original?.id &&
@@ -390,20 +439,19 @@ export function ExerciseEditor({
                     (p) => p.exerciseId === e.id && p.id !== prescription?.id,
                   ),
             )
-            .filter(e => !query.trim() || displayName(e.id, prefs).toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es")))
+            .filter(e => !query.trim() || displayName(e.id, prefs).toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)))
             .map((e) => (
               <Choice
                 key={e.id}
                 title={displayName(e.id, prefs)}
-                description={`${e.type === "compound" ? messages.ExerciseEditor.multiarticular : messages.ExerciseEditor.aislamiento} · ${e.equipment}`}
+                translateTitle={false}
+                description={`${t(e.type === "compound" ? messages.ExerciseEditor.multiarticular : messages.ExerciseEditor.aislamiento)} · ${t(e.equipment)}`}
                 trailing={<TierBadge tier={e.tier} />}
                 selected={false}
                 onPress={() => apply(e)}
               />
             ))}
-          {!((original
-            ? replacementCandidates(original, state.profile, prefs)
-            : candidates(muscle, state.profile, prefs))).filter(
+          {!options.filter(
             (e) => e.id !== original?.id,
           ).length && !query.trim() && (
             <Notice>
@@ -411,7 +459,7 @@ export function ExerciseEditor({
             </Notice>
           )}
           {!!query.trim() && <Button
-            label={`Crear “${query.trim()}” como ejercicio personalizado`}
+            label={t("Crear “{name}” como ejercicio personalizado", { name: query.trim() })}
             variant="secondary"
             icon="plus"
             onPress={() => startCustom(query.trim())}
@@ -474,6 +522,13 @@ export function ExerciseEditor({
               disabled={!prefs.equipment.includes(v.id)}
             />
           ))}
+          {user && <Choice
+            title="Proponer a la comunidad de Akhyles"
+            description="Seguirá siendo tu ejercicio personalizado hasta que el equipo lo revise y apruebe."
+            selected={submitToCommunity}
+            multiple
+            onPress={() => setSubmitToCommunity(value => !value)}
+          />}
           <Row>
             <Field
               label={messages.ExerciseEditor.repeticionesMinimas}

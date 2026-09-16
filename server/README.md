@@ -7,7 +7,7 @@ migración desde el almacenamiento anterior; web mantiene almacenamiento local.
 Copias: `server/backup-worker.ts` y Restic con restauración ensayada localmente.
 Prueba reproducible con Restic en PATH: `node --import tsx scripts/test-backup-recovery.ts`.
 
-Backend de Akhyles con Node 24, SQLite y procesamiento de imágenes con sharp. Las cuentas y fotografías están en `server/data/gym-buddy.sqlite`; no se incluyen en Git. El historial de entrenamiento completo sigue siendo local a cada dispositivo.
+Backend de Akhyles con Node 24, SQLite y procesamiento de imágenes con sharp. Las cuentas y fotografías están en `server/data/akhyles.sqlite`; no se incluyen en Git. El historial de entrenamiento completo sigue siendo local a cada dispositivo.
 
 ## Probar en este equipo
 
@@ -38,6 +38,10 @@ Se necesita un servicio con proceso Node persistente y disco persistente; SQLite
 Las claves de sesión son aleatorias, expiran a los 30 días y se almacenan mediante hash en el servidor. Las contraseñas se derivan con scrypt y sal individual. El cliente guarda el token de sesión en el almacenamiento local del dispositivo, nunca la contraseña. El transporte por Internet requiere HTTPS. Hay límites por IP para autenticación, por usuario para peticiones y para subidas. El @ y el nivel son declarados por cada usuario; no hay verificación de identidad ni protección contra cuentas múltiples para manipular estadísticas. No está implementada la recuperación de contraseña por correo.
 
 Para copias de seguridad, detener el proceso y copiar la base SQLite junto con cualquier archivo `-wal`/`-shm` presente, o utilizar una herramienta de backup de SQLite en caliente. Antes de un uso público amplio se necesita concretar el servicio de recuperación de cuentas, el flujo de moderación y la operación del alojamiento.
+
+## Propuestas de ejercicios
+
+Los ejercicios personalizados pueden enviarse a `POST /exercise-proposals`. Permanecen en la cola privada del autor (`GET /exercise-proposals/me`) con estado `pending` y nunca se publican automáticamente. Define `GYM_ADMIN_ACCOUNT_IDS` con una lista separada por comas de IDs de cuenta Akhyles para habilitar la revisión: `GET /admin/exercise-proposals?status=pending` y `PATCH /admin/exercise-proposals/:id` con `{"status":"approved"}` o `{"status":"rejected"}`. La aprobación deja la propuesta lista para su incorporación deliberada al catálogo en una versión posterior.
 
 ## Comparaciones
 

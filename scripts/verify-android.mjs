@@ -6,7 +6,7 @@ import process from "node:process";
 
 const apk = resolve(process.argv[2] || "artifacts/android/akhyles-release.apk");
 const aab = resolve(process.argv[3] || "artifacts/android/akhyles-release.aab");
-const localTools = join(process.env.USERPROFILE, ".local/gym-buddy-android");
+const localTools = join(process.env.USERPROFILE, ".local/akhyles-android");
 const javaHome = process.env.JAVA_HOME || join(localTools, "java", readdirSync(join(localTools, "java"))[0]);
 const sdk = process.env.ANDROID_HOME || join(process.env.LOCALAPPDATA, "Android/Sdk");
 const buildTools = join(sdk, "build-tools/36.0.0");
@@ -22,7 +22,7 @@ if (!/jar verified|jar verificado/i.test(jarResult)) throw new Error("No se ha c
 const cert = run(join(javaHome, "bin/keytool.exe"), ["-printcert", "-jarfile", aab]);
 if (!cert.replaceAll(":", "").toLowerCase().includes(digest)) throw new Error("Firma AAB distinta de la APK.");
 const manifest = run(java, ["-jar", join(localTools, "bundletool.jar"), "dump", "manifest", `--bundle=${aab}`, "--module=base"]);
-if (!manifest.includes('package="com.javiermartinrosado.gymbuddy"') || !manifest.includes('android:usesCleartextTraffic="false"') ||
+if (!manifest.includes('package="com.javiermartinrosado.akhyles"') || !manifest.includes('android:usesCleartextTraffic="false"') ||
     !manifest.includes('android:allowBackup="false"') || /android:debuggable="true"/.test(manifest)) throw new Error("Manifest de release inseguro.");
 const forbidden = /android\.permission\.(CAMERA|RECORD_AUDIO|READ_MEDIA_IMAGES|READ_MEDIA_VIDEO|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|SYSTEM_ALERT_WINDOW)/;
 if (forbidden.test(manifest)) throw new Error("Permisos inesperados en el AAB.");

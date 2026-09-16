@@ -14,7 +14,7 @@ async function main() {
   })) throw new Error("El DNS de Comunidad no apunta exclusivamente a direcciones públicas.");
   const response = await fetch(`${url.toString().replace(/\/$/, "")}/health`, { redirect: "error", signal: AbortSignal.timeout(15000) });
   const body = await response.json();
-  if (!response.ok || body.service !== "gym-buddy-community" || body.ok !== true) throw new Error("El backend HTTPS no supera /health.");
+  if (!response.ok || body.service !== "akhyles-community" || body.ok !== true) throw new Error("El backend HTTPS no supera /health.");
   console.log("Backend público HTTPS y DNS comprobados.");
 }
 void main().catch(() => { console.error("La URL pública de Comunidad no supera HTTPS, DNS o salud del servicio."); process.exitCode = 1; });

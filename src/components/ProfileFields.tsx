@@ -2,26 +2,25 @@ import { messages } from "../content/es";
 import { View } from "react-native";
 import { Profile } from "../types";
 import { Choice, Field, Notice, Row, Txt } from "./ui";
-import { PhotoEstimate } from "./PhotoEstimate";
-import { number } from "../logic/validation";
+import { BirthDatePicker } from "./BirthDatePicker";
 export function ProfileFields({
   profile,
   change,
   errors = {},
+  showIdentity = true,
 }: {
   profile: Profile;
   change: (patch: Partial<Profile>) => void;
   errors?: Record<string, string>;
+  showIdentity?: boolean;
 }) {
-  const adult =
-    Number.isInteger(number(profile.age)) &&
-    number(profile.age) > 18 &&
-    number(profile.age) <= 100;
   return (
     <View style={{ gap: 18 }}>
-      <Field label="Nombre" value={profile.name ?? ""} onChangeText={name => change({ name })} error={errors.name} />
-      <Field label="Nombre de usuario (@)" value={profile.handle ?? ""} onChangeText={handle => change({ handle: handle.replace(/^@/, "") })} error={errors.handle} />
-      <Txt muted size={12}>Tu @ se guarda localmente. La reserva y búsqueda de nombres llegará con Comunidad.</Txt>
+      {showIdentity && <>
+        <Field label="Nombre" value={profile.name ?? ""} onChangeText={name => change({ name })} error={errors.name} />
+        <Field label="Nombre de usuario (@)" value={profile.handle ?? ""} onChangeText={handle => change({ handle: handle.replace(/^@/, "") })} error={errors.handle} />
+        <Txt muted>Tu @ es único en Comunidad y se sincroniza con tu perfil.</Txt>
+      </>}
       <Txt weight="600" size={13}>
         {messages.ProfileFields.sexoBiologico}
       </Txt>
@@ -43,25 +42,7 @@ export function ProfileFields({
       </Row>
       {errors.sex && <Notice error>{errors.sex}</Notice>}
       <Row style={{ alignItems: "flex-start" }}>
-        <Field
-          label={messages.ProfileFields.edad}
-          value={profile.age}
-          numeric
-          suffix={messages.ProfileFields.anos}
-          error={errors.age}
-          onChangeText={(age) =>
-            change({
-              age,
-              ...(number(age) <= 18 || !Number.isInteger(number(age))
-                ? {
-                    fatMode:
-                      profile.fatMode === "photo" ? "unknown" : profile.fatMode,
-                    photoConfirmed: false,
-                  }
-                : {}),
-            })
-          }
-        />
+        <BirthDatePicker value={profile.birthDate} error={errors.birthDate} onChange={(birthDate) => change({ birthDate })} />
         <Field
           label={messages.ProfileFields.altura}
           value={profile.height}
@@ -80,43 +61,13 @@ export function ProfileFields({
         error={errors.weight}
         onChangeText={(weight) => change({ weight })}
       />
-      <Txt weight="600">{messages.ProfileFields.porcentajeGraso}</Txt>
       <Choice
-        title={messages.ProfileFields.noLoSe}
-        description={messages.ProfileFields.puedesCrearTuRutinaSinEsteDato}
-        selected={profile.fatMode === "unknown"}
-        onPress={() => change({ fatMode: "unknown", photoConfirmed: false })}
+        multiple
+        title="Recordarme actualizar el peso corporal"
+        description="Recibirás un recordatorio semanal para registrar tu peso cuando lo actives."
+        selected={!!profile.weightReminder}
+        onPress={() => change({ weightReminder: !profile.weightReminder })}
       />
-      <Choice
-        title={messages.ProfileFields.introducirloManualmente}
-        selected={profile.fatMode === "manual"}
-        onPress={() => change({ fatMode: "manual", photoConfirmed: false })}
-      />
-      <Choice
-        title={messages.ProfileFields.estimarloMedianteFotografias}
-        description={
-          adult
-            ? messages.ProfileFields.simulacionOpcionalYPrivada
-            : messages.ProfileFields.disponibleUnicamenteParaMayoresDe18Anos
-        }
-        selected={profile.fatMode === "photo"}
-        disabled={!adult}
-        onPress={() => change({ fatMode: "photo", photoConfirmed: false })}
-      />
-      {profile.fatMode === "manual" && (
-        <Field
-          label={messages.ProfileFields.porcentajeGraso}
-          value={profile.bodyFat}
-          numeric
-          suffix={messages.ProfileFields.texto}
-          error={errors.bodyFat}
-          onChangeText={(bodyFat) => change({ bodyFat })}
-        />
-      )}
-      {profile.fatMode === "photo" && adult && (
-        <PhotoEstimate profile={profile} change={change} />
-      )}
-      {errors.photo && <Notice error>{errors.photo}</Notice>}
     </View>
   );
 }

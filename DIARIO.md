@@ -1,0 +1,950 @@
+# Diario de Akhyles
+
+## APK de prueba publicada en la web (14 de septiembre de 2026)
+
+- Se compiló y verificó la APK Android conectada de **Akhyles 1.0.7** (`versionCode` 9), firmada con la clave de publicación existente.
+- Se publicó en la rama `apk-downloads` del repositorio como `akhyles-android-1.0.7-preview.apk` (77.471.951 bytes), en el commit `e4b9b9a07c755663217fe390d6788815b3bc421d`.
+- En MyWebsite NOW se actualizó únicamente el destino del botón «Descargar APK de prueba» y se publicó la portada. La verificación externa confirma que tanto `https://akhyles.com/` como `https://www.akhyles.com/` enlazan ya a la APK 1.0.7 y que el archivo responde HTTP 200.
+
+## Punto de control — Play Console (14 de septiembre de 2026)
+
+- La ficha de Play Store predeterminada de **Akhyles** está completada y guardada como cambio pendiente de revisión.
+- Se ha creado el borrador de la versión para la prueba cerrada **Alpha** y se ha configurado **España** como único territorio de prueba.
+- La cuenta requiere una prueba cerrada antes de solicitar acceso a producción: al menos 12 testers deben aceptar participar y mantenerse apuntados de forma continua durante 14 días.
+- **Pendiente:** recibir del titular los emails de los testers (se recomienda reunir 13–15 para cubrir bajas). Cuando lleguen, añadirlos a la lista de testers de la prueba cerrada, compartirles el enlace de participación y lanzar la versión cuando exista el AAB apto para esta distribución.
+
+## Estado exacto para la próxima sesión — publicación de la web
+
+Esta sección prevalece sobre cualquier nota anterior del diario relativa a la web o a IONOS.
+
+- La APK Android **1.0.6** está publicada y comprobada: la URL estable responde 200 y entrega
+  `akhyles-android-1.0.6-preview.apk` (78.358.543 bytes):
+  `https://github.com/javiermartinrosado4-rgb/Akhyles/raw/refs/heads/apk-downloads/akhyles-android-1.0.6-preview.apk`.
+- El contenido estático preparado que debe servirse desde la web está en
+  `artifacts/website-static-stage/20260911-104921/`. Su `index.html` ya enlaza a la APK 1.0.6.
+- En IONOS, el dominio `akhyles.com` se trasladó al contrato **47175101 — Hosting Premium**
+  y el usuario ya guardó correctamente el destino **`/akhyles-web-stage`**. El panel muestra:
+  «Se ha establecido la conexión del dominio con el espacio web» y «Objetivo /akhyles-web-stage».
+- Estado público inmediatamente tras el cambio: `http://akhyles.com` y `http://www.akhyles.com`
+  responden **403**; `index.html` responde **500**; HTTPS muestra error de protocolo SSL. Esto
+  no demuestra propagación correcta: la carpeta remota no está sirviendo el sitio aún.
+- Diagnóstico de continuación: comprobar en el **Webspace Explorer de IONOS** que
+  `/akhyles-web-stage/` contenga los archivos del paquete estático, en particular
+  `/akhyles-web-stage/index.html`. Si está vacía o incompleta, subir el contenido de
+  `artifacts/website-static-stage/20260911-104921/` a esa carpeta, sin crear una carpeta
+  adicional dentro de ella. No tocar ni borrar la instalación WordPress de `/`.
+- Después de la carga, verificar en este orden: `http://akhyles.com/` debe mostrar la web y
+  contener el enlace de la APK 1.0.6; luego esperar la provisión/propagación del certificado y
+  verificar `https://akhyles.com/` y `https://www.akhyles.com/`. Si persiste 403/500 con un
+  `index.html` remoto presente, revisar permisos de carpeta/archivo y configuración SSL con IONOS.
+- Limitación de esta sesión: la integración de Edge deja navegar y leer IONOS, pero no expone
+  clics de formularios ni selector de archivos. Para que el agente pueda cargar archivos por UI
+  en otra sesión, activar en la app de escritorio ChatGPT/Codex: **Configuración → Uso de la
+  computadora → Computer Use / Any App**, mantener Edge visible y abrir un chat nuevo mencionando
+  `@Edge` o `@Computer`.
+
+Última actualización: 11 de septiembre de 2026 (cierre de ciclo funcional completo; APK 1.0.6 firmada)
+
+## Punto de control para retomar (12 de septiembre de 2026, 09:30 CET)
+
+- App: **cerrado** en local; los cambios funcionales pedidos en entrenamiento, calendario,
+  peso por lado/barra, puntos, rutina desplegable, historial de semanas y ranking ya
+  están integrados y probados en el árbol actual.
+- Web: lo que falta hoy es **cerrar edición real de `akhyles.com`** (contenidos de la
+  web siguen siendo el estado anterior si no se vuelve a entrar y confirmar desde Edge
+  en IONOS/preview).  
+  Objetivo de mañana: validar qué bloque queda por adaptar y publicar el bloque actualizado
+  de 1.0.6 en portada + páginas funcionales.
+- Si la edición en IONOS no es viable hoy, activar plan B: subir la versión estática
+  preparada en `artifacts/website-static-stage/20260911-104921` a un directorio técnico
+  de pruebas en hosting, validar rutas y, solo tras OK, conectar el dominio.
+- Checklist exacto para mañana:
+  1. Abrir `https://editor.mywebsite-now.com/.../content` en Edge y localizar el modo de edición de secciones.
+  2. Parchar texto de Inicio/Funciones/Sobre Akhyles y sustituir bloque de descarga genérico.
+  3. Verificar soporte/eliminar cuenta y privacidad con datos reales.
+  4. Comprobar descarga, botones y enlaces antes de publicar.
+  5. Guardar captura + hash de verificación de la página publicada.
+
+## Entrega 1.0.6 — calendario, Points y barra personalizable
+
+- Calendario mensual con límites históricos de rutina, días pasados incumplidos
+  en rojo y racha que conserva el contexto temporal. Akhyles Points v3 relativos
+  a sexo y peso corporal de cada sesión, 86 referencias beta, 11 grupos y escala
+  orientativa 0–100 / cerca de 1000 sin techo. Comunidad ampliada en pruebas locales.
+- «Por lado» permite barra de 0–100 kg, incluidos decimales. Se recuerda por
+  ejercicio y queda congelada en cada sesión. Total/por lado convierte solamente
+  la carga externa; la barra se suma una vez. Los registros antiguos conservan
+  sus valores por defecto (20 kg básicos, 0 resto).
+- TypeScript, ESLint, 93 pruebas y revisión de secretos pasan. Dos pruebas de
+  navegador de barra (0 y 15,5) pasan tras recuperar el arranque de Metro.
+- APK/AAB offline 1.0.6, versionCode 8, compilados y verificados. Firma original,
+  alineación 16 KB y manifest comprobados; prueba física pendiente. Artefactos
+  anteriores archivados en `artifacts/android/archive-1.0.5` (pueden contener
+  versiones anteriores distintas). App web exportada en `artifacts/web-1.0.6`.
+- APK publicada en rama `apk-downloads`, commit `6f1d3d7ae492daf6bd2e221a53cfab2ac79922e1`,
+  archivo `akhyles-android-1.0.6-preview.apk`. SHA-256:
+  `97f4f467631b47242c43b731e6e775b93674ed3197e63175549cf338cb91f732`.
+- Web IONOS sin publicar: Edge devuelve «Debugger unattached», incluso tras
+  recarga. El usuario pidió terminar la app y dejar la web en pausa. Contenido
+  concreto preparado en `docs/WEB-AKHYLES-1.0.6.md`; botón público todavía antiguo.
+  No se ha cambiado DNS, correo ni contrato. API pública aún responde HTML.
+- Servidores locales restaurados en 8081/8082/8083 y 8090/8091; Comunidad demo
+  en 9010 con Álex y Lucía. No se han borrado datos de las pestañas del usuario.
+
+## Estado vigente — cuentas y nube, 11 de septiembre
+
+Esta sección prevalece sobre las entradas históricas inferiores.
+
+- Implementadas las cuentas privadas de Akhyles por correo verificado y acceso
+  Google, recuperación de contraseña, bienvenida mediante cola de correo y
+  eliminación de cuenta. Google y SMTP reales siguen pendientes de configurar.
+- El nuevo servicio `server-php` usa PHP 8.2+ y MySQL/MariaDB para aprovechar el
+  Hosting Premium existente. El panel incluye PHP, SFTP/SSH y cron; hay 3 bases
+  usadas de 500. No se necesita un VPS para este servicio de cuentas. El backend
+  social Node anterior sigue separado y no se ha migrado.
+- La app guarda primero localmente y después sincroniza por cuenta. Conserva
+  rutinas, pesos, historial, calendario y sesión en curso; una actualización no
+  regenera la rutina. Las copias divergentes no se pisan automáticamente y se
+  archivan antes de elegir. Cambiar de cuenta separa los progresos.
+- Servidor con sesiones caducables, verificación de email de un uso, límites de
+  intentos, comprobación de identidad Google y aislamiento por propietario.
+  Copias de progreso cifradas en la base, hasta 20 revisiones y herramientas de
+  backup/restauración cifrados. No es cifrado de extremo a extremo.
+- QA local: TypeScript y ESLint correctos, 79 pruebas de app/servidor Node,
+  36 comprobaciones de cuentas en SQLite y otras 36 en MariaDB, prueba de backup
+  cifrado y 9 flujos de navegador (4 de cuentas y 5 regresiones de entrenamiento).
+  Se ha probado recuperación en otro navegador, conflicto de dos dispositivos,
+  cambio de cuenta, desconexión y edición durante una subida.
+- Los correos de QA se capturan localmente y Google se prueba con identidades
+  simuladas en el servidor. Todavía NO se ha verificado entrega SMTP, OAuth
+  Android real ni reinstalación con nube en un teléfono físico.
+- Paquete del servicio preparado sin secretos, pruebas ni datos de usuarios:
+  `artifacts/accounts/akhyles-accounts-20260911-001102.zip`, SHA-256
+  `B6D8ACEAEAE591733C7CCA1D0C18E3702AA212C3718954955CCC3F99B4891FF6`.
+  Se han comprobado las reglas `.htaccess` incluidas. Dependencias Composer
+  fijadas; auditoría sin avisos conocidos en la comprobación realizada.
+- APK y AAB internos 1.0.4 / versionCode 6 compilados y validados: misma firma,
+  paquete `com.javiermartinrosado.akhyles`, alineación, estructura AAB y manifest
+  correctos; HTTP bloqueado. Son vistas previas OFFLINE, no APK conectadas.
+  APK: 78.313.739 bytes, SHA-256
+  `853BD54D1C2690667FD5D47C5D4B9B4DCA3FD6E7935E29CFE410CF64ECBC2C63`.
+  AAB: 56.499.375 bytes, SHA-256
+  `9F9139A9D976677B63162F20963286FA30BAD4F061A009E3EFCC8D5D93790DBF`.
+  Rutas: `artifacts/android/akhyles-offline-preview.apk` y `.aab`.
+  La web conserva la APK offline 1.0.3. No se ha publicado ni cambiado el hosting.
+- APK instalada y abierta correctamente en emulador Android API 36. La pantalla
+  de cuenta muestra el aviso offline, impide iniciar sesión sin servicio y permite
+  continuar al alta local. Captura: `artifacts/android/qa/account-104-offline.png`.
+  No había una instalación previa de este paquete en el emulador: esta prueba
+  no demuestra por sí sola migración desde la APK pública en un móvil real.
+- Documentación de IONOS, Android y privacidad actualizada localmente. El
+  borrador de privacidad NO se ha publicado y requiere completar responsable,
+  conservación de backups y revisión antes de activar la recogida en producción.
+- La revisión de secretos ahora incluye cambios y archivos nuevos no ignorados,
+  además del índice Git. Se conservan todos los cambios previos del proyecto;
+  no se ha hecho commit ni push de esta implementación.
+
+### Despliegue IONOS realizado hoy
+
+- Base de datos de producción MariaDB 11.8 creada como «Akhyles accounts»;
+  las 8 tablas de cuentas, sesiones y progreso se importaron correctamente y
+  las copias de seguridad de IONOS están activas durante 7 días.
+- Paquete corregido sin secretos extraído en
+  `/akhyles-api-release/akhyles-accounts-20260911-083447`; el directorio
+  `public/` se vinculó al dominio técnico del Hosting. La extracción antigua
+  en `/akhyles-api` quedó aislada y requiere confirmación explícita antes de
+  eliminarla.
+- `api.akhyles.com` se creó con SSL, pero IONOS lo asignó al contrato de la web
+  y no permite conectarlo al Hosting Premium sin trasladar el dominio/contrato.
+  El dominio técnico sí arranca el servicio, pero todavía no ofrece HTTPS válido.
+  No mover `akhyles.com` ni la web existente sin decidir esa estrategia.
+
+### Siguiente paso concreto
+
+Decisión de coste (11 de septiembre): no contratar VPS ni otro servicio
+recurrente por ahora. Se ha autorizado iniciar la preparación de la migración
+de la web actual de `akhyles.com` al Hosting Premium ya contratado. La web
+pública actual ha sido revisada como referencia y se conservará una copia
+verificable antes de cambiar su destino. El traslado permitirá vincular
+`api.akhyles.com` al mismo Hosting y activar el backend sin añadir una cuota
+mensual. Estado: pendiente de reautenticación en IONOS para revisar las
+opciones exactas de traslado; no se ha modificado aún el dominio ni eliminado
+el sitio existente.
+
+Preparación de migración (11 de septiembre): recuperada la web pública actual
+en `artifacts/website-backup/20260911-104921.zip` (SHA-256:
+`5CB5511DC98A12EB36D7E7C26C2B1E06B37FC8F4987CEC0E4301D340D093D4C3`).
+La secuencia, pruebas y reversión están documentadas en
+`docs/MIGRACION-WEB-HOSTING-PREMIUM.md`. La web sigue publicada en MyWebsite
+NOW y no se ha tocado el destino de `akhyles.com`.
+
+También está preparada una versión estática aislada y empaquetada en
+`artifacts/website-static-stage/akhyles-web-stage-20260911-104921.zip`.
+En IONOS se creó únicamente la carpeta vacía `/akhyles-web-stage` dentro del
+Hosting Premium; no se han cargado archivos ni asociado dominios todavía.
+
+Introducir los accesos privados SFTP/SSH y SMTP (no en el chat), crear una base
+dedicada y configurar `config.local.php` fuera de la raíz pública. Asociar el
+subdominio al directorio `public`, verificar HTTPS, configurar OAuth web/Android,
+cron y backups externos; probar entrega y restauración reales. Solo entonces
+compilar con `-AccountUrl https://api.akhyles.com` y distribuir tras QA Android.
+No se ha creado ninguna base, cambiado DNS ni contratado ningún servicio.
+Guía operativa: `server-php/README.md` y `docs/IONOS-Y-API-AKHYLES.md`.
+
+## Registro histórico
+
+## Situación actual
+
+- La aplicación web, Android y el backend se denominan **Akhyles**.
+- El paquete Android actual es `com.javiermartinrosado.akhyles` y el enlace nativo es `akhyles://`.
+- TypeScript, las 69 pruebas automatizadas y la comprobación de secretos han pasado después del cambio de marca.
+- La app no se ha publicado aún en Google Play.
+- El sitio público es `https://akhyles.com`; la portada, la política de privacidad y la página de eliminación de cuenta se gestionan en el editor IONOS.
+- Los binarios internos validados son `artifacts/android/akhyles-offline-preview.apk` y `artifacts/android/akhyles-offline-preview.aab`: Akhyles 1.0.2 (`versionCode` 4), paquete `com.javiermartinrosado.akhyles`, esquema `akhyles://`, firma de publicación conservada y tráfico HTTP bloqueado.
+
+## Última entrada
+
+- **Entrega Android 1.0.2:** APK y AAB offline actualizados tras integrar las fotos y la lógica vigente. Firma de publicación, alineación de APK, estructura del AAB, versión, permisos y manifest validados correctamente. Los archivos siguen siendo una vista previa offline: aún no son el AAB de producción para Play porque falta configurar el backend público HTTPS y OAuth real.
+
+- **Fotos de ejercicios:** se auditaron las 86 referencias del catálogo. Aductores en máquina y extensión de tríceps en máquina ya tienen fotografías locales adecuadas, y el peso muerto convencional usa la barra olímpica. Todos los ejercicios del catálogo cuentan con una asignación explícita de equipamiento, sin imagen de reserva. Validado en la edición de ejercicios con la prueba visual automatizada de Playwright, además de TypeScript, ESLint, 69 pruebas unitarias y revisión de secretos.
+
+- El generador de Full Body establece ahora primero dos ejercicios pesados por sesión: uno de torso y otro de pierna. Alterna las prioridades de pecho/espalda y cuádriceps/bisagra para repartir el trabajo semanal.
+- En rutinas de hasta tres días, al introducir una tracción horizontal de espalda, Akhyles prioriza una tracción vertical antes de repetir otro remo.
+- La alternancia de espalda se aplica a todos los splits: antes de repetir un patrón, Akhyles programa el contrario. Con cuatro series directas semanales, quedan dos de tracción horizontal y dos de vertical.
+- En el split Torso A / Torso B, la orientación queda fija para que sea legible: Torso A prioriza remo horizontal y Torso B jalón vertical.
+- Los pajaritos de hombro solo se generan por encima de seis series semanales directas de hombro, tras haber programado press militar y elevaciones laterales.
+- Con cuatro series directas semanales de pecho, Akhyles reparte una exposición de press y otra de pec dec. Los días de pierna de splits de cuatro o cinco días comienzan con un básico pesado de cuádriceps: prensa en Pierna A y sentadilla en multipower en Pierna B cuando están disponibles.
+- El sustituto prioritario del press de banca tumbado en máquina es ahora el press sentado en máquina, para cubrir gimnasios con esa disposición.
+- Las sesiones automáticas evitan duplicar predicadores, rumanos, presses del mismo ángulo o abdominales (salvo especialización de abs). Con dos días de pierna, cada uno incluye extensión de cuádriceps y curl de isquios sentado o tumbado cuando están disponibles.
+- Para principiantes, las sugerencias dejan de incluir aislamientos en cable de hombro, bíceps o tríceps, el pec dec sentado en cable y los demás tirones en cable distintos del jalón. Los jalones neutro y abierto permanecen disponibles por su ejecución sencilla.
+- Se añadió la extensión de tríceps en máquina al catálogo principiante. Así, los planes de cuatro o cinco días pueden mantener un ejercicio directo de brazos en cada día de torso sin recurrir al cable.
+- Las rutinas automáticas pasan a tener un mínimo de cinco ejercicios por sesión; si falta trabajo principal se completan con accesorios compatibles. Se añadió Aductores en máquina como grupo propio y, con dos días de pierna, se reparte aductor en el primero y gemelo en el segundo.
+- El reparto de aductor y gemelo se mantiene incluso si solo hay máquinas y poleas; cuando falten alternativas de pierna, el quinto ejercicio puede ser un segundo abdominal distinto.
+- Se añadieron pruebas de estas reglas y la comprobación completa terminó correctamente: TypeScript, ESLint, 69 pruebas y revisión de secretos.
+- Se integró el logo final de la app como fuente única de los iconos Android y del PNG de Play; la web se dejó intacta porque su actualización la gestiona el titular.
+- El editor de ejercicios muestra la foto orientativa del equipo, permite guardar cualquier rango válido de 1 a 30 repeticiones y avisa —sin bloquear— cuando se sale de la recomendación de hipertrofia de 4–15.
+- Se añadió el peso muerto convencional con barra como bisagra de cadera Tier A, solo desde nivel intermedio, con aviso de orientación a fuerza. Para hipertrofia se prioriza el rumano en multipower cuando está disponible.
+- El calendario permite usar como destino de un movimiento el sábado o domingo de la semana anterior. La racha pasa a medirse semanalmente: el 50% del plan la conserva y el 100% recibe un refuerzo visual.
+- Se regeneró la capa nativa Android desde la configuración actual de Expo para eliminar el paquete y esquema antiguos.
+- Se compiló y validó un AAB firmado de Akhyles; el manifest confirma `com.javiermartinrosado.akhyles`, `akhyles://`, `versionCode` 3, Android mínimo 24 y objetivo 36.
+- La comprobación completa terminó correctamente: TypeScript, ESLint, 69 pruebas y revisión de secretos.
+
+## Trabajo en curso
+
+- 10 de septiembre de 2026: el repositorio público se renombró a `Akhyles` y se habilitó una descarga temporal de la APK Android 1.0.2 desde la rama `apk-downloads`: `https://github.com/javiermartinrosado4-rgb/Akhyles/raw/refs/heads/apk-downloads/akhyles-android-1.0.2-preview.apk`. Es una vista previa offline; no sustituye al futuro lanzamiento en Google Play.
+- La portada del editor ya enlaza a esa APK y su bloque se tituló «Prueba Akhyles en Android». Queda pendiente mejorar el texto del botón y añadir el bloque editorial sobre sesiones de 45 minutos, dos series y mesociclos con referencias antes de la próxima publicación web.
+
+- La portada publicada apunta al identificador correcto de Google Play: `com.javiermartinrosado.akhyles`.
+- La política de privacidad y la página de eliminación de cuenta están publicadas y disponibles desde el pie de página.
+- Se ha eliminado todo el texto de plantilla visible detectado. La página de eliminación incluye contenido legal en español y un contacto real; la sección de soporte de «Sobre Akhyles» muestra `javi@akhyles.com` en lugar de campos vacíos.
+- La verificación integral local ha pasado el 10 de septiembre de 2026: TypeScript, ESLint, 69 pruebas y comprobación de secretos.
+- La ficha local de Google Play incorpora el dominio, el correo de soporte y la URL pública definitiva de privacidad.
+- Los binarios históricos con el nombre o paquete anterior no deben utilizarse. El AAB validado de Akhyles es el único artefacto candidato para futuras pruebas internas; antes de producción habrá que generar otra build con el backend HTTPS de Comunidad configurado.
+
+## Actualizacion funcional - 10 de septiembre de 2026
+
+- Los tiers se muestran ahora como un bloque propio y destacado dentro de Perfil, fuera de la edicion de datos y gimnasio. Un favorito por encima del nivel se conserva como sugerencia aspiracional y se avisa expresamente de que su ejecucion es dificil.
+- La recomendacion de subida de nivel no cambia nada sola: pide al menos sesiones, tiempo sostenido y mejora de carga en varios ejercicios antes de invitar a revisar el nivel. Al confirmarlo, el generador abre variantes mas avanzadas.
+- En Torso/Pierna, para principiantes y personas mayores de 48 anos, Pierna A recibe un solo basico pesado de cuadriceps y Pierna B un solo basico pesado de isquios. Los accesorios siguen completando extension y curl.
+- Se corrigio el selector de dias del alta: los siete numeros se distribuyen con el ancho disponible, evitando que se recorten visualmente en pantallas estrechas.
+- Se corrigio de nuevo el selector de dias tras la captura en `referencias-visuales/Bugs visuales`: cada boton numerico conserva ahora un area tactil amplia, pero usa relleno lateral reducido para que del 1 al 7 se lean completos en iPhone.
+- Series semanales ahora refleja trabajo real: muestra `hechas esta semana / objetivo semanal` por grupo muscular, contando unicamente las series directas registradas desde el lunes.
+- Se retiro del alta, Perfil, validacion y almacenamiento activo toda la funcion de porcentaje graso y estimacion fotografica. Los perfiles ya guardados se limpian de esos campos al abrirse, evitando que interfieran con el historial de peso.
+- Debajo del peso corporal, tanto al crear la cuenta como en Perfil, se puede activar un recordatorio semanal local. Solicita el permiso del sistema solo tras marcar la opcion y lo cancela al desactivarla.
+- Desde el entrenamiento en curso aparece `Cambiar ejercicio para hoy`, con las mismas alternativas compatibles que el editor de rutina y sincronizacion inmediata de la sesion.
+- Se elimino la tanda de APK/AAB historicos de la marca anterior. Los binarios que deben conservarse son los de Akhyles; la APK vigente es ahora 1.0.3.
+- Lista interna de frases anadida en `src/data/quotes.ts` para su futura rotacion en producto.
+- El borrador web ya comunica las graficas, la deteccion de subidas y bajadas de carga y los consejos para la siguiente sesion. Tambien aclara la descarga temporal de la APK y su boton ya no promete Google Play. Aun queda por completar el bloque editorial de sesiones de 45 minutos, dos series, mesociclos y referencias antes de publicar.
+- APK interna actualizada: `artifacts/android/akhyles-offline-preview.apk` es Akhyles 1.0.3 (`versionCode` 5), firmada con la clave de publicacion ya existente (SHA-1 `040ea0afd797f22730198cdb4295c4763ab86ab7`) y compilada tras las reglas nuevas. El AAB 1.0.2 queda como historico hasta generar su pareja 1.0.3.
+- APK de vista previa recompilada tras el contador semanal real, retirada de porcentaje graso, recordatorio de peso y cambio de ejercicio durante la sesion. Conserva `com.javiermartinrosado.akhyles`, version `1.0.3` / `versionCode` 5 y la firma de actualizacion existente. SHA-256: `DD8CBAEEE3A2003A606229DEC697EED3D4A1AFE684451128CAB15C8D2F9D1856`.
+- La APK 1.0.6 está disponible públicamente desde el botón de descarga de `akhyles.com`. La portada publicada debe usar el enlace de la rama `apk-downloads` a `akhyles-android-1.0.6-preview.apk`.
+- El binario de esa misma URL se actualizo con los cambios de esta sesion en la rama `apk-downloads` (commit `58305c3`): 78.271.535 bytes y SHA-256 `DD8CBAEEE3A2003A606229DEC697EED3D4A1AFE684451128CAB15C8D2F9D1856`.
+- La seccion de descarga temporal de Android se recoloco al comienzo de la portada, antes de los bloques de pasos, funciones y graficas, para que la APK 1.0.3 sea accesible nada mas entrar.
+
+## Pendientes para Google Play
+
+1. Desplegar Comunidad en una URL HTTPS pública y configurar sus copias de seguridad.
+2. Configurar los clientes OAuth de Google de producción si se mantiene el acceso con Google.
+3. Generar el AAB firmado de Akhyles y probarlo en un dispositivo Android físico.
+4. Completar en Play Console la ficha, Seguridad de los datos, clasificación de contenido y datos del titular.
+5. Si la cuenta de Play es personal y nueva, completar la prueba cerrada requerida antes de solicitar acceso a producción.
+
+## Verificaci\u00f3n web â€” 11 de septiembre de 2026, 20:20 CET
+
+- Tras extraer el paquete en `/akhyles-web-stage`, `http://akhyles.com/` y `/index.html` responden 200. La portada actualmente servida contiene el enlace de APK 1.0.3.
+- Causa: el ZIP hist\u00f3rico `artifacts/website-static-stage/akhyles-web-stage-20260911-104921.zip` contiene por error la APK 1.0.3. Para sustituirlo, usar `artifacts/website-static-stage/akhyles-web-stage-1.0.6-corrected.zip` (SHA-256 `8109ACE971843BB22D444530BC1C7C2E03593DC08747E0C6EA28ADE86CBFA015`), que contiene el enlace correcto de APK 1.0.6, y extraerlo con reemplazo en la misma carpeta.
+
+## Estado actual de la web - 11 de septiembre de 2026, 20:20 CET
+
+- El paquete corregido fue extraido en `/akhyles-web-stage`. La comprobacion externa confirma que `http://akhyles.com/` responde 200 y la portada enlaza a `akhyles-android-1.0.6-preview.apk`.
+- No reutilizar el ZIP historico `akhyles-web-stage-20260911-104921.zip`: contiene el enlace 1.0.3. El paquete valido queda en `artifacts/website-static-stage/akhyles-web-stage-1.0.6-corrected.zip`.
+
+## Datos confirmados
+
+- Dominio público: `akhyles.com`.
+- Email de soporte publicado: `javi@akhyles.com`.
+- La Comunidad permite cuentas, perfiles, fotos públicas, seguimiento, reacciones y denuncias; los datos de entrenamiento permanecen locales salvo que el usuario decida compartirlos.
+
+## Cuentas y sincronización — 12 de septiembre de 2026
+
+- Se creó el proyecto de Google Cloud **Akhyles** y se configuró OAuth para usuarios externos.
+- Están creados los clientes OAuth de Android (paquete `com.javiermartinrosado.akhyles` y la firma de publicación local) y web. El cliente web queda autorizado para `https://akhyles.com` y `https://www.akhyles.com`.
+- La pantalla de consentimiento de Google muestra Akhyles, el correo de soporte y la política de privacidad publicada. Su estado está en **producción**, por lo que no queda limitado a usuarios de prueba. No se descargaron ni guardaron secretos OAuth en el repositorio.
+- El subdominio `api.akhyles.com` ya apunta a la carpeta pública del paquete PHP en IONOS. HTTP alcanza el backend y éste exige HTTPS, pero HTTPS sigue fallando en la negociación TLS aunque el certificado aparece como protegido en IONOS. Resolver ese certificado/propagación antes de activar clientes.
+- La base dedicada de IONOS existe. Falta crear de forma segura `config.local.php` fuera de `public`, con la contraseña de la base, la clave de cifrado persistente y credenciales SMTP. No guardar ninguna de esas credenciales en Git ni en paquetes de despliegue.
+- Antes de compilar el AAB conectado, añadir al cliente OAuth Android el SHA-1 de la clave de firma de Google Play cuando Play lo muestre tras la primera subida. El AAB actual sigue siendo offline y no debe subirse para activar cuentas.
+
+### Incidencia HTTPS para soporte IONOS
+
+- **Síntoma:** `http://api.akhyles.com/health` alcanza el backend y recibe el rechazo esperado por exigir HTTPS (400), mientras que `https://api.akhyles.com/health` falla antes de llegar a PHP durante la negociación TLS (`ERR_SSL_PROTOCOL_ERROR` / alerta TLS interna).
+- **Configuración comprobada:** el subdominio apunta a `/akhyles-api-release/akhyles-accounts-20260911-083447/public`. El panel de IONOS muestra el certificado wildcard `*.akhyles.com` como protegido y vigente, pero el certificado no se está sirviendo correctamente para `api.akhyles.com`.
+- **Petición para IONOS:** revisar la asignación/activación del certificado SSL wildcard al subdominio `api.akhyles.com` después del cambio de destino web y forzar, si procede, su reprovisión. No modificar el destino de `akhyles.com` ni el correo existente.
+
+## Reglas para retomar
+
+- Leer este diario antes de continuar.
+- 12 de septiembre de 2026: se auditó la cuenta privada y se prepararon `docs/PRIVACIDAD.md`, `docs/ELIMINAR-CUENTA.md`, `docs/PLAY-DATOS-SEGURIDAD.md` y `docs/CHECKLIST-LANZAMIENTO-CUENTAS.md`. La declaración distingue datos privados sincronizados de Comunidad; si Comunidad queda accesible en el AAB, sus fotos y contenido compartido se deben declarar antes de enviar Seguridad de datos.
+- 12 de septiembre de 2026: no extraer ZIPs con rutas en Webspace Explorer para actualizar las páginas legales. IONOS está materializando `carpeta\\index.html` como nombre de archivo plano, no como directorio, por lo que `akhyles.com` continúa sirviendo la versión anterior. Subir cada `index.html` dentro de su carpeta real o usar SFTP; comprobar siempre con HTTP antes de actualizar Play.
+- Actualizar esta fecha y las secciones afectadas al terminar cada avance relevante.
+- No publicar en Play Console, activar servicios externos ni cambiar cuentas o permisos sin confirmación expresa del titular. Las acciones reversibles del proyecto y del editor web sí están autorizadas por el titular.
+
+## Incidencia MyWebsite y dominio — 14 de septiembre de 2026
+
+- Se confirmó que el proyecto MyWebsite NOW **Akhyles** sigue existiendo y que
+  el editor es completamente accesible. Permite editar textos, secciones,
+  páginas, diseño y enlaces, y muestra la acción de volver a publicar.
+- El proyecto continúa asociado internamente solo a su URL temporal de
+  `websitebuilder.online`. En su panel aparece que no hay ningún dominio propio
+  vinculado, aunque la web pública de `https://akhyles.com` permanece visible.
+- En la gestión de dominios, la opción de conectar una web existente no ofrece
+  el proyecto Akhyles como candidato. Esto confirma una incoherencia de
+  asociación dentro de IONOS, no un problema del contenido del editor.
+- `http://www.akhyles.com` redirige correctamente al dominio principal, pero
+  `https://www.akhyles.com` seguía devolviendo `ERR_SSL_PROTOCOL_ERROR`. El
+  certificado wildcard figura como asignado, protegido y vigente. No se ha
+  reemitido, reasignado ni eliminado para evitar introducir una incidencia mayor.
+- Se mantuvieron intactos el destino de `api.akhyles.com`, el correo del dominio,
+  el proyecto MyWebsite y el dominio principal. No se debe reiniciar, borrar ni
+  recrear ninguno de esos elementos sin una explicación previa de impacto y un
+  plan de reversión.
+- Se redactó el informe para soporte desde `javi@akhyles.com` a
+  `soporte@ionos.es`. El titular lo envió personalmente. Solicita que IONOS
+  corrija la asociación entre MyWebsite, `akhyles.com` y `www.akhyles.com`,
+  restablezca HTTPS en `www`, preserve API y correo, y responda con instrucciones
+  a ese mismo buzón.
+
+### Estado de espera
+
+- Esperar respuesta de IONOS antes de publicar cambios desde MyWebsite o tocar
+  la asignación de dominios/certificados. El editor y el borrador de correo se
+  han dejado abiertos para retomar el trabajo sin perder contexto.
+
+## Comprobación pendiente de web publicada — 14 de septiembre de 2026
+
+- El usuario publicó desde MyWebsite NOW la versión editada de la portada. El
+  borrador del editor contiene el contenido nuevo de Akhyles (mapa de fuerza,
+  comunidad y gráficas), pero la web pública no se ha servido de forma estable.
+- Verificaciones realizadas en IONOS:
+  - `akhyles.com` está administrado por IONOS y su destino es **MyWebsite NOW**.
+  - `www.akhyles.com` también está administrado por IONOS y su destino es el
+    mismo proyecto **MyWebsite NOW**.
+  - Ambos destinos apuntan al proyecto `mywebsite_now-8aa7d3d4-b9db-4a67-9c84-0afe9bc3017f`.
+  - El certificado **SSL Starter Wildcard** para `*.akhyles.com` aparece como
+    protegido, con validez desde el **14/09/2026** hasta el 09/03/2027.
+- Incidencia observada en la parte pública: en comprobaciones consecutivas
+  `www.akhyles.com` devolvió contenido anterior, `404 Not Found` de nginx y
+  finalmente `ERR_SSL_PROTOCOL_ERROR`. Esto indica propagación/provisión SSL
+  incompleta o inconsistente en los servidores de IONOS, no un error de
+  contenido ni una asignación DNS visible incorrecta.
+- **Siguiente comprobación obligatoria:** esperar a la propagación del SSL y
+  verificar con recarga completa, en este orden:
+  1. `https://akhyles.com/`
+  2. `https://www.akhyles.com/`
+  3. Que ambas muestren la misma portada nueva, sin 404 ni error SSL, y que
+     aparezcan las secciones actualizadas de mapa de fuerza, comunidad y gráficas.
+- Si cualquiera de las URLs sigue dando `ERR_SSL_PROTOCOL_ERROR`, 404 o la
+  versión anterior tras la propagación, responder al hilo abierto con soporte
+  IONOS con esos síntomas y pedir una **reprovisión del certificado wildcard y
+  de la asignación MyWebsite NOW para `www.akhyles.com`**, sin cambiar el
+  destino de `api.akhyles.com` ni los registros de correo.
+- **Verificación completada (14/09/2026):** `https://www.akhyles.com/` vuelve
+  a cargar correctamente por HTTPS, redirige a `akhyles.com` y sirve la portada
+  nueva con el mapa de fuerza, la descarga Android, comunidad y gráficas. La
+  incidencia de propagación SSL de la web principal queda resuelta.
+
+## Área privada web de Akhyles — 14 de septiembre de 2026
+
+- Se ha preparado la base de escritorio de la aplicación web existente. No es
+  una segunda web ni afecta a la portada pública de MyWebsite NOW: reutiliza
+  las mismas pantallas, navegación, rutina, calendario, progreso, comunidad y
+  cuenta de Akhyles.
+- En pantallas web de al menos 840 px, la aplicación deja de mostrarse como una
+  vista previa de móvil de 480 px. Ahora dispone de un área de trabajo de hasta
+  1.440 px, navegación lateral y contenido centrado de hasta 1.060 px. En
+  móvil conserva la navegación inferior y el diseño compacto.
+- La interfaz y los datos se mantienen locales mientras no exista sesión de
+  cuenta; al activar la API de cuentas, el flujo de inicio de sesión y la
+  sincronización ya presentes en el proyecto serán el puente entre móvil y web.
+- Política de acceso preparada: en la compilación web de producción, si existe
+  `EXPO_PUBLIC_ACCOUNT_URL`, las rutas de rutina, entrenamiento, calendario,
+  progreso, comunidad y perfil redirigen a cuenta cuando no hay sesión válida.
+  La portada solo ofrece iniciar sesión o crear una cuenta. El desarrollo local
+  conserva acceso sin cuenta para construir y verificar la interfaz antes del
+  despliegue.
+- Validación realizada: `npm run typecheck` completado correctamente tras el
+  cambio. No se ha desplegado, publicado ni modificado ninguna configuración
+  de IONOS durante este avance.
+
+### Siguientes pasos para activar el área privada
+
+1. Resolver en IONOS la disponibilidad HTTPS de `https://api.akhyles.com/health`
+   y terminar la configuración privada del backend (base de datos, cifrado,
+   SMTP, copias y restauración).
+2. Probar registro, inicio de sesión, recuperación de acceso y sincronización
+   entre un navegador y un dispositivo Android real, incluyendo conflictos de
+   copias.
+3. Generar una compilación web estática de la aplicación y publicarla en una
+   ruta o subdominio separado del editor MyWebsite NOW; mantener la portada
+   pública actual intacta hasta validar esa zona privada.
+4. Configurar en Google OAuth los orígenes y redirecciones HTTPS definitivos de
+   esa URL web antes de habilitar el acceso con Google en producción.
+5. Tras las pruebas externas, enlazar desde la portada pública un acceso claro
+   a «Entrar en Akhyles».
+
+## Gráficas mensuales — 14 de septiembre de 2026
+
+- Al consultar un mes, la gráfica conserva como contexto la última medición del
+  mes inmediatamente anterior y une la línea con todas las mediciones del mes
+  elegido. Una línea discontinua marca el comienzo del periodo seleccionado.
+- No se arrastran registros anteriores a ese mes previo: así se mantiene la
+  continuidad visual sin extender artificialmente la escala con datos antiguos.
+- Se añadió una prueba de regresión para meses con varias mediciones y la
+  comprobación completa pasó: 125 pruebas, TypeScript y ESLint.
+
+## Diagnóstico de API de cuentas — 14 de septiembre de 2026
+
+- La comprobación externa confirma que `https://api.akhyles.com/health` ya
+  negocia HTTPS correctamente y alcanza Apache; el certificado wildcard y el
+  destino del subdominio no son el bloqueo actual.
+- La ruta devuelve HTTP 503 desde la aplicación PHP. Al validar la configuración
+  privada local, la clave de cifrado tiene el formato correcto y existen los
+  datos de conexión, pero el host configurado de MariaDB no resuelve por DNS
+  desde este entorno. Esto puede impedir que `bootstrap.php` abra
+  PDO y explica el 503 de `/health`.
+- Se generó un paquete de despliegue sin secretos para el backend de cuentas.
+  Queda pendiente que IONOS confirme el nombre de host MariaDB vigente y la
+  conectividad desde Hosting Premium; después hay que instalar la configuración
+  privada en el servidor, ejecutar la migración y volver a comprobar `/health`.
+- Los valores de OAuth web y SMTP siguen pendientes en la configuración privada.
+  No bloquean una respuesta sana de `/health`, pero sí el acceso con Google y
+  el envío real de verificación/recuperación por correo.
+
+### Estado actualizado: acceso a MariaDB
+
+- Se ha comprobado que el dominio, HTTPS, Apache y la API alcanzan el servidor
+  MariaDB de IONOS. El bloqueo ya no está en DNS, SSL ni en el despliegue web.
+- MariaDB rechaza la conexión del usuario técnico que usa la API (`dbu933672`)
+  desde el alojamiento de IONOS con error 1045. Ese usuario es una credencial
+  interna de la aplicación: permite que la API lea y guarde cuentas, sesiones y
+  progreso en la base de datos; no es un usuario de Akhyles ni de Javier.
+- En el panel de IONOS se pudo cambiar su contraseña, pero no aparece una
+  opción para revisar o modificar sus permisos ni para recrearlo. La rotación
+  de contraseña y la sincronización de la configuración privada no resolvieron
+  el rechazo. No se guarda ninguna contraseña en este diario, en el proyecto
+  ni en Git.
+- phpMyAdmin abre con otra cuenta técnica administrada por IONOS, distinta de
+  la que utiliza la API. Esa cuenta permite ver las tablas de Akhyles, pero no
+  consultar ni cambiar los permisos del usuario de la API.
+- **Próximo paso:** pedir a IONOS que revise o recree el usuario de MariaDB que
+  utiliza la API y le conceda acceso a la base desde el alojamiento de IONOS.
+  Cuando lo confirmen, se actualizará de forma privada la configuración de la
+  API y se validará que `https://api.akhyles.com/health` responda correctamente
+  antes de activar el registro/inicio de sesión web o generar el AAB final.
+
+### Resolución (14 de septiembre de 2026)
+
+- El problema **no era IONOS ni los permisos de MariaDB**. La copia publicada de
+  `bootstrap.php` estaba cargando por error `config.example.php`, que contiene
+  valores de ejemplo, en lugar de `config.local.php`, donde está la
+  configuración privada real.
+- Se limpió `config.local.php`: queda una sola definición de la contraseña de
+  base de datos y no se ha guardado ningún secreto en este diario ni en Git.
+- Se corrigió el inicio de la API para que cargue `config.local.php` y se retiró
+  el diagnóstico temporal que podía exponer detalles internos ante un error.
+- Verificación final: `https://api.akhyles.com/health` responde **HTTP 200** con
+  estado `ok`. La base de datos y el esquema están accesibles. OAuth de Google
+  sigue sin configurar y el SMTP real continúa pendiente; no bloquean
+  `/health`, pero sí faltan para Google y el envío efectivo de verificaciones
+  o recuperaciones por correo.
+
+### Verificacion de correo y cuentas (14 de septiembre de 2026)
+
+- Se ha actualizado de forma privada la configuracion SMTP del buzon tecnico
+  de Akhyles. Ninguna contrasena, codigo de verificacion ni otra credencial se
+  guarda en este diario, el repositorio o Git.
+- La prueba real de registro devolvio respuesta correcta y el correo
+  **"Verifica tu correo de Akhyles"** llego a la bandeja de entrada del buzon
+  de soporte. Queda por tanto verificado el envio SMTP de produccion.
+- Para activar una cuenta, el usuario debe introducir en la app el codigo
+  recibido; el codigo caduca y solo se puede usar una vez. Google OAuth sigue
+  pendiente de configuracion y es independiente del alta por correo.
+
+### Recuperacion de la configuracion privada (14 de septiembre de 2026)
+
+- Durante la activacion de Google se corrompio la sintaxis de
+  `config.local.php` en el editor remoto; por ello la API paso a responder 503.
+- La copia diaria de IONOS no incluia ese archivo privado. Se repuso desde la
+  copia local privada mediante SFTP, en la carpeta publicada correcta.
+- La sintaxis de PHP ya queda recuperada, pero MariaDB rechaza la contrasena de
+  la copia local (error 1045). La contrasena valida que tenia el archivo remoto
+  anterior no puede recuperarse desde la copia de IONOS.
+- Siguiente paso: establecer una nueva contrasena para el usuario tecnico de
+  MariaDB en IONOS y actualizar a la vez el archivo privado de la API; comprobar
+  inmediatamente que `/health` vuelve a HTTP 200 antes de retomar Google.
+- No se han registrado contrasenas, codigos ni otros secretos en este diario.
+
+### Recuperacion verificada de MariaDB (14 de septiembre de 2026)
+
+- Se establecio una nueva contrasena privada, compatible con el limite de
+  longitud de IONOS, para el usuario tecnico de la base de datos.
+- La misma configuracion privada se subio por SFTP exclusivamente a la carpeta
+  publicada de la API. El portapapeles del equipo se restauro tras el cambio.
+- Verificacion final: `https://api.akhyles.com/health` responde **HTTP 200**
+  con `ok: true` y el esquema de base de datos accesible.
+- El inicio con Google quedaba pendiente hasta activar de forma segura el
+  identificador publico de OAuth en el backend, sin editar manualmente el
+  archivo remoto; ese paso se completo en la actualizacion siguiente.
+
+### Google en produccion (14 de septiembre de 2026)
+
+- Se configuro el identificador publico del cliente web de Google desde la
+  copia privada local y se publico por SFTP, sin usar el editor remoto.
+- Verificacion: `/health` responde **HTTP 200** y confirma
+  `googleConfigured: true`.
+- Antes de subir la primera version a Google Play queda probar un inicio real
+  con una cuenta de Google en la compilacion Android de lanzamiento.
+
+### Web privada de Akhyles (14 de septiembre de 2026)
+
+- Se conserva `akhyles.com` como portada publica gestionada con MyWebsite NOW.
+  La zona autenticada de la aplicacion se alojara de forma independiente en
+  `app.akhyles.com`; asi la portada, el correo y las descargas actuales no se
+  sustituyen ni se ven afectados.
+- Se exporto correctamente la aplicacion Expo para web con
+  `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com`. El resultado local esta en
+  `dist/` (66 archivos, 8,86 MB) e incluye una regla de servidor para que al
+  recargar rutas privadas como `/account` no haya un error 404.
+- En IONOS se creo el subdominio `app.akhyles.com` y la carpeta aislada
+  `/akhyles-web-app` dentro del Hosting Premium 47175101. IONOS aun lo mostraba
+  como "Creando" al terminar esta comprobacion: falta que aparezca en el
+  selector de dominios, vincularlo a esa carpeta y cargar el contenido de
+  `dist/`.
+- La activacion interna termino despues: `app.akhyles.com` ya esta vinculado a
+  `/akhyles-web-app` y el panel confirma que tiene SSL asignado. Se preparo el
+  paquete local `artifacts/akhyles-web-app-20260914.zip` (7,4 MB), que conserva
+  la estructura completa de `dist/` para subirlo y extraerlo en esa carpeta.
+- Despues de que el HTTPS del subdominio este operativo, anadir
+  `https://app.akhyles.com` a los origenes autorizados del cliente web de
+  Google y comprobar en un navegador el alta, el inicio por correo y el inicio
+  con Google. Finalmente, anadir a la portada publica un enlace
+  "Entrar en Akhyles" hacia ese subdominio.
+- No se han anotado contrasenas, codigos, tokens ni otras credenciales.
+
+### Web privada publicada y verificada (14 de septiembre de 2026)
+
+- Se subio y extrajo el export web de Akhyles en `/akhyles-web-app`, la carpeta
+  vinculada en IONOS a `https://app.akhyles.com`. El subdominio mantiene HTTPS
+  activo y no modifica la portada publica de `akhyles.com`.
+- Verificacion publica: `https://app.akhyles.com/` carga la pantalla privada;
+  `https://app.akhyles.com/account?mode=register` carga tambien al abrirla o
+  recargarla directamente. Se corrigio la regla `.htaccess` para evitar el
+  error 500 que producia la primera regla de rutas de Expo en IONOS.
+- La API de cuentas ahora autoriza especificamente el origen
+  `https://app.akhyles.com`. Asi la web puede llamar a `api.akhyles.com` sin
+  bloqueo CORS; se comprobo que el endpoint de configuracion de Google
+  responde HTTP 200 con ese origen.
+- En la pantalla web de alta ya se muestra el boton oficial de Google, junto
+  con el alta por correo. No se realizo un inicio de sesion real ni se creo
+  ninguna cuenta de prueba durante esta comprobacion.
+- Se regenero el archivo de despliegue local para que refleje la regla de
+  rutas corregida: `artifacts/akhyles-web-app-20260914.zip` (7.393.203 bytes,
+  SHA-256 `973B22B16D040EE5A902229C46A95B9EF2E80B3FA8C84D6A4BFF8EE73C84C2FB`).
+- La portada publica de `akhyles.com` incluye ya el boton visible **"Entrar
+  en Akhyles"** en el bloque inicial. Enlaza a `https://app.akhyles.com` y
+  conserva intactos la descarga de la APK y el resto del contenido publico.
+- Se republico la portada desde MyWebsite NOW y se verifico la version publica:
+  el boton aparece con ese texto y apunta al subdominio privado correcto.
+
+### Origen OAuth de la web privada (14 de septiembre de 2026)
+
+- Se anadio `https://app.akhyles.com` al cliente OAuth web **Akhyles Web** en
+  Google Cloud, junto a los origenes existentes de la portada.
+- Google Cloud confirmo el guardado del cliente. Este cambio elimina el bloqueo
+  por origen no autorizado al pulsar "Continuar con Google" desde la web.
+- La propia consola advierte que la propagacion puede tardar unos minutos (en
+  algunos casos, mas tiempo). No depende de la aprobacion de Google Play ni
+  requiere publicar una nueva APK.
+
+### Guardado automatico en la nube (14 de septiembre de 2026)
+
+- El guardado en la nube ya esta preparado para las cuentas que hayan iniciado
+  sesion: el primer cambio se sincroniza automaticamente poco despues de
+  entrar, se vuelve a comprobar cada 30 segundos y tambien al regresar a la
+  aplicacion. El boton de sincronizacion solo sirve para forzar una comprobacion
+  inmediata, no es necesario usarlo normalmente.
+- La aplicacion conserva una copia local para poder seguir usandose sin red; el
+  estado "pendiente" significa que aun no ha podido confirmar la copia remota
+  (por ejemplo, durante los primeros segundos, sin conexion o si se estaba
+  usando una compilacion sin servicio de cuentas).
+- Se verifico que `https://api.akhyles.com` supera las comprobaciones de HTTPS,
+  DNS y salud del servicio, con Google configurado. El chequeo de tipos del
+  proyecto tambien finaliza correctamente.
+- Los paquetes de lanzamiento actuales ya incorporan
+  `https://api.akhyles.com`: `artifacts/android/akhyles-release.apk` y
+  `artifacts/android/akhyles-release.aab`, generados el 14 de septiembre.
+- Pendiente de distribucion: la descarga publica de `akhyles.com` todavia
+  enlaza al APK de vista previa offline anterior. Hay que sustituir ese archivo
+  por el APK de lanzamiento conectado antes de que los probadores lo instalen.
+
+### Cuenta unica para Akhyles y Comunidad (14 de septiembre de 2026)
+
+- La primera propuesta de una credencial firmada entre la API PHP y un servidor
+  Node queda sustituida por la integracion directa descrita abajo: no se va a
+  desplegar ese servidor ni crear una clave compartida.
+- Comunidad guarda un vinculo unico con el identificador interno de la cuenta.
+  Las cuentas nuevas recibiran un perfil social sin segundo registro ni segunda
+  contrasena; el @ se podra personalizar despues desde el perfil.
+- Se anadio una prueba que verifica que dos accesos con la misma cuenta reutilizan
+  exactamente el mismo perfil de Comunidad. Las 126 pruebas del proyecto y la
+  comprobacion de tipos terminan correctamente.
+- Las cuentas antiguas de Comunidad no se fusionan automaticamente por nombre
+  de usuario: requeriran un flujo posterior de vinculacion autenticada para no
+  arriesgar publicaciones, seguidores o perfiles de otra persona.
+
+### Comunidad integrada en la API PHP (14 de septiembre de 2026)
+
+- Se ha elegido no contratar un VPS. Comunidad se esta trasladando a
+  `https://api.akhyles.com/community`, dentro del mismo servicio PHP y MariaDB
+  que ya usan las cuentas y las copias privadas.
+- La identidad de la cuenta principal se valida directamente en el servidor:
+  al entrar en Comunidad se crea o recupera un perfil asociado al mismo
+  identificador. No hay una segunda sesion, contrasena, correo compartido ni
+  servicio Node que mantener.
+- El esquema nuevo incluye perfiles sociales, privacidad, rutinas compartidas,
+  progreso compartido y muestras anonimas de comparacion. El cliente ya dirige
+  estas funciones a la sesion principal de Akhyles.
+- El 14 de septiembre se ejecutó y verificó la migración aditiva en la base
+  `Akhyles accounts`: existen `community_profiles`, `community_routines`,
+  `community_progress` y `community_samples`. No se modificaron ni borraron
+  cuentas, sesiones ni copias privadas existentes.
+- Pendiente inmediato: subir los archivos PHP de Comunidad a la versión activa
+  de `api.akhyles.com` sin sobrescribir `config.local.php`; después comprobar
+  el endpoint público de salud y, con una cuenta real, el perfil automático y
+  las opciones de privacidad. El alojamiento actual de IONOS es suficiente; no
+  requiere compra ni una clave nueva de servidor.
+- Despliegue preparado el 14 de septiembre: el paquete local actual es
+  `artifacts/accounts/akhyles-accounts-20260914-223114.zip` (SHA-256
+  `B4663E4282B4B7BE6C13B3071323C317145ADBDE235DE4A6C17BC6B90D8292C3`).
+  Las pruebas de TypeScript y las 126 pruebas automatizadas pasaron. Para no
+  sobrescribir la configuración privada, la subida prevista es de
+  `bootstrap.php` y `schema.sql` en la raíz de la versión activa, `Accounts.php`
+  y `Community.php` en `src/`, e `index.php` en `public/`; nunca subir
+  `config.local.php`.
+- El destino activo confirmado en IONOS es
+  `/akhyles-api-release/akhyles-accounts-20260911-083447/public`. La carga no
+  llegó a comenzar: el conector de control remoto falló al abrir el selector de
+  archivos de IONOS. No es un fallo de credenciales ni de la API y no se ha
+  modificado ningún archivo publicado.
+- Próximos pasos, por orden: recuperar el control de IONOS, subir los cinco
+  archivos indicados en sus carpetas correspondientes, verificar
+  `https://api.akhyles.com/community/health`, probar con una cuenta existente
+  que se cree/recupere el perfil de Comunidad automáticamente y, solo después,
+  exportar y publicar las nuevas compilaciones web y Android.
+- El modulo social completo anterior (fotos, seguidores y entrenador) aun debe
+  terminar de trasladarse antes de anunciar Comunidad como funcionalidad publica.
+
+### Despliegue de Comunidad verificado (14 de septiembre de 2026)
+
+- Se actualizaron en la version activa de `api.akhyles.com` los cinco archivos
+  previstos: `bootstrap.php`, `schema.sql`, `src/Accounts.php`,
+  `src/Community.php` y `public/index.php`. `config.local.php` no se modifico.
+- Verificacion externa: `https://api.akhyles.com/community/health` responde
+  HTTP 200 con `{"service":"akhyles-community","ok":true,"identity":"akhyles-account"}`.
+- Pendiente: probar con una cuenta existente la creacion/recuperacion automatica
+  del perfil de Comunidad y sus opciones de privacidad antes de exportar y
+  publicar nuevas compilaciones web y Android.
+
+### Sincronizacion de cuenta reparada (14 de septiembre de 2026)
+
+- IONOS rechazaba las reglas `mod_rewrite` del `.htaccess` con un error 500 y
+  no entregaba la cabecera `Authorization` a PHP. Se sustituyo por la directiva
+  compatible `SetEnvIf Authorization "^(.*)$" HTTP_AUTHORIZATION=$1`.
+- `public/index.php` tambien admite `getallheaders()` como respaldo para los
+  entornos compartidos que no rellenan `$_SERVER['HTTP_AUTHORIZATION']`.
+- Se creo una sesion nueva con Google y se verifico en la aplicacion web el
+  estado: "Guardado en el dispositivo y en la nube", con copia confirmada el
+  14/09/2026 a las 23:00:46. `config.local.php` no se modifico.
+
+### Candidato de release conectado (14 de septiembre de 2026)
+
+- Se validaron por HTTPS, DNS y salud `https://api.akhyles.com` y
+  `https://api.akhyles.com/community`; Google esta configurado en el servicio
+  de cuentas. TypeScript, ESLint y las 126 pruebas automatizadas finalizaron
+  correctamente.
+- La web conectada se exporto en `artifacts/web-community-release/` con
+  `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com` y
+  `EXPO_PUBLIC_COMMUNITY_URL=https://api.akhyles.com/community` (65 archivos,
+  8.86 MB). Esta es la version que habilita Comunidad en el cliente.
+- Se generaron los artefactos Android conectados: `akhyles-release.apk`
+  (SHA-256 `FA0FD3E692A470F7461DFDDB33F030E00FBC07506D5AF7A70D2E901E96C3DA99`)
+  y `akhyles-release.aab`
+  (SHA-256 `C39F49CEC8B7095064A3C6A0E1A53EEBA6CE9D12CE1DB4B89F28F937A0D7BCD3`).
+- Pendiente de autorizacion de publicacion: sustituir la web de produccion por
+  este export y distribuir el AAB mediante el canal de pruebas de Google Play.
+
+### Web de Comunidad publicada (14 de septiembre de 2026)
+
+- Se publico `artifacts/akhyles-web-community-20260914.zip` en
+  `/akhyles-web-app` de IONOS, conservando las reglas SPA de `.htaccess` y
+  sustituyendo `index.html`, `metadata.json` y los recursos de la version.
+- Verificacion externa: `https://app.akhyles.com/` sirve el bundle
+  `entry-9bed5d4230bb4d35eb19ee7ef6cd4a50.js`, configurado con
+  `https://api.akhyles.com` y `https://api.akhyles.com/community`.
+- La sincronizacion de cuenta y Comunidad quedan disponibles tambien en el
+  cliente web de escritorio. El AAB de Android continua listo, pero aun no se
+  ha enviado a Google Play.
+
+### Comunidad completada (14 de septiembre de 2026)
+
+- Se amplió el backend de Comunidad con publicaciones de texto, reacciones,
+  seguimiento, bloqueos, denuncias, gimnasios, privacidad, ranking y
+  colaboraciones de entrenador. No se añadió almacenamiento de fotos.
+- El `@` del perfil principal se sincroniza con Comunidad y queda reservado de
+  forma única en el servidor; un nombre repetido se rechaza.
+- Se publicó `schema.sql` y `src/Community.php` en la API, y se extrajo
+  `akhyles-web-community-full-20260914.zip` sobre `/akhyles-web-app`.
+- Verificación externa: la API responde 200 en `/community/health` y la web
+  pública sirve `entry-51483db47d33772487b47b8cf72ab8bc.js`.
+- Corrección de publicación: `Community.php` quedó finalmente sobrescrito en
+  `/akhyles-api-release/akhyles-accounts-20260911-083447/src/Community.php`
+  (21,37 KB; 14/09/2026, 23:51). La copia subida por error a la raíz no es la
+  que carga la aplicación.
+- Cierre de sesión: API y web comprobadas con respuesta HTTP 200. Comunidad
+  queda publicada con `@` único sincronizado, sin almacenamiento de fotos.
+
+### Pendiente: experiencia integral de entrenadores en Comunidad (15 de septiembre de 2026)
+
+- Se aparca la propuesta visual actual de perfiles de entrenador. La maqueta
+  local creada para explorarla usa datos ficticios y no representa todavía la
+  dirección de producto aprobada.
+- Antes de retomar la implementación, redefinir la experiencia como una parte
+  nativa de Comunidad: identidad y datos propios de Akhyles, acceso coherente
+  desde los perfiles sociales y un recorrido integral para descubrir,
+  comparar, solicitar acompañamiento y gestionar clientes.
+- No continuar integrando ni publicando la interfaz actual hasta validar ese
+  nuevo planteamiento visual y de producto.
+
+### Despliegue estable pendiente de activación (15 de septiembre de 2026)
+
+- El fallo recurrente de publicación no es de la API: es el control remoto del
+  navegador al abrir el selector del Explorador Web de IONOS (`Debugger
+  unattached`). No usar ese explorador para despliegues normales.
+- Se ha añadido `scripts/deploy-ionos.ps1`. Primero muestra una simulación y
+  solo transfiere con `-Deploy`, por SFTP, comprobando la clave conocida del
+  host y verificando la URL pública al terminar.
+- Web publica recursos antes de `index.html`; API queda limitada a `schema.sql`
+  y `src/Community.php`, por lo que no puede sobrescribir
+  `config.local.php`.
+- Falta crear en IONOS dos cuentas SFTP restringidas (web y API), almacenar sus
+  contraseñas en el Administrador de credenciales de Windows y realizar una
+  conexión de validación. La guía es `docs/DESPLIEGUE-IONOS-SFTP.md`.
+
+### Acceso de despliegue y conservación de secretos (15 de septiembre de 2026)
+
+- Las contraseñas SFTP **no se guardan en este diario**, en Git ni en
+  `.private/akhyles-access.md`. Se guardan cifradas para este usuario de Windows
+  en el Administrador de credenciales. El script las recupera por su identificador,
+  sin imprimirlas.
+- Web: cuenta `acc809652538`, host `home508084090.1and1-data.host`, puerto 22;
+  credencial de Windows `Akhyles/IONOS/deploy-web`; configuración privada
+  `.private/ionos-deploy.web.json`.
+- API: cuenta restringida existente `acc961399692`, directorio
+  `/akhyles-api-release/akhyles-accounts-20260911-083447`. Su contraseña previa
+  fue rechazada y deberá quedar almacenada como
+  `Akhyles/IONOS/deploy-api` tras renovarla.
+- Para retomar: ejecutar primero la simulación de
+  `scripts/deploy-ionos.ps1`; el script exige `known_hosts` verificado y termina
+  con comprobación HTTP. Consultar `docs/DESPLIEGUE-IONOS-SFTP.md`.
+- Se añadió el modo `-TestConnection`: solo ejecuta `pwd` y `ls` por SFTP, sin
+  publicar, crear ni modificar archivos. La prueba inicial contra
+  `acc961399692` también fue rechazada; como la contraseña segura de esa cuenta
+  no estaba previamente verificada, el resultado es **inconcluso** y no permite
+  culpar a IONOS ni a la cuenta web nueva.
+- Protocolo permanente creado en `docs/OPERACION-DESPLIEGUES.md`: cada
+  despliegue exige simulación, prueba SFTP de lectura, publicación y verificación
+  HTTP, registrando el resultado sin secretos.
+- Se preparó una credencial nueva de API para `acc961399692` y se guardó solo
+  en `Akhyles/IONOS/deploy-api`. Está pendiente de confirmar el cambio en IONOS
+  y ejecutar inmediatamente la prueba de lectura; hasta entonces no publicar.
+- Corrección permanente del lanzador: se detectó que el helper `cmd` podía
+  interpretar caracteres especiales de una contraseña. Ahora recibe solo una
+  representación Base64, la decodifica justo antes de entregarla a OpenSSH y
+  limita el intento a una contraseña. Esto evita corrupción de secretos y tres
+  rechazos consecutivos por una sola prueba.
+- Validación posterior completada: `-TestConnection` con `acc961399692` se
+  autenticó correctamente y listó su raíz restringida, sin cambios remotos.
+  El formato de salida también se normalizó para que mensajes SFTP enviados por
+  stderr no se presenten como un error de PowerShell cuando el código de salida
+  es correcto.
+- Barrera técnica añadida: cualquier ejecución con `-Deploy` inicia un
+  preflight SFTP de solo lectura con el mismo destino y credencial. Si no se
+  autentica correctamente, el script termina antes de construir la sesión de
+  transferencia y deja explícito que no se ha publicado ningún archivo.
+
+### Instrucción estándar para actualización integral
+
+Cuando se solicite una actualización completa, usar esta instrucción literal:
+
+> Actualiza todo lo pendiente de Akhyles: web, API, Android/Google Play y
+> documentación. Haz una revisión completa antes de publicar: cambios,
+> migraciones, pruebas, compilación, credenciales, SFTP, salud de API, versión
+> pública web y estado de Play Console. Tienes autorización para publicar solo
+> los destinos cuya verificación sea correcta. Si algo falla, no lo publiques:
+> diagnostícalo, corrígelo si es seguro y deja en el diario la causa, la
+> solución, las verificaciones realizadas y cualquier paso pendiente. No guardes
+> secretos en archivos ni en el diario.
+
+- El alcance de “todo” incluye todos los cambios pendientes ya implementados,
+  pero no inventar cambios de producto no solicitados.
+- En web y API, `-Deploy` ejecuta obligatoriamente el preflight SFTP; no hay
+  que recordar el comando de comprobación por separado.
+- Antes de confirmar el resultado, comprobar build/tests aplicables, migraciones
+  necesarias, HTTP público/health de API y que el artefacto Android y Play
+  Console correspondan a la versión publicada.
+
+### Actualización integral — resultado parcial seguro (15 de septiembre de 2026)
+
+- Web publicada por SFTP con el preflight obligatorio correcto. Se verificó
+  públicamente `https://app.akhyles.com/` contra el bundle
+  `entry-c108695ffd18be7c1caea72c89487210.js` del export `web-1.0.11`.
+- Validaciones locales correctas: TypeScript y 131 pruebas de aplicación; la
+  integración aislada de cuentas sobre MariaDB pasó 40/40. La sintaxis de
+  `server-php/src/Community.php` también es válida.
+- API **no publicada en esta actualización**: su migración idempotente no puede
+  conectarse desde este equipo porque el host MariaDB configurado no resuelve
+  por DNS local. La API pública actual sigue sana; no se subió código que pueda
+  requerir tablas aún no migradas. Para terminar este destino hay que ejecutar
+  `bin/migrate.php` desde el entorno IONOS que sí alcanza la base, o disponer
+  del host MariaDB accesible correcto, y repetir después el preflight y la
+  publicación limitada.
+- Android/Google Play no se modificó en este paso: la versión 1.0.11 ya está
+  en el circuito de Play pendiente de su revisión/distribución externa. No se
+  genera ni publica un AAB adicional mientras la actualización de API esté
+  bloqueada.
+- El APK y AAB 1.0.11 con `versionCode` 13 se verificaron correctamente. Los
+  comprobadores públicos de cuentas y Comunidad también pasaron mediante
+  `tsx`; no invocarlos con `node` directo porque importan módulos TypeScript.
+
+### Diagnóstico de SFTP de IONOS (15 de septiembre de 2026)
+
+- La cuenta dedicada de web `acc809652538` existe, usa SFTP y tiene como
+  directorio `/`. La credencial se conserva en el Administrador de credenciales
+  bajo `Akhyles/IONOS/deploy-web`; no copiar ni guardar su valor en este diario.
+- `scripts/deploy-ionos.ps1` ya evita `sftp -b`, porque ese modo fuerza
+  `BatchMode=yes` e impedía usar `SSH_ASKPASS`. La conexión llega al host,
+  comprueba la clave conocida y OpenSSH confirma que ha enviado una contraseña.
+- Aun así, IONOS rechaza la autenticación de esa cuenta tras los cambios de
+  contraseña. Esto descarta DNS, clave de host, red, IPv4/IPv6 y el antiguo
+  problema de portapapeles, pero **no basta para atribuir la causa a IONOS**:
+  `acc809652538` y el automatismo SFTP son nuevos y no se usaron para los
+  despliegues anteriores.
+- El Explorador web autenticado de IONOS muestra la raíz vacía, mientras
+  `app.akhyles.com` y `api.akhyles.com` responden desde Apache. Antes de usar
+  una subida alternativa hay que identificar el directorio real asociado a esos
+  subdominios; no subir archivos a la raíz vacía.
+- Directorios confirmados desde la configuración de dominios de IONOS:
+  `app.akhyles.com` → `/akhyles-web-app` y `api.akhyles.com` →
+  `/akhyles-api-release/akhyles-accounts-20260911-083447/public`. La
+  configuración privada de web ya usa `/akhyles-web-app`; la cuenta restringida
+  de API ve el directorio padre como su raíz virtual.
+- Verificación controlada posterior: se generó una contraseña nueva localmente,
+  se guardó directamente bajo `Akhyles/IONOS/deploy-web` y se introdujo en el
+  formulario de IONOS desde esa misma fuente. El formulario la validó como
+  fuerte, el titular guardó el cambio y se esperaron más de dos minutos. SFTP
+  sigue devolviendo `Permission denied`. La conclusión queda pendiente de
+  contraste: primero probar el mismo script, host y `known_hosts` con la cuenta
+  de API existente mediante `-TestConnection`, sin publicar archivos. Solo si
+  esa prueba funciona se aislará el problema a la configuración de la cuenta
+  web nueva; no borrar ni recrear ninguna cuenta antes.
+
+### Diferenciar base de datos y SFTP (15 de septiembre de 2026)
+
+- `dbs16115434` es la base de datos MariaDB del backend, no una cuenta SFTP.
+  El problema histórico fue una descoordinación entre la contraseña de MariaDB
+  y `config.local.php`.
+- En el estado actual, `https://api.akhyles.com/health` responde 200 después
+  de ejecutar `bootstrap.php`, que abre PDO con la configuración de base de
+  datos. Por tanto, la credencial de MariaDB que está desplegada funciona y no
+  explica el rechazo de la cuenta SFTP web.
+- Se retiraron las contraseñas heredadas en texto plano de
+  `.private/akhyles-access.md`. Sus ubicaciones seguras son
+  `Akhyles/IONOS/database-dbs16115434` y `Akhyles/IONOS/deploy-api` en el
+  Administrador de credenciales de Windows.
+
+### Actualizacion integral completada (15 de septiembre de 2026)
+
+- Se completo el destino de API que habia quedado pendiente. La comprobacion
+  de estructura en phpMyAdmin confirmo que las tablas previas ya existian y
+  que solo faltaba `community_notifications`. Se aplico una migracion aditiva
+  con `CREATE TABLE IF NOT EXISTS`; no se modificaron ni eliminaron datos.
+- Se publico la API con `scripts/deploy-ionos.ps1 -Target Api -Deploy`. El
+  preflight SFTP obligatorio fue correcto y la subida quedo limitada a
+  `server-php/schema.sql` y `server-php/src/Community.php`.
+- Verificacion posterior correcta: la comprobacion de cuentas publico que
+  Google esta configurado y la comprobacion publica de Comunidad confirmo
+  HTTPS, DNS y el endpoint de salud. La web continuaba ya publicada y
+  verificada; Android/Play sigue en el estado de revision/distribucion
+  externa ya indicado arriba.
+
+### Actualizacion integral — perfil y notificaciones (16 de septiembre de 2026)
+
+- Verificaciones locales antes de publicar: `npm.cmd run typecheck`, `npm.cmd run lint` (0 errores) y `npm.cmd test` (130 correctas, 2 omitidas heredadas).
+- Simulación de SFTP correcta: Web (66 archivos) y API (2 archivos). El preflight obligatorio de `-Deploy` volvió a pasar en ambos destinos.
+- Web publicada desde `artifacts/web-1.0.11-current`, con el perfil unificado, campana de notificaciones, historial completo, avatar optimizado, Ranking y Logros. Verificación pública correcta en `https://app.akhyles.com/` contra el bundle recién generado.
+- API publicada con la transferencia limitada a `server-php/schema.sql` y `server-php/src/Community.php`. Verificación pública correcta en `https://api.akhyles.com/community/health`.
+- No se han guardado secretos ni datos de cuentas en este registro.
+
+### Release Android conectada preparada (16 de septiembre de 2026)
+
+- Se incrementó la versión para evitar reutilizar el código ya presente en Play: `1.0.12`, `versionCode` 14.
+- Se generaron `artifacts/android/akhyles-release.apk` y `artifacts/android/akhyles-release.aab` con las URLs públicas de Cuentas y Comunidad.
+- Las comprobaciones HTTPS/DNS y salud de ambos servicios pasaron. La firma se conserva (`SHA-1 040ea0afd797f22730198cdb4295c4763ab86ab7`) y `verify-android.mjs` confirmó `versionCode` 14.
+- Play Console tiene abierto el borrador del canal de prueba cerrada. La carga del AAB queda pendiente de seleccionar el archivo en el selector nativo del navegador; no se ha declarado una subida que no se haya verificado.
+
+### Release Android 1.0.13 preparada (16 de septiembre de 2026)
+
+- Play indicó que el código 14 ya estaba usado; se incrementó a `1.0.13`, `versionCode` 15.
+- Se generaron y verificaron de nuevo los binarios conectados firmados (`akhyles-release.apk` y `akhyles-release.aab`), conservando la clave de publicación.
+- La web se exportó y publicó de nuevo desde `artifacts/web-1.0.13-current`; verificación pública correcta en `https://app.akhyles.com/`.
+- Las notas de versión permanecen guardadas en el borrador de Play Console. El AAB 15 debe sustituir al rechazado antes de pasar a revisión.
+- Por indicación del titular, no se elimina todavía el AAB rechazado (código 14): queda conservado dentro del borrador de Play Console, en el lanzamiento `releases/6`, hasta que se apruebe la sustitución.
+- El paquete válido para sustituirlo queda guardado localmente en `artifacts/android/akhyles-release.aab` (AAB 15) y `artifacts/android/akhyles-release.apk` (APK 15). El borrador se conserva en: `https://play.google.com/console/u/0/developers/5992696928131909522/app/4976308998348517963/tracks/4699202944684152722/releases/6/prepare`.
+### Envío a revisión de Google Play (16 de septiembre de 2026)
+
+- El AAB `15 (1.0.13)` fue reconocido por Play Console y se guardaron el nombre y las notas de versión.
+- Tras confirmar el envío, Play Console muestra `1 cambio enviado a revisión`. La versión queda pendiente de la revisión de Google; no se ha forzado ninguna publicación adicional.
+
+### Preparación interna de iOS (16 de septiembre de 2026)
+
+- Se añadió a `app.config.ts` la configuración iOS estable: bundle identifier
+  `com.javiermartinrosado.akhyles` y `buildNumber` inicial `1`. No se creó la
+  carpeta nativa `ios/`: EAS la generará mediante Continuous Native Generation.
+- Se documentó el flujo completo de publicación, TestFlight, revisión,
+  permisos, OAuth y requisitos pendientes en `docs/IOS.md`.
+- Se reservó `assets/app-store/ios/` para capturas y materiales específicos de
+  iPhone, sin guardar credenciales ni certificados.
+- Quedan pendientes de la activación de Apple Developer: App ID, ficha de
+  App Store Connect, firma EAS, OAuth iOS, decisión sobre Sign in with Apple,
+  capturas reales y pruebas en iPhone.
+- La referencia anterior a conservar el AAB Android 14 queda superada: se
+  retiró del borrador y el AAB 15 (1.0.13) es el enviado a revisión de Google Play.

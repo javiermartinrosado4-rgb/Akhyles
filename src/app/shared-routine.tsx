@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Button, Card, Heading, Notice, Page, Pill, Txt } from "../components/ui";
@@ -6,8 +7,10 @@ import { importRoutine, isSharedRoutine, SharedRoutine } from "../logic/sharing"
 import { PublishedRoutine } from "../services/community";
 import { useStore } from "../state/Store";
 import { useCommunity } from "../state/Community";
+import { sharedExerciseName } from "../components/SharedProgressView";
 
 export default function SharedRoutineScreen() {
+  const { t, language } = useLanguage();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { state, update } = useStore();
   const { user, request } = useCommunity();
@@ -59,14 +62,14 @@ export default function SharedRoutineScreen() {
     {published && <>
       <Card>
         <Pill>@{published.owner.handle}</Pill>
-        <Txt size={22} weight="600">Rutina de {published.owner.name}</Txt>
-        <Txt muted>{published.routine.days.length} días · {published.routine.days.reduce((sum, day) => sum + day.exercises.length, 0)} ejercicios</Txt>
+        <Txt size={22} weight="600">{t("Rutina de {name}", { name: published.owner.name })}</Txt>
+        <Txt muted>{t("{n} días · {exercises} ejercicios", { n: published.routine.days.length, exercises: published.routine.days.reduce((sum, day) => sum + day.exercises.length, 0) })}</Txt>
       </Card>
       {published.routine.days.map(day => <Card key={day.name}>
-        <Txt weight="600" size={18}>{day.name}</Txt>
-        {day.exercises.map((exercise, index) => <Txt key={`${exercise.exerciseId}-${index}`}>
-          {exercise.name} · {exercise.sets} × {exercise.range[0]}–{exercise.range[1]}
-          {exercise.note ? `\nNota: ${exercise.note}` : ""}
+        <Txt translate={false} weight="600" size={18}>{day.name}</Txt>
+        {day.exercises.map((exercise, index) => <Txt translate={false} key={`${exercise.exerciseId}-${index}`}>
+          {sharedExerciseName(exercise.exerciseId, exercise.name, language)} · {exercise.sets} × {exercise.range[0]}–{exercise.range[1]}
+          {exercise.note ? "\n" + t("Nota: {note}", { note: exercise.note }) : ""}
         </Txt>)}
       </Card>)}
       {!state.completed ? <Notice>Completa primero tu perfil de entrenamiento para poder guardar esta rutina.</Notice> : confirming ? <Card>

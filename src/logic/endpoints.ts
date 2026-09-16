@@ -22,7 +22,8 @@ export function resolveCommunityUrl(configured: string | undefined, webOrigin?: 
   if (production) return "";
   if (webOrigin) {
     const url = new URL(webOrigin);
-    url.port = "8082";
+    // Dedicated local review pair: two isolated browser stores, one demo API.
+    url.port = ["localhost", "127.0.0.1"].includes(url.hostname) && ["8090", "8091"].includes(url.port) ? "9010" : "8082";
     return url.origin;
   }
   if (developmentHost) return `http://${developmentHost}:8082`;

@@ -1,49 +1,54 @@
-# Política de privacidad de Akhyles — borrador para publicar
+# Política de privacidad de Akhyles
 
-> **No publiques este texto todavía.** Antes de usarlo debes completar el titular, dirección de contacto, URL pública, fecha de entrada en vigor y, si aplica, la base jurídica y representante. Es una plantilla técnica basada en el comportamiento actual de la aplicación, no asesoramiento jurídico.
+**Fecha de entrada en vigor:** 12 de septiembre de 2026
 
-**Responsable:** [NOMBRE O EMPRESA]
+**Responsable:** Martin Laucirica Grupo Asesor S.L. (B48540686), representada por Iñigo Martin Laucirica
 
-**Contacto de privacidad:** [EMAIL DE SOPORTE]
+**Dirección:** Alameda Mazarredo nº 9, 1º izquierda, 48009 Bilbao, España
+**Contacto:** javi@akhyles.com
 
-**Dirección:** [DIRECCIÓN POSTAL O CANAL LEGAL]
+Akhyles es una aplicación para planificar y registrar entrenamiento de fuerza. Esta política explica el tratamiento de datos en la aplicación y, cuando la persona usuaria decida crear una cuenta, en el servicio de copias privadas.
 
-**Fecha de entrada en vigor:** [FECHA]
+## Datos que permanecen en el dispositivo
 
-Akhyles es una aplicación de planificación y registro de entrenamiento. Esta política explica cómo se tratan los datos cuando usas la app y, opcionalmente, Comunidad.
+Sin cuenta, Akhyles guarda en el propio dispositivo el perfil de entrenamiento, preferencias, rutinas, ejercicios, cargas, repeticiones, historial, calendario, sesiones en curso, peso corporal y preferencias de apariencia. No se envían al servidor por el uso normal de la aplicación.
 
-## Datos locales de entrenamiento
+La desinstalación puede borrar esos datos locales. Antes de desinstalar, la persona usuaria puede crear una copia privada si esa función está disponible en su versión.
 
-Tu perfil de entrenamiento, medidas corporales, rutina, ejercicios, pesos, repeticiones, calendario, historial, preferencias y tema se guardan localmente en tu dispositivo. No se envían al servidor de Comunidad por el mero uso de la app y no se sincronizan automáticamente entre dispositivos.
+## Cuenta y copias privadas
 
-La estimación corporal mediante fotografías está etiquetada como simulación: no analiza el cuerpo ni envía ni conserva las imágenes. Las referencias seleccionadas se eliminan al acabar la simulación o al salir.
+La creación de una cuenta es opcional. Para una cuenta por correo se tratan correo electrónico, nombre y contraseña; la contraseña se guarda mediante una función de hash, no en texto legible. Para acceso con Google, Google autentica a la persona usuaria y Akhyles recibe el identificador de Google, el correo verificado y, cuando está disponible, el nombre mostrado. Akhyles no recibe ni almacena la contraseña de Google.
 
-## Comunidad
+Al activar la sincronización se almacena una copia cifrada del progreso: perfil de entrenamiento, preferencias, rutina, historial de sesiones, calendario, peso corporal y estado de la aplicación necesario para recuperar el progreso. Los datos se transmiten mediante HTTPS y se cifran en la base de datos. No es cifrado de extremo a extremo: el responsable puede acceder técnicamente al contenido cuando sea necesario para operar y mantener el servicio.
 
-Comunidad es opcional. Si creas una cuenta o inicias sesión, el servicio guarda el identificador de cuenta, nombre, alias, biografía, nivel declarado, contraseña derivada mediante hash y sal, tokens de sesión derivados mediante hash, configuración de privacidad, relaciones de seguimiento, reacciones, denuncias, rutinas o resúmenes de progreso que decidas compartir y fechas técnicas asociadas.
+La sincronización no publica datos en Comunidad ni los comparte con otros usuarios. La cuenta y la copia privada se usan únicamente para autenticación, recuperación de acceso, sincronización y soporte. No se usan para publicidad ni para crear una lista comercial.
 
-Las fotografías de Comunidad se envían únicamente al pulsar Publicar. Se convierten a JPEG de hasta 1600 píxeles y se eliminan sus metadatos originales. Las publicaciones y sus imágenes son públicas; no publiques contenido, datos personales o imágenes de terceros sin autorización. Las denuncias ocultan una publicación para quien denuncia y se guardan para revisión manual por el operador.
+## Comunidad opcional
 
-Las rutinas y el progreso compartidos son privados por defecto. Solo se muestran a seguidores mutuos cuando el propietario activa expresamente esa visibilidad. Las rutinas compartidas no incluyen pesos, historial, medidas ni sesiones. La comparación de progreso se activa voluntariamente y usa nivel, fechas, ejercicios homologados y fuerza estimada; puedes retirar esos datos desde la app.
+Comunidad es una función independiente y opcional. Si se utiliza, puede tratar nombre, alias, biografía, nivel declarado, sesiones, relaciones de seguimiento, reacciones, denuncias y el contenido que se decida publicar. Las fotos se envían únicamente al publicar; se transforman antes de almacenarse para retirar los metadatos de origen. Las publicaciones y sus imágenes pueden ser públicas según la opción elegida por la persona usuaria.
 
-## Google
+Rutinas y progreso permanecen privados por defecto. Compartir rutina, detalles de entrenamientos, peso corporal o comparativas requiere una acción expresa desde la aplicación.
 
-Si el acceso con Google está activado y eliges usarlo, Google autentica tu identidad. Akhyles recibe un identificador estable de Google y, cuando esté disponible, el nombre mostrado para crear o recuperar tu cuenta de Comunidad. No recibe ni guarda tu contraseña de Google. Esta función no estará disponible hasta que se configure el proveedor OAuth.
+## Conservación
 
-## Proveedores, seguridad y conservación
+Las sesiones de cuenta caducan a los 30 días. Los códigos de verificación y recuperación caducan a los 15 minutos. Los mensajes transaccionales pendientes se eliminan en un máximo de siete días.
 
-El alojamiento puede tratar registros técnicos necesarios para seguridad y funcionamiento, como dirección IP, fecha, errores y peticiones, conforme a su configuración. [AÑADIR NOMBRE DEL PROVEEDOR DE ALOJAMIENTO, PAÍS, DPA Y PLAZOS].
+La cuenta y la copia sincronizada se conservan mientras la cuenta siga activa. El servicio conserva la copia actual y hasta 19 revisiones anteriores para resolver conflictos o recuperar cambios recientes. Al eliminar una cuenta se suprimen la cuenta, sesiones, copias activas y revisiones del servicio operativo.
 
-Se emplean HTTPS en producción, control de orígenes, límites de peticiones, contraseñas derivadas con sal y sesiones con caducidad. Ningún sistema es completamente seguro; usa una contraseña única para Comunidad.
+Las copias de seguridad técnicas pueden retener datos ya suprimidos durante el plazo estrictamente necesario para recuperación ante incidentes. Antes de activar el servicio se fijará y aplicará una retención máxima de 30 días; al restaurar una copia se reaplicarán las solicitudes de borrado posteriores a esa copia.
 
-Los datos de Comunidad se conservan mientras exista la cuenta o sean necesarios para operar y atender obligaciones legales. [DEFINIR PROCEDIMIENTO Y PLAZOS DE BORRADO DE CUENTAS, PUBLICACIONES, DENUNCIAS, LOGS Y COPIAS]. Las copias de seguridad se retienen [PLAZO] y se eliminan de forma programada.
+## Destinatarios y seguridad
 
-## Tus opciones y derechos
+El proveedor de alojamiento y los proveedores estrictamente necesarios para enviar correos transaccionales pueden tratar datos por cuenta del responsable para prestar la infraestructura. Google interviene únicamente cuando se elige el acceso con Google. No se venden datos personales ni se ceden para fines publicitarios.
 
-Puedes dejar de compartir rutina, progreso o muestras comparativas desde la app. Puedes eliminar tu cuenta de Comunidad desde Comunidad > Eliminar cuenta de Comunidad; se eliminan el perfil, publicaciones, fotos, relaciones, datos compartidos y sesión del servidor. Para solicitar acceso, rectificación, supresión, limitación, oposición o portabilidad de datos de Comunidad, escribe a [EMAIL DE SOPORTE]. [AÑADIR AUTORIDAD DE CONTROL Y BASE JURÍDICA SEGÚN EL PAÍS DEL RESPONSABLE]. La desinstalación borra los datos locales de ese dispositivo, pero no las publicaciones ni la cuenta de Comunidad ya enviadas al servidor.
+Se aplican HTTPS, control de acceso por sesión, limitación de intentos, contraseñas protegidas mediante hash, y cifrado de las copias privadas en la base de datos. Ninguna medida elimina por completo el riesgo; se recomienda usar una contraseña única y mantener actualizado el dispositivo.
 
-Akhyles no está diseñada para menores de [EDAD DEFINIDA POR EL RESPONSABLE]. No recopiles ni publiques datos de menores sin autorización legal.
+## Tus derechos y eliminación
 
-## Cambios y contacto
+Desde **Perfil > Cuenta y copias** se puede cerrar sesión y eliminar la cuenta. Para confirmar la eliminación, la aplicación solicita el correo de la cuenta. El borrado remoto no elimina automáticamente los datos que permanezcan almacenados en el dispositivo; estos pueden eliminarse desde la aplicación o al desinstalarla.
 
-Se actualizará esta política cuando cambie el tratamiento de datos. Publicaremos la versión vigente en [URL PÚBLICA DE PRIVACIDAD]. Para preguntas, usa [EMAIL DE SOPORTE].
+La información pública sobre eliminación de cuenta se publicará en la página de eliminación de cuenta de Akhyles. Si no puedes acceder a la aplicación, solicita la eliminación escribiendo a javi@akhyles.com, sin incluir contraseñas, códigos ni tokens. Para ejercer acceso, rectificación, supresión, limitación, oposición o portabilidad, usa ese mismo correo. También puedes presentar una reclamación ante la Agencia Española de Protección de Datos.
+
+## Menores y cambios
+
+Akhyles no está dirigida a menores de 14 años. Si se modifica de manera relevante el tratamiento de datos, esta política se actualizará antes de aplicar el cambio y se indicará su fecha de entrada en vigor.

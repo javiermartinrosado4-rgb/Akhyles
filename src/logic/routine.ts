@@ -1,5 +1,6 @@
 import { APP } from "../config";
-import { catalog, formatExerciseName } from "../data/catalog";
+import { translate } from "../i18n/translate";
+import { catalog } from "../data/catalog";
 import { levelRank } from "../data/options";
 import {
   Day,
@@ -9,15 +10,40 @@ import {
   Preferences,
   Prescription,
   Profile,
+  Workout,
 } from "../types";
+import { startOfWeek } from "./schedule";
 export const allExercises = (prefs: Preferences) => [
   ...catalog,
   ...prefs.custom,
 ];
 export const getExercise = (id: string, prefs: Preferences) =>
   allExercises(prefs).find((e) => e.id === id)!;
-export const displayName = (id: string, prefs: Preferences) =>
-  formatExerciseName(prefs.names[id] || getExercise(id, prefs)?.name || "Ejercicio");
+export const displayName = (id: string, prefs: Preferences) => {
+  // User text is neither translated nor normalized, even when it matches a key.
+  if (prefs.names[id]) return prefs.names[id];
+  const exercise = getExercise(id, prefs);
+  if (exercise && (exercise.custom || prefs.custom.includes(exercise))) return exercise.name;
+  return translate(exercise?.name || "Ejercicio");
+};
+
+/** Direct effective sets actually completed since this Monday. */
+export function completedWeeklyVolume(
+  history: Workout[],
+  prefs: Preferences,
+  now = new Date(),
+): Partial<Record<Muscle, number>> {
+  const start = startOfWeek(now).getTime();
+  return history.reduce<Partial<Record<Muscle, number>>>((total, workout) => {
+    if (new Date(workout.date).getTime() < start) return total;
+    for (const record of workout.records) {
+      const exercise = getExercise(record.prescription.exerciseId, prefs);
+      if (!exercise) continue;
+      total[exercise.muscle] = (total[exercise.muscle] ?? 0) + record.sets.length;
+    }
+    return total;
+  }, {});
+}
 export const movementFamily = (exercise: Exercise) => {
   if (exercise.muscle === "back" && exercise.pullPattern)
     return `back-${exercise.pullPattern}`;
@@ -37,12 +63,30 @@ export function candidates(
     .filter(
       (e) =>
         e.muscle === muscle &&
-        levelRank[e.minLevel] <= levelRank[profile.level] &&
+        // Saved advanced favourites are aspirational options. Their harder
+        // execution is clearly flagged in the tier list; tiers alone never
+        // make an advanced movement appear in an automatic routine.
+        (levelRank[e.minLevel] <= levelRank[profile.level] ||
+          Boolean(prefs.favorites?.includes(e.id))) &&
         prefs.equipment.includes(e.variant) &&
-        !prefs.unavailable.includes(e.id),
+        !prefs.unavailable.includes(e.id) &&
+        // Beginner suggestions favour machines and simple, repeatable setups.
+        // Cable is kept for the two easy pulldown patterns, but not suggested
+        // for shoulder or arm isolation, nor for the seated cable pec deck.
+        !(profile.level === "beginner" && e.variant === "cable" && (
+          ["shoulders", "biceps", "triceps"].includes(e.muscle) ||
+          e.id === "chest-cable" ||
+          (e.muscle === "back" && !["neutral-pulldown", "wide-pulldown"].includes(e.id))
+        )),
     )
     .sort(
       (a, b) =>
+        // For hypertrophy, a guided Romanian deadlift is preferred before the
+        // free-bar version; conventional deadlift remains a strength-focused
+        // Tier A option for intermediate and advanced lifters.
+        (muscle === "hamstrings" && prefs.equipment.includes("smith")
+          ? Number(b.id === "rdl-smith") - Number(a.id === "rdl-smith")
+          : 0) ||
         // Advanced lifters normally get the more stable cable choices first
         // for shoulders and triceps, while still retaining free-weight options
         // for variety and substitutions.
@@ -69,6 +113,10 @@ export function replacementCandidates(
     .filter(exercise => exercise.id !== original.id)
     .map((exercise, index) => ({ exercise, index }))
     .sort((a, b) =>
+      // The seated machine press is the closest like-for-like replacement for
+      // the lying machine chest press when a gym has that layout instead.
+      Number(b.exercise.id === "seated-press" && original.id === "chest-press") -
+        Number(a.exercise.id === "seated-press" && original.id === "chest-press") ||
       Number(movementFamily(b.exercise) === family) -
         Number(movementFamily(a.exercise) === family) ||
       Number(b.exercise.type === original.type) - Number(a.exercise.type === original.type) ||
@@ -96,8 +144,11 @@ export const isHeavyExercise = (exercise: Exercise) => exercise.type === "compou
 export const isFullBodyDay = (day: Day) => day.name.startsWith("Full body");
 // Full-body sessions are deliberately kept below the fatigue of a full split:
 // three multi-joint lifts at most, with the rest of the work kept lighter.
-export const automaticHeavyExerciseLimit = (day: Day, days: number) =>
-  isFullBodyDay(day) ? 3 : heavyExerciseLimit(days);
+export const conservativeLegSplit = (profile?: Profile) =>
+  Boolean(profile && (profile.level === "beginner" || Number(profile.age) > 48));
+export const automaticHeavyExerciseLimit = (day: Day, days: number, profile?: Profile) =>
+  isFullBodyDay(day) ? 3 :
+    (day.name.startsWith("Pierna") && conservativeLegSplit(profile) ? 1 : heavyExerciseLimit(days));
 export function heavyExerciseCount(day: Day, prefs: Preferences) {
   return day.exercises.filter((p) => isHeavyExercise(getExercise(p.exerciseId, prefs))).length;
 }
@@ -136,7 +187,7 @@ export function fitDay(day: Day, prefs: Preferences, preserveId?: string, level:
   return day;
 }
 const upper: Muscle[] = ["chest", "back", "shoulders", "biceps", "triceps"];
-const lower: Muscle[] = ["quads", "hamstrings", "glutes", "calves", "abs"];
+const lower: Muscle[] = ["quads", "hamstrings", "glutes", "adductors", "calves", "abs"];
 
 // These are deliberately narrower than the primary muscle. Two exercises can
 // train the same muscle while still being useful together (for example a hack
@@ -157,6 +208,13 @@ export const lowerMovementFamily = (exercise: Exercise) => {
 const isQuadExtension = (exercise: Exercise) => exercise.id === "leg-extension";
 const isRomanianDeadlift = (exercise: Exercise) =>
   ["rdl-bar", "rdl-dumbbell", "rdl-smith", "rdl-machine"].includes(exercise.id);
+const isPreacherCurl = (exercise: Exercise) => exercise.id.includes("preacher");
+const chestPressAngle = (exercise: Exercise) => {
+  if (["chest-press", "chest-press-free", "bench-smith", "dumbbell-bench"].includes(exercise.id)) return "flat";
+  if (["seated-press", "seated-press-free"].includes(exercise.id)) return "seated";
+  if (["incline-press", "incline-press-free", "incline-smith"].includes(exercise.id)) return "incline";
+  return undefined;
+};
 const isQuadSquatMachine = (exercise: Exercise) =>
   exercise.id === "hack" || exercise.id === "pendulum";
 const isHamstringMachineCurl = (exercise: Exercise) =>
@@ -165,6 +223,11 @@ const isChestPress = (exercise: Exercise) =>
   exercise.muscle === "chest" && exercise.type === "compound";
 const isPecDec = (exercise: Exercise) =>
   ["chest-cable", "pec-deck", "standing-cable-pec-dec"].includes(exercise.id);
+const isShoulderPress = (exercise: Exercise) =>
+  ["shoulder-press", "shoulder-press-free"].includes(exercise.id);
+const isLateralRaise = (exercise: Exercise) => exercise.id.includes("lateral");
+const isRearDeltFly = (exercise: Exercise) =>
+  ["rear-machine", "rear-cable", "rear-free"].includes(exercise.id);
 
 export const glutesEnabled = (p: Profile) => p.includeGlutes ?? (p.sex === "female" || p.priority === "glutes");
 // Choosing a muscle to specialize starts its mesocycle. `mesocycle` remains
@@ -187,7 +250,7 @@ export function weeklyTargets(
 ): Record<Muscle, number> {
   const large = p.level === "beginner" ? 6 : 8;
   const targets: Record<Muscle, number> = {
-    chest: 4, shoulders: 4, biceps: 4, triceps: 4, calves: 4, abs: 4,
+    chest: 4, shoulders: 4, biceps: 4, triceps: 4, adductors: 0, calves: 4, abs: 4,
     back: large, quads: large, hamstrings: large,
     glutes: glutesEnabled(p) ? large + (p.sex === "female" ? 2 : 0) : 0,
   };
@@ -205,6 +268,11 @@ export function weeklyTargets(
     targets.triceps = 2;
     targets.calves = 0;
     targets.abs = 0;
+  }
+  // With two leg days, one accessory slot goes to adductors and the other to calves.
+  if (p.days >= 4) {
+    targets.adductors = 2;
+    targets.calves = 2;
   }
   if (p.priority !== "balanced") targets[p.priority] = specializationTarget(p);
   for (const muscle of [...upper, ...lower]) {
@@ -224,6 +292,15 @@ export function orderExercises(entries: Prescription[], prefs: Preferences): Pre
   const ordered: Prescription[] = [];
   while (remaining.length) {
     const previous = ordered.at(-1);
+    // Always open with a compound movement when the session has one. The
+    // alternating-muscle sort below handles the rest of the session.
+    if (!previous) {
+      remaining.sort((a, b) =>
+        Number(isHeavyExercise(getExercise(b.exerciseId, prefs))) -
+        Number(isHeavyExercise(getExercise(a.exerciseId, prefs))));
+      ordered.push(remaining.shift()!);
+      continue;
+    }
     const muscle = previous && getExercise(previous.exerciseId, prefs).muscle;
     // Prefer a different primary muscle; within that group, heavy movements first.
     remaining.sort((a, b) => {
@@ -327,6 +404,21 @@ export function generateRoutine(
     const sameMuscle = day.exercises
       .map(entry => getExercise(entry.exerciseId, prefs))
       .filter(item => item.muscle === exercise.muscle);
+    const currentExercises = day.exercises.map(entry => getExercise(entry.exerciseId, prefs));
+    if (isPreacherCurl(exercise) && currentExercises.some(isPreacherCurl)) return false;
+    if (isRomanianDeadlift(exercise) && currentExercises.some(isRomanianDeadlift)) return false;
+    const pressAngle = chestPressAngle(exercise);
+    if (pressAngle && currentExercises.some(item => chestPressAngle(item) === pressAngle)) return false;
+    if (isRearDeltFly(exercise)) {
+      const programmedShoulders = days
+        .flatMap(candidateDay => candidateDay.exercises)
+        .map(entry => getExercise(entry.exerciseId, prefs));
+      // Rear-delt flies are an extra shoulder movement, not the foundation:
+      // require more than six direct weekly sets and the press + lateral base.
+      if (targets.shoulders <= 6 ||
+        !programmedShoulders.some(isShoulderPress) ||
+        !programmedShoulders.some(isLateralRaise)) return false;
+    }
     if (count === 3 && profile.priority === "balanced" && day.name.startsWith("Torso") &&
       (exercise.muscle === "biceps" || exercise.muscle === "triceps") && sameMuscle.length >= 1)
       return false;
@@ -342,16 +434,16 @@ export function generateRoutine(
         !directArms.some(item => item.muscle === opposite) &&
         currentVolume(opposite) < targets[opposite]) return false;
     }
-    if (isFullBodyDay(day) && isHeavyExercise(exercise)) {
+    // One- and three-day mixed plans retain their original fatigue ceiling.
+    // The two-day Full Body template intentionally overrides it so each day
+    // can contain its required torso and lower-body compound movement.
+    if (count !== 2 && isFullBodyDay(day) && isHeavyExercise(exercise)) {
       const heavyFullBodyEntries = days
         .filter(isFullBodyDay)
         .flatMap(fullBodyDay => fullBodyDay.exercises)
         .map(entry => getExercise(entry.exerciseId, prefs))
         .filter(item => item.muscle === exercise.muscle && isHeavyExercise(item));
-      // Two-day full body keeps direct heavy work to two weekly sets per
-      // muscle. A three-day specialization may add one more heavy exercise.
-      const heavyLimit = count === 3 && hasMesocycle(profile) && profile.priority === exercise.muscle ? 2 : 1;
-      if (heavyFullBodyEntries.length >= heavyLimit) return false;
+      if (heavyFullBodyEntries.length >= 1) return false;
     }
     if (count <= 2 && isFullBodyDay(day) &&
       ((isRomanianDeadlift(exercise) && day.exercises.some(entry => isQuadSquatMachine(getExercise(entry.exerciseId, prefs)))) ||
@@ -364,6 +456,12 @@ export function generateRoutine(
         .filter(item => item.muscle === "chest");
       const hasPecDec = chestExercises.some(isPecDec);
       const hasChestPress = chestExercises.some(isChestPress);
+      // Four direct chest sets are deliberately split across one press and
+      // one fly/pec-dec movement instead of repeating either pattern.
+      if (targets.chest === 4) {
+        if (isChestPress(exercise) && hasChestPress) return false;
+        if (isPecDec(exercise) && hasPecDec) return false;
+      }
       // Pec Dec is a useful complement, not the only chest pattern in an
       // automatic plan. The next chest slot must be a press (machine, free
       // weight or Smith) before another isolation is considered.
@@ -396,10 +494,32 @@ export function generateRoutine(
     if (currentVolume(muscle) >= targets[muscle]) return false;
     let options = candidates(muscle, profile, prefs, true).filter(e =>
       !day.exercises.some(p => p.exerciseId === e.id) &&
-      (!isHeavyExercise(e) || heavyExerciseCount(day, prefs) < automaticHeavyExerciseLimit(day, count)) &&
+      (!isHeavyExercise(e) || heavyExerciseCount(day, prefs) < automaticHeavyExerciseLimit(day, count, profile)) &&
       canUseExercise(day, e),
     );
     if (muscle === "back") {
+      const plannedBack = days
+        .flatMap(candidateDay => candidateDay.exercises)
+        .map(entry => getExercise(entry.exerciseId, prefs))
+        .filter(exercise => exercise.muscle === "back" && exercise.pullPattern);
+      const plannedPatterns = new Set(plannedBack.map(exercise => exercise.pullPattern));
+      // A second row should never take the slot that ought to establish the
+      // missing vertical pull (or vice versa), whatever the split length.
+      const missingRoutinePattern = plannedPatterns.size === 1
+        ? plannedPatterns.has("horizontal") ? "vertical" : "horizontal"
+        : undefined;
+      const routinePatternPriority = (exercise: Exercise) =>
+        Number(!!missingRoutinePattern && exercise.pullPattern === missingRoutinePattern);
+      // In the standard Torso A / Torso B split, make the distinction obvious:
+      // the first torso day rows and the second one uses a pulldown.
+      const torsoIndex = torsoDays.length === 2
+        ? torsoDays.findIndex(torso => torso.id === day.id)
+        : -1;
+      const torsoPattern = torsoIndex === 0 ? "horizontal"
+        : torsoIndex === 1 ? "vertical"
+          : undefined;
+      const torsoPatternPriority = (exercise: Exercise) =>
+        Number(!!torsoPattern && exercise.pullPattern === torsoPattern);
       const fullBodyBack = days
         .filter(isFullBodyDay)
         .flatMap(fullBodyDay => fullBodyDay.exercises)
@@ -439,6 +559,8 @@ export function generateRoutine(
         shouldAddGironda && exercise.id === "gironda-row" ? 1 : 0;
       options = options.sort((a, b) =>
         girondaPriority(b) - girondaPriority(a) ||
+        torsoPatternPriority(b) - torsoPatternPriority(a) ||
+        routinePatternPriority(b) - routinePatternPriority(a) ||
         fullBodyPatternPriority(b) - fullBodyPatternPriority(a) ||
         (shouldDiversifyPulldowns
           ? pulldownVariety(b) - pulldownVariety(a)
@@ -499,8 +621,79 @@ export function generateRoutine(
   };
   // Put glutes next to the other lower-body staples so their base work lands
   // on the leg day before a full-body day spends its limited heavy slots.
-  const muscles: Muscle[] = ["quads", "glutes", "chest", "back", "hamstrings", "shoulders", "abs", "calves", "biceps", "triceps"];
+  const muscles: Muscle[] = ["quads", "glutes", "chest", "back", "hamstrings", "shoulders", "abs", "adductors", "calves", "biceps", "triceps"];
   if (profile.priority !== "balanced") muscles.sort((a, b) => Number(b === profile.priority) - Number(a === profile.priority));
+  const addFullBodyHeavy = (day: Day, preferredMuscles: Muscle[]) => {
+    for (const muscle of preferredMuscles) {
+      if (targets[muscle] - currentVolume(muscle) < APP.defaultSets) continue;
+      const exercise = candidates(muscle, profile, prefs, true).find(candidate =>
+        isHeavyExercise(candidate) &&
+        !day.exercises.some(entry => entry.exerciseId === candidate.id) &&
+        heavyExerciseCount(day, prefs) < automaticHeavyExerciseLimit(day, count, profile) &&
+        canUseExercise(day, candidate),
+      );
+      if (!exercise) continue;
+      day.exercises.push(prescribe(exercise, prefs, `${day.id}-${exercise.id}`));
+      used[muscle] = (used[muscle] ?? 0) + 1;
+      if (exercise.pullPattern) lastPull = exercise.pullPattern;
+      return true;
+    }
+    return false;
+  };
+  // A full-body session is built around two demanding patterns before its
+  // accessory work: one torso movement and one lower-body movement. Alternating
+  // chest/back and quad/hip-hinge priorities gives the week a balanced base.
+  if (count === 2) {
+    for (let index = 0; index < days.length; index++) {
+      const day = days[index];
+      addFullBodyHeavy(day, index % 2 === 0 ? ["chest", "back"] : ["back", "chest"]);
+      addFullBodyHeavy(day, index % 2 === 0 ? ["quads", "hamstrings", "glutes"] : ["hamstrings", "quads", "glutes"]);
+    }
+  }
+  // Seed the two lower accessories before general allocation so they are
+  // deliberately split across leg days instead of both landing together.
+  if (count >= 4) {
+    const legDays = days.filter(day => day.name.startsWith("Pierna"));
+    if (legDays.length === 2) {
+      // Beginners and people over 48 use one heavy lower lift per leg day:
+      // quads on A and hamstrings on B. Other levels retain the higher-volume
+      // lower split with a quad compound at the start of both days.
+      for (let index = 0; index < legDays.length; index++) {
+        const day = legDays[index];
+        const muscle: Muscle = conservativeLegSplit(profile) && index === 1 ? "hamstrings" : "quads";
+        if (targets[muscle] - currentVolume(muscle) < APP.defaultSets) continue;
+        const preferred = muscle === "hamstrings"
+          ? ["rdl-smith", "rdl", "deadlift"]
+          : (index === 0 ? ["leg-press", "squat-smith"] : ["squat-smith", "leg-press"]);
+        const compound = candidates(muscle, profile, prefs, true)
+          .filter(candidate => isHeavyExercise(candidate) &&
+            !day.exercises.some(entry => entry.exerciseId === candidate.id) &&
+            heavyExerciseCount(day, prefs) < automaticHeavyExerciseLimit(day, count, profile) &&
+            canUseExercise(day, candidate))
+          .sort((a, b) => preferred.indexOf(a.id) - preferred.indexOf(b.id))[0];
+        if (!compound) continue;
+        day.exercises.push(prescribe(compound, prefs, `${day.id}-${compound.id}`));
+        used[muscle] = (used[muscle] ?? 0) + 1;
+      }
+      const addRequiredLowerIsolation = (day: Day, muscle: "quads" | "hamstrings", ids: string[]) => {
+        const exercise = candidates(muscle, profile, prefs, true).find(candidate =>
+          ids.includes(candidate.id) &&
+          !day.exercises.some(entry => entry.exerciseId === candidate.id) &&
+          canUseExercise(day, candidate),
+        );
+        if (!exercise) return;
+        day.exercises.push(prescribe(exercise, prefs, `${day.id}-${exercise.id}`));
+        used[muscle] = (used[muscle] ?? 0) + 1;
+      };
+      for (let index = 0; index < legDays.length; index++) {
+        addRequiredLowerIsolation(legDays[index], "quads", ["leg-extension"]);
+        addRequiredLowerIsolation(legDays[index], "hamstrings",
+          index === 0 ? ["seated-curl", "lying-curl"] : ["lying-curl", "seated-curl"]);
+      }
+      add(legDays[0], "adductors");
+      add(legDays[1], "calves");
+    }
+  }
   if (profile.priority !== "balanced") {
     for (const day of days.slice(0, 3)) add(day, profile.priority);
   }
@@ -516,6 +709,46 @@ export function generateRoutine(
       for (const day of possible) if (add(day, muscle)) { changed = true; break; }
     }
     if (!changed) break;
+  }
+  // Automatic sessions start with at least five exercises. If core work did
+  // not fill the session, add distinct compatible accessories; users remain
+  // free to remove any exercise from the editor.
+  const addAccessory = (day: Day, preferred: Muscle[]) => {
+    for (const muscle of preferred) {
+      if (["adductors", "calves"].includes(muscle) && day.exercises.some(entry =>
+        getExercise(entry.exerciseId, prefs).muscle === muscle,
+      )) continue;
+      const otherLegHasAccessory = days
+        .filter(candidate => candidate.id !== day.id && candidate.name.startsWith("Pierna"))
+        .some(candidate => candidate.exercises.some(entry =>
+          getExercise(entry.exerciseId, prefs).muscle === muscle,
+        ));
+      if (["adductors", "calves"].includes(muscle) && otherLegHasAccessory) continue;
+      const exercise = candidates(muscle, profile, prefs)
+        .find(candidate =>
+          candidate.type === "isolation" &&
+          !day.exercises.some(entry => entry.exerciseId === candidate.id) &&
+          canUseExercise(day, candidate),
+        );
+      if (!exercise) continue;
+      day.exercises.push(prescribe(exercise, prefs, `${day.id}-${exercise.id}`));
+      return true;
+    }
+    return false;
+  };
+  for (const day of days) {
+    const legDays = days.filter(candidate => candidate.name.startsWith("Pierna"));
+    const legIndex = legDays.findIndex(candidate => candidate.id === day.id);
+    const preferred = day.name.startsWith("Torso")
+      ? ["biceps", "triceps", "shoulders", "chest", "back"] as Muscle[]
+      : day.name.startsWith("Pierna")
+        ? (legIndex === 1
+          ? ["calves", "abs", "hamstrings", "quads", "adductors"]
+          : ["adductors", "abs", "hamstrings", "quads", "calves"]) as Muscle[]
+        : ["biceps", "triceps", "shoulders", "quads", "hamstrings", "chest", "back"] as Muscle[];
+    while (day.exercises.length < 5 && addAccessory(day, preferred)) {
+      // Continue only while another compatible accessory exists.
+    }
   }
   return days.map(d => ({ ...d, exercises: orderExercises(d.exercises, prefs) }));
 }

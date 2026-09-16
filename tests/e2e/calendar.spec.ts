@@ -19,8 +19,8 @@ test("routine calendar edits a registered workout and only the chosen future ses
   await page.evaluate(value => localStorage.setItem("gym60:state:v1", JSON.stringify(value)), state);
   await page.goto("/routine");
   await expect(page.getByText("Calendario de entrenamiento", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Mes", exact: true }).click();
-  await page.getByRole("button", { name: new RegExp(`${yesterday.toLocaleDateString("es")}.*entrenamiento registrado`) }).click();
+  await expect(page.getByRole("button", { name: "Semana", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: new RegExp(`${yesterday.toLocaleDateString("es")}.*entrenamiento registrado`, "i") }).click();
   await page.getByRole("textbox", { name: `Peso ${exercise.name}, serie 1`, exact: true }).fill("22,5");
   await page.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).history[0].records[0].sets[0].weight)).toBe(22.5);
@@ -49,7 +49,7 @@ test("routine calendar can move, remove and insert a future session", async ({ p
   await page.goto("/routine");
   await page.getByRole("button", { name: new RegExp(`${tomorrow.toLocaleDateString("es")}.*Sesion flexible`) }).click();
   await page.getByRole("button", { name: /Mover esta/ }).click();
-  await page.getByRole("button", { name: new RegExp(`${target.toLocaleDateString("es")}.*descanso`) }).click();
+  await page.getByRole("button", { name: new RegExp(`${target.toLocaleDateString("es")}.*descanso`, "i") }).click();
   await page.getByRole("button", { name: /Mover aqu/ }).click();
   let saved = await page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!));
   expect(saved.skippedWorkoutDates).toContain(localDateKey(tomorrow));

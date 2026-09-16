@@ -1,0 +1,18 @@
+{
+  "name": "akhyles/accounts",
+  "description": "Private Akhyles accounts and versioned progress backups for IONOS",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "ext-pdo": "*",
+    "ext-openssl": "*",
+    "ext-mbstring": "*",
+    "google/apiclient": "^2.18",
+    "phpmailer/phpmailer": "^6.10"
+  },
+  "config": { "sort-packages": true, "allow-plugins": false, "platform": {"php": "8.2.0"} },
+  "scripts": {
+    "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
+  },
+  "extra": { "google/apiclient-services": ["Oauth2"] }
+}

@@ -3,6 +3,7 @@ import test from "node:test";
 import { demoProfile, emptyPreferences } from "../src/data/options";
 import { datesForMonth, datesForWeek, localDateKey, scheduledWorkout, startOfWeek, trainingStreak } from "../src/logic/schedule";
 import { generateRoutine } from "../src/logic/routine";
+import { Weekday } from "../src/types";
 
 test("calendar produces complete Monday-first weeks and six-week monthly grids", () => {
   const date = new Date(2026, 8, 15);
@@ -41,4 +42,20 @@ test("training streak counts completed scheduled sessions and ignores a pending 
   const followingMonday = new Date(2026, 8, 21, 12);
   assert.equal(trainingStreak(profile, routine, history, [], [], followingMonday), 1);
   assert.equal(trainingStreak(profile, routine, history, [], [], new Date(2026, 8, 22, 12)), 0);
+});
+
+test("a program change applies forward without rewriting past calendar sessions or streaks", () => {
+  const oldProfile = { ...demoProfile, days: 4, trainingDays: [1, 2, 4, 5] as Weekday[], priority: "balanced" as const };
+  const newProfile = { ...oldProfile, days: 5, trainingDays: [1, 2, 3, 4, 5] as Weekday[], priority: "shoulders" as const };
+  const oldRoutine = generateRoutine(oldProfile, emptyPreferences);
+  const newRoutine = generateRoutine(newProfile, emptyPreferences);
+  const versions = [
+    { effectiveFrom: "1970-01-01", profile: oldProfile, routine: oldRoutine },
+    { effectiveFrom: "2026-09-01", profile: newProfile, routine: newRoutine },
+  ];
+  const augustMonday = new Date(2026, 7, 31, 12);
+  const septemberWednesday = new Date(2026, 8, 2, 12);
+  assert.equal(scheduledWorkout(newProfile, newRoutine, [], augustMonday, [], versions)?.name, "Torso A");
+  assert.equal(scheduledWorkout(newProfile, newRoutine, [], septemberWednesday, [], versions)?.name, "Torso");
+  assert.equal(scheduledWorkout(newProfile, newRoutine, [], new Date(2026, 7, 31, 12), [], versions)?.exercises.length, oldRoutine[0].exercises.length);
 });

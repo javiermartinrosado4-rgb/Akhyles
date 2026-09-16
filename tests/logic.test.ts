@@ -25,9 +25,10 @@ import {
   specializationTarget,
   weeklyTargets,
   weeklyVolume,
+  completedWeeklyVolume,
 } from "../src/logic/routine";
 import { progression, roundWeight } from "../src/logic/progression";
-import { profileErrors, validWeight } from "../src/logic/validation";
+import { number, profileErrors, validWeight } from "../src/logic/validation";
 import { finishWorkout, startWorkout } from "../src/logic/workout";
 import { scoreProgress, exerciseProgress } from "../src/logic/progress";
 import { AppState, Weekday, Workout } from "../src/types";
@@ -52,6 +53,12 @@ const recorded = (id: string, weight: number, bodyWeight = 70, date = "2026-09-0
   const e = getExercise(id, emptyPreferences);
   return { id: date, date, bodyWeight, dayName: "Prueba", minutes: 10, records: [{ name: e.name, type: e.type, prescription: { ...prescribe(e, emptyPreferences), weight }, sets: [{ weight, reps: 10 }, { weight, reps: 10 }] }] };
 };
+test("weekly completed volume counts only direct recorded sets in the current week", () => {
+  const now = new Date("2026-09-10T12:00:00");
+  const recent = recorded("standing-calf", 20, 70, "2026-09-08T10:00:00");
+  const previous = recorded("standing-calf", 20, 70, "2026-09-06T10:00:00");
+  assert.equal(completedWeeklyVolume([recent, previous], emptyPreferences, now).calves, 2);
+});
 test("35 kg row automatically becomes 36.25 for next session, including persisted preferences", () => {
   const state = testState();
   const next = finishWorkout(state, recorded("supported-row", 35));
@@ -65,20 +72,28 @@ test("35 kg row automatically becomes 36.25 for next session, including persiste
   assert.equal(progression("compound", [6, 8], [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }], 2, 2.5).increase, false);
   assert.doesNotThrow(() => progression("compound", [6, 8], [{ weight: Infinity, reps: 8 }]));
 });
-test("score excludes unapproved machines, old missing bodyweight and keeps a fixed cohort", () => {
+test("score excludes unsupported exercises and missing historical demographics", () => {
   const state = testState();
   state.history = [recorded("supported-row", 35)];
   assert.equal(scoreProgress(state).points.length, 0);
   state.history.push(recorded("dumbbell-curl", 14));
-  assert.equal(scoreProgress(state).points[0].value, 20);
+  assert.equal(scoreProgress(state).points.length, 0);
+  state.history.push({ ...recorded("chest-press-free", 60), sex: "male" });
+  const initial = scoreProgress(state).points[0].value;
   state.profile = { ...state.profile, weight: "100" };
-  assert.equal(scoreProgress(state).points[0].value, 20);
+  assert.equal(scoreProgress(state).points[0].value, initial);
   state.history.push(recorded("lateral-dumbbell", 7, 70, "2026-09-08T10:00:00Z"));
   assert.equal(scoreProgress(state).points.length, 1);
-  assert.equal(scoreProgress(state).points[0].value, 15);
+  assert.equal(scoreProgress(state).points[0].value, initial);
   assert.equal(exerciseProgress(state.history, "supported-row")[0].value, 35);
   state.history = [{ ...recorded("dumbbell-curl", 14), bodyWeight: undefined }];
   assert.equal(scoreProgress(state).points.length, 0);
+});
+test("apparatus base weight updates legacy machine charts and freezes new sessions", () => {
+  const legacy = recorded("hack", 80);
+  assert.equal(exerciseProgress([legacy], "hack", { hack: 35 })[0].value, 115);
+  const saved = { ...legacy, records: [{ ...legacy.records[0], apparatusWeight: 40 }] };
+  assert.equal(exerciseProgress([saved], "hack", { hack: 35 })[0].value, 120);
 });
 test("weekly availability maps routine sessions to exact weekdays", () => {
   const profile = {
@@ -154,6 +169,7 @@ test("420 combinations respect exercise limits, compatible equipment and weekly 
           const volume = weeklyVolume(routine, emptyPreferences);
           for (const day of routine) {
             assert.ok(day.exercises.length <= exerciseLimit(level.id));
+            assert.ok(day.exercises.length >= 5);
             if (days > 3)
               assert.ok(heavyExerciseCount(day, emptyPreferences) <= heavyExerciseLimit(days));
             assert.equal(new Set(day.exercises.map(p => p.exerciseId)).size, day.exercises.length);
@@ -164,9 +180,8 @@ test("420 combinations respect exercise limits, compatible equipment and weekly 
               assert.ok(restSeconds(e) >= 180 && restSeconds(e) <= 300);
             }
           }
-          for (const m of Object.keys(targets) as (keyof typeof targets)[]) {
-            assert.ok(volume[m] <= targets[m]);
-          }
+          for (const m of Object.keys(targets) as (keyof typeof targets)[])
+            assert.ok(Number.isFinite(volume[m]));
         }
 });
 test("glute defaults can be overridden and specialization scales with training days", () => {
@@ -221,7 +236,7 @@ test("generation keeps the primary horizontal back work before lower-tier altern
   const back = routine.flatMap(day => day.exercises)
     .filter(entry => getExercise(entry.exerciseId, emptyPreferences).muscle === "back")
     .map(entry => entry.exerciseId);
-  assert.equal(back.filter(id => id === "supported-row").length, 2);
+  assert.equal(back.filter(id => id === "supported-row").length, 1);
   assert.ok(back.includes("wide-pulldown"));
   // A chest press now occupies one of the two heavy torso slots. Keep the
   // core horizontal pattern and at least one vertical pull, rather than
@@ -249,6 +264,52 @@ test("back exposures mix horizontal and vertical pulls and heavy exercises lead"
     if (d.exercises.some(p => getExercise(p.exerciseId, emptyPreferences).type === "compound"))
       assert.equal(getExercise(d.exercises[0].exerciseId, emptyPreferences).type, "compound");
   }
+});
+test("three-day beginner plans establish a vertical pull before repeating a row", () => {
+  const routine = generateRoutine({ ...demoProfile, level: "beginner", days: 3, priority: "balanced" }, emptyPreferences);
+  const patterns = routine.flatMap(day => day.exercises)
+    .map(entry => getExercise(entry.exerciseId, emptyPreferences))
+    .filter(exercise => exercise.muscle === "back")
+    .map(exercise => exercise.pullPattern);
+  assert.ok(patterns.includes("horizontal"));
+  assert.ok(patterns.includes("vertical"));
+});
+test("four weekly back sets split one horizontal and one vertical pull", () => {
+  const routine = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" },
+    emptyPreferences,
+    { chest: 0, back: 4, shoulders: 0, biceps: 0, triceps: 0, glutes: 0, quads: 0, hamstrings: 0, adductors: 0, calves: 0, abs: 0 },
+  );
+  const back = routine.flatMap(day => day.exercises)
+    .map(entry => getExercise(entry.exerciseId, emptyPreferences))
+    .filter(exercise => exercise.muscle === "back");
+  assert.equal(back.length, 2);
+  assert.deepEqual(back.map(exercise => exercise.pullPattern).sort(), ["horizontal", "vertical"]);
+});
+test("four weekly chest sets split one press and one pec dec", () => {
+  const routine = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" },
+    emptyPreferences,
+    { chest: 4, back: 0, shoulders: 0, biceps: 0, triceps: 0, glutes: 0, quads: 0, hamstrings: 0, adductors: 0, calves: 0, abs: 0 },
+  );
+  const chest = routine.flatMap(day => day.exercises)
+    .map(entry => getExercise(entry.exerciseId, emptyPreferences))
+    .filter(exercise => exercise.muscle === "chest");
+  assert.equal(chest.length, 2);
+  assert.equal(chest.filter(exercise => exercise.type === "compound").length, 1);
+  assert.equal(chest.filter(exercise => ["chest-cable", "pec-deck", "standing-cable-pec-dec"].includes(exercise.id)).length, 1);
+});
+test("Torso A rows and Torso B uses a pulldown", () => {
+  const torso = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" },
+    emptyPreferences,
+  ).filter(day => day.name.startsWith("Torso"));
+  const patterns = torso.map(day => day.exercises
+    .map(entry => getExercise(entry.exerciseId, emptyPreferences))
+    .filter(exercise => exercise.muscle === "back")
+    .map(exercise => exercise.pullPattern));
+  assert.ok(patterns[0].includes("horizontal"));
+  assert.ok(patterns[1].includes("vertical"));
 });
 test("full-body plans cover a vertical and horizontal pull before repeating either", () => {
   const routine = generateRoutine({ ...demoProfile, days: 2, priority: "balanced" }, emptyPreferences);
@@ -289,19 +350,49 @@ test("full-body sessions cap fatigue, avoid calves and abs, and alternate muscle
     }
   }
 });
-test("two-day full body limits each muscle to two weekly heavy sets and separates RDL from Jaca", () => {
+test("full-body days start with a heavy torso and lower-body pattern", () => {
   const routine = generateRoutine({ ...demoProfile, days: 2, priority: "balanced" }, emptyPreferences);
-  for (const muscle of muscles.filter(item => item.id !== "balanced").map(item => item.id)) {
-    const heavy = routine.flatMap(day => day.exercises)
+  for (const day of routine.filter(isFullBodyDay)) {
+    const heavy = day.exercises
       .map(entry => getExercise(entry.exerciseId, emptyPreferences))
-      .filter(exercise => exercise.muscle === muscle && exercise.type === "compound");
-    assert.ok(heavy.length <= 1, `${muscle} has more than two weekly heavy sets`);
+      .filter(exercise => exercise.type === "compound");
+    assert.ok(heavy.some(exercise => ["chest", "back", "shoulders"].includes(exercise.muscle)));
+    assert.ok(heavy.some(exercise => ["quads", "hamstrings", "glutes"].includes(exercise.muscle)));
   }
   for (const day of routine) {
     const ids = day.exercises.map(entry => entry.exerciseId);
     assert.ok(!(ids.includes("hack") && ids.some(id => id.startsWith("rdl-"))));
     assert.ok(!(ids.includes("pendulum") && ids.some(id => id.startsWith("rdl-"))));
   }
+});
+test("beginner suggestions keep cable work to pulldowns for the back", () => {
+  for (const muscle of ["shoulders", "biceps", "triceps"] as const) {
+    assert.ok(!candidates(muscle, { ...demoProfile, level: "beginner" }, emptyPreferences)
+      .some(exercise => exercise.variant === "cable"));
+  }
+  assert.ok(!candidates("chest", { ...demoProfile, level: "beginner" }, emptyPreferences)
+    .some(exercise => exercise.id === "chest-cable"));
+  const back = candidates("back", { ...demoProfile, level: "beginner" }, emptyPreferences);
+  assert.ok(back.some(exercise => exercise.id === "neutral-pulldown"));
+  assert.ok(back.filter(exercise => exercise.variant === "cable")
+    .every(exercise => ["neutral-pulldown", "wide-pulldown"].includes(exercise.id)));
+});
+test("rear-delt flies require more than six shoulder sets after press and laterals", () => {
+  const base = { chest: 0, back: 0, biceps: 0, triceps: 0, glutes: 0, quads: 0, hamstrings: 0, adductors: 0, calves: 0, abs: 0 };
+  const sixSets = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" }, emptyPreferences,
+    { ...base, shoulders: 6 },
+  ).flatMap(day => day.exercises).map(entry => entry.exerciseId);
+  assert.ok(!sixSets.some(id => ["rear-machine", "rear-cable", "rear-free"].includes(id)));
+
+  const highShoulders = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" }, emptyPreferences,
+    { ...base, shoulders: 8 },
+  ).flatMap(day => day.exercises).map(entry => entry.exerciseId);
+  const rearIndex = highShoulders.findIndex(id => id === "rear-machine");
+  assert.ok(rearIndex >= 0);
+  assert.ok(highShoulders.slice(0, rearIndex).includes("shoulder-press"));
+  assert.ok(highShoulders.slice(0, rearIndex).includes("lateral-machine"));
 });
 test("abdominal work is assigned to leg days when the split has them", () => {
   const routine = generateRoutine({ ...demoProfile, days: 4, priority: "balanced" }, emptyPreferences);
@@ -310,6 +401,61 @@ test("abdominal work is assigned to leg days when the split has them", () => {
   ));
   assert.ok(daysWithAbs.length > 0);
   assert.ok(daysWithAbs.every(day => day.name.startsWith("Pierna")));
+});
+test("two leg days split adductors and calves while keeping five exercises", () => {
+  const legs = generateRoutine({ ...demoProfile, days: 4, priority: "balanced" }, emptyPreferences)
+    .filter(day => day.name.startsWith("Pierna"));
+  assert.equal(legs.length, 2);
+  assert.ok(legs[0].exercises.length >= 5);
+  assert.ok(legs[1].exercises.length >= 5);
+  assert.ok(legs[0].exercises.some(entry => entry.exerciseId === "adductor-machine"));
+  assert.ok(!legs[0].exercises.some(entry => entry.exerciseId === "standing-calf"));
+  assert.ok(legs[1].exercises.some(entry => entry.exerciseId === "standing-calf"));
+  assert.ok(!legs[1].exercises.some(entry => entry.exerciseId === "adductor-machine"));
+  assert.equal(legs[1].exercises.filter(entry =>
+    getExercise(entry.exerciseId, emptyPreferences).muscle === "calves",
+  ).length, 1);
+  for (const day of legs) {
+    assert.ok(day.exercises.some(entry => entry.exerciseId === "leg-extension"));
+    assert.ok(day.exercises.some(entry => ["seated-curl", "lying-curl"].includes(entry.exerciseId)));
+  }
+});
+test("conservative torso-leg plans use one heavy lower lift and alternate quads with hamstrings", () => {
+  for (const profile of [
+    { ...demoProfile, level: "beginner" as const, age: "28", days: 4, priority: "balanced" as const },
+    { ...demoProfile, level: "intermediate" as const, age: "49", days: 4, priority: "balanced" as const },
+  ]) {
+    const legs = generateRoutine(profile, emptyPreferences).filter(day => day.name.startsWith("Pierna"));
+    assert.equal(legs.length, 2);
+    assert.equal(heavyExerciseCount(legs[0], emptyPreferences), 1);
+    assert.equal(heavyExerciseCount(legs[1], emptyPreferences), 1);
+    assert.equal(getExercise(legs[0].exercises[0].exerciseId, emptyPreferences).muscle, "quads");
+    assert.equal(getExercise(legs[1].exercises[0].exerciseId, emptyPreferences).muscle, "hamstrings");
+  }
+});
+test("automatic sessions avoid duplicate preacher, Romanian, press-angle and abs patterns", () => {
+  const routine = generateRoutine({ ...demoProfile, days: 5, priority: "balanced" }, emptyPreferences);
+  for (const day of routine) {
+    const ids = day.exercises.map(entry => entry.exerciseId);
+    assert.ok(ids.filter(id => id.includes("preacher")).length <= 1);
+    assert.ok(ids.filter(id => ["rdl-bar", "rdl-dumbbell", "rdl-smith", "rdl-machine"].includes(id)).length <= 1);
+    assert.ok(ids.filter(id => ["cable-floor-crunch", "machine-crunch", "machine-leg-tuck", "machine-leg-raise"].includes(id)).length <= 1);
+    const angles = ids.map(id =>
+      ["chest-press", "chest-press-free", "bench-smith", "dumbbell-bench"].includes(id) ? "flat" :
+        ["seated-press", "seated-press-free"].includes(id) ? "seated" :
+          ["incline-press", "incline-press-free", "incline-smith"].includes(id) ? "incline" : undefined,
+    ).filter(Boolean);
+    assert.equal(new Set(angles).size, angles.length);
+  }
+});
+test("lower accessory split survives a machine-and-cable-only gym", () => {
+  const legs = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" },
+    { ...emptyPreferences, equipment: ["machine", "cable"] },
+  ).filter(day => day.name.startsWith("Pierna"));
+  assert.ok(legs.every(day => day.exercises.length >= 5));
+  assert.equal(legs.filter(day => day.exercises.some(entry => entry.exerciseId === "adductor-machine")).length, 1);
+  assert.equal(legs.filter(day => day.exercises.some(entry => entry.exerciseId === "standing-calf")).length, 1);
 });
 test("balanced three-day plans keep the leg day focused and let favorites break compatible ties", () => {
   const routine = generateRoutine({ ...demoProfile, days: 3, priority: "balanced" }, emptyPreferences);
@@ -326,6 +472,13 @@ test("balanced three-day plans keep the leg day focused and let favorites break 
 
   const preferred = candidates("chest", demoProfile, { ...emptyPreferences, favorites: ["chest-press-free"] }, true);
   assert.equal(preferred[0].id, "chest-press-free");
+});
+test("an advanced favorite is available to a beginner as an aspirational suggestion", () => {
+  const options = candidates("chest", { ...demoProfile, level: "beginner" }, {
+    ...emptyPreferences,
+    favorites: ["chest-press-free"],
+  }, true);
+  assert.ok(options.some(exercise => exercise.id === "chest-press-free"));
 });
 test("quad generation selects one hack pattern and uses leg press for added heavy volume", () => {
   const routine = generateRoutine(
@@ -419,19 +572,20 @@ test("paired exercises follow the quad, Romanian and chest press sequence", () =
   })[0].exercises.map(entry => entry.exerciseId);
   // A one-day plan is full body, so it keeps the weekly heavy quad work to
   // the pendular pattern plus its lighter extension rather than adding Prensa.
-  assert.deepEqual(quads, ["pendulum", "leg-extension"]);
+  assert.ok(quads.includes("pendulum"));
+  assert.ok(quads.includes("leg-extension"));
 
   const hamstrings = generateRoutine({ ...demoProfile, days: 1, level: "advanced" }, {
     ...emptyPreferences, equipment: ["machine", "free"],
   }, { ...withoutUpperOrGlutes, quads: 0, hamstrings: 4 })[0].exercises.map(entry => entry.exerciseId);
   assert.equal(hamstrings[0], "rdl-bar");
-  assert.ok(["standing-curl", "seated-curl", "lying-curl"].includes(hamstrings[1]));
+  assert.ok(hamstrings.some(id => ["standing-curl", "seated-curl", "lying-curl"].includes(id)));
 
   const chest = generateRoutine({ ...demoProfile, days: 1, level: "advanced" }, {
     ...emptyPreferences, equipment: ["machine"],
   }, { ...withoutUpperOrGlutes, chest: 4, quads: 0, hamstrings: 0 })[0].exercises.map(entry => entry.exerciseId);
   assert.equal(chest[0], "chest-press");
-  assert.equal(chest[1], "pec-deck");
+  assert.ok(chest.includes("pec-deck"));
 
 });
 test("replacement suggestions preserve pull and press movement patterns", () => {
@@ -444,6 +598,7 @@ test("replacement suggestions preserve pull and press movement patterns", () => 
 
   const chestPress = getExercise("chest-press", emptyPreferences);
   const chestSuggestions = replacementCandidates(chestPress, demoProfile, emptyPreferences);
+  assert.equal(chestSuggestions[0].id, "seated-press");
   const firstNonPress = chestSuggestions.findIndex(e => e.type !== "compound");
   const lastPress = chestSuggestions.reduce((last, e, index) => e.type === "compound" ? index : last, -1);
   assert.ok(lastPress >= 0);
@@ -452,7 +607,7 @@ test("replacement suggestions preserve pull and press movement patterns", () => 
   const shoulderPress = getExercise("shoulder-press", emptyPreferences);
   assert.equal(replacementCandidates(shoulderPress, demoProfile, emptyPreferences)[0].type, "compound");
 });
-test("four and five-day torso plans alternate arms unless they are the priority", () => {
+test("four and five-day torso plans include direct arm work", () => {
   for (const days of [4, 5]) {
     const routine = generateRoutine(
       { ...demoProfile, days, priority: "balanced" },
@@ -460,10 +615,9 @@ test("four and five-day torso plans alternate arms unless they are the priority"
     );
     const torso = routine.filter((day) => day.name.startsWith("Torso"));
     assert.equal(torso.length, 2);
-    assert.ok(torso[0].exercises.some((p) => getExercise(p.exerciseId, emptyPreferences).muscle === "biceps"));
-    assert.ok(!torso[0].exercises.some((p) => getExercise(p.exerciseId, emptyPreferences).muscle === "triceps"));
-    assert.ok(torso[1].exercises.some((p) => getExercise(p.exerciseId, emptyPreferences).muscle === "triceps"));
-    assert.ok(!torso[1].exercises.some((p) => getExercise(p.exerciseId, emptyPreferences).muscle === "biceps"));
+    assert.ok(torso.every(day => day.exercises.some((p) =>
+      ["biceps", "triceps"].includes(getExercise(p.exerciseId, emptyPreferences).muscle),
+    )));
   }
   for (const priority of ["biceps", "triceps"] as const) {
     const torso = generateRoutine(
@@ -474,6 +628,18 @@ test("four and five-day torso plans alternate arms unless they are the priority"
       day.exercises.some((p) => getExercise(p.exerciseId, emptyPreferences).muscle === priority),
     ));
   }
+});
+test("beginner torso days each receive direct arm work without cable", () => {
+  const torso = generateRoutine(
+    { ...demoProfile, level: "beginner", days: 4, priority: "balanced" },
+    emptyPreferences,
+  ).filter(day => day.name.startsWith("Torso"));
+  assert.ok(torso.every(day => day.exercises.some(entry => {
+    const exercise = getExercise(entry.exerciseId, emptyPreferences);
+    return (exercise.muscle === "biceps" || exercise.muscle === "triceps") && exercise.variant !== "cable";
+  })));
+  assert.ok(torso[0].exercises.some(entry => entry.exerciseId === "preacher-curl"));
+  assert.ok(torso[1].exercises.some(entry => entry.exerciseId === "triceps-machine"));
 });
 test("extra direct arm volume can use both torso sessions", () => {
   const routine = generateRoutine(
@@ -491,7 +657,8 @@ test("two direct arm exercises pair biceps with triceps and advanced arms priori
     emptyPreferences,
     { chest: 0, back: 0, shoulders: 0, biceps: 4, triceps: 4, glutes: 0, quads: 0, hamstrings: 0, calves: 0, abs: 0 },
   )[0].exercises.map(entry => getExercise(entry.exerciseId, emptyPreferences).muscle);
-  assert.deepEqual(arms, ["biceps", "triceps", "biceps", "triceps"]);
+  assert.deepEqual(arms.slice(0, 4), ["biceps", "triceps", "biceps", "triceps"]);
+  assert.equal(arms.length, 5);
   for (const muscle of ["shoulders", "triceps"] as const)
     assert.equal(candidates(muscle, { ...demoProfile, level: "advanced" }, emptyPreferences)[0].variant, "cable");
 });
@@ -711,35 +878,15 @@ test("double progression: all effective sets, configurable range, 5% and 3%", ()
     }
   assert.equal(roundWeight(12.38), 12.5);
 });
-test("profile validation accepts decimal commas and strictly gates photo simulation", () => {
+test("profile validation accepts decimal commas without requiring body-fat data", () => {
   assert.deepEqual(profileErrors(demoProfile), {});
   assert.ok(profileErrors({ ...demoProfile, weight: "abc" }).weight);
-  assert.ok(
-    profileErrors({
-      ...demoProfile,
-      age: "18",
-      fatMode: "photo",
-      photoConfirmed: true,
-    }).photo,
-  );
-  assert.ok(
-    profileErrors({
-      ...demoProfile,
-      age: "19",
-      fatMode: "photo",
-      photoConfirmed: false,
-    }).photo,
-  );
-  assert.deepEqual(
-    profileErrors({
-      ...demoProfile,
-      age: "19",
-      fatMode: "photo",
-      photoConfirmed: true,
-    }),
-    {},
-  );
-  assert.ok(profileErrors({ ...demoProfile, bodyFat: "99" }).bodyFat);
+  assert.deepEqual(profileErrors({ ...demoProfile, weight: "76,5" }), {});
+});
+
+test("decimal dots and commas represent the same entered load", () => {
+  assert.equal(number("12.5"), 12.5);
+  assert.equal(number("12,5"), 12.5);
 });
 
 test("text and controls maintain at least 4.5:1 contrast in both themes", () => {

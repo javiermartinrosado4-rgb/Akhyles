@@ -1,52 +1,54 @@
 # Web de Akhyles, DNS y API
 
-Estado a 9 de septiembre de 2026: el borrador de la web se ha creado en IONOS y
-no está publicado. `akhyles.com` sigue apuntando a IONOS. No existe todavía un
-registro público para `api.akhyles.com` ni un backend de Comunidad desplegado.
+## Estado vigente: 11 de septiembre de 2026
 
-## Qué aloja cada parte
+Actualizado: la gestión con IONOS ya está hecha.
 
-| Dirección | Servicio | Estado requerido |
-| --- | --- | --- |
-| `https://akhyles.com` | Web pública, soporte y privacidad | IONOS Website Builder o un hosting web equivalente |
-| `https://www.akhyles.com` | Redirección al dominio principal | DNS/redirección en IONOS |
-| `https://api.akhyles.com` | Backend de Comunidad | Servidor Linux con Docker, disco persistente y Caddy |
+- Se migraron el dominio `akhyles.com` y la licencia de correo de `javi@akhyles.com`
+  al contrato **Hosting Premium 47175101**.
+- El sitio principal `akhyles.com` sigue operativo desde IONOS con la web actual.
+- El subdominio `api.akhyles.com` ya puede vincularse desde el panel de ese
+  Hosting Premium a la ruta de proyecto correspondiente (pendiente de ejecutar en
+  el panel cuando confirmes la carpeta destino).
+- Tras esta fase de configuración, **el dominio y el correo permanecen activos**.
 
-IONOS puede alojar la web informativa. Comunidad no debe ejecutarse en un editor
-web estático: necesita un proceso Node persistente, SQLite en volumen persistente,
-copias cifradas y un proxy HTTPS. Puede contratarse un VPS en IONOS o usarse otro
-proveedor; en ambos casos el DNS del dominio se administra desde IONOS.
+## Estado actual de despliegue de web
 
-## Pantallas que habrá que abrir cuando se vaya a activar
+La portada pública de la web está preparada y publicada. El bloque de descarga temporal
+se enlaza con la APK de referencia más reciente de esta rama (1.0.6).
 
-1. IONOS > **Dominios y SSL** > seleccionar `akhyles.com` > **DNS**. Crear un
-   registro `A` para el host `api` con la IP pública del VPS. Crear `AAAA` solo si
-   el servidor tiene IPv6 configurado y accesible. No cambiar los registros MX del
-   correo existente.
-2. Panel del proveedor del servidor > crear VPS Linux con IP pública, almacenamiento
-   persistente y puertos 80/443. Instalar Docker y Docker Compose. No abrir el
-   puerto interno 8082 a Internet.
-3. En el servidor, clonar el repositorio y crear los archivos privados
-   `server/.env.production`, `server/.env.backup` y `server/backup-password.txt`
-   según [DESPLIEGUE-COMUNIDAD.md](DESPLIEGUE-COMUNIDAD.md). Los secretos se escriben
-   directamente allí; no se pegan en Git ni en variables `EXPO_PUBLIC_*`.
-4. Esperar la propagación DNS y comprobar `https://api.akhyles.com/health`. Caddy
-   solicitará y renovará el certificado TLS automáticamente cuando el DNS y el
-   puerto 80 sean correctos.
-5. Solo entonces definir
-   `EXPO_PUBLIC_COMMUNITY_URL=https://api.akhyles.com`, ejecutar la guardia de
-   release y generar el APK/AAB conectados. La variante offline actual no activa
-   Comunidad.
+La activación de la nube de cuentas/entrenamientos y comunidad sigue pendiente de
+QA:
 
-## Antes de publicar la web
+1. Validar conectividad HTTPS real en `https://api.akhyles.com`.
+2. Validar OAuth web/Android, SMTP (`javi@akhyles.com`) y entrega.
+3. Confirmar copia de seguridad, restauración y política de borrado.
+4. Generar y publicar la APK conectada (`-AccountUrl https://api.akhyles.com`).
 
-La web debe tener enlaces públicos y correctos a política de privacidad, eliminación
-de cuenta y soporte. Faltan dos datos que solo puede confirmar el titular:
+## Pasos pendientes en IONOS (cuando abra panel)
 
-- El correo exacto que recibirá solicitudes de soporte y borrado.
-- La identidad legal/responsable y dirección que correspondan al aviso legal.
+1. Entrar en IONOS:
+   `Dominios y SSL` → `akhyles.com` → `Subdominios` / `Rutas`.
+2. Configurar `api.akhyles.com` a la carpeta pública del backend (evitar tocar MX,
+   dominio principal ni redirecciones por ahora).
+3. Activar HTTPS en esa ruta/subdominio.
+4. Comprobar `https://api.akhyles.com/health` y revisar logs.
 
-No se debe publicar una política con marcadores, un formulario cuyo correo no se ha
-comprobado, cifras inventadas ni promesas de funciones aún no desplegadas. Pulsar
-**Publicar** en IONOS es una acción pública y se confirmará expresamente en ese
-momento.
+## Notas operativas
+
+- Mantener usuario/credenciales fuera del chat. El acceso SFTP/SSH debe ir en sesión
+  privada y preferiblemente con acceso limitado.
+- No compartir secretos en Git ni en variables `EXPO_PUBLIC_*`.
+- Al cambiar rutinas y registros en pasado, respetar la regla de no reescribir meses
+  históricos del usuario sin confirmación de sesión (esto está resuelto en la lógica de app).
+
+## Tabla de responsabilidades
+
+| Dirección | Servicio |
+| --- | --- |
+| `https://akhyles.com` | Web pública, privacidad, soporte y landing |
+| `https://www.akhyles.com` | redirección del dominio principal |
+| `https://api.akhyles.com` | API de cuentas / comunidad / progreso compartido |
+
+Referencias: `docs/CUENTAS-Y-SINCRONIZACION.md`, `server-php/README.md`,
+`docs/DESPLIEGUE-COMUNIDAD.md` y `docs/WEB-AKHYLES-1.0.6.md`.

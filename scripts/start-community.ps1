@@ -17,7 +17,7 @@ $communityReady = $false
 for ($attempt = 0; $attempt -lt 20; $attempt++) {
     try {
         $health = Invoke-RestMethod -Uri "http://127.0.0.1:$apiPort/health" -TimeoutSec 2
-        if ($health.service -eq 'gym-buddy-community') { $communityReady = $true; break }
+        if ($health.service -eq 'akhyles-community') { $communityReady = $true; break }
     } catch { Start-Sleep -Milliseconds 250 }
 }
 if (-not $communityReady) { throw 'Comunidad no ha arrancado. Ejecuta npm.cmd run server para ver el error.' }

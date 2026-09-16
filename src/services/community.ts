@@ -11,10 +11,15 @@ function configuredCommunityUrl() { try { return resolveCommunityUrl(
   !__DEV__ && Constants.expoConfig?.extra?.communityLocalTest !== true,
 ); } catch { return ""; } }
 export const communityUrl = configuredCommunityUrl();
-export interface CommunityUser { id: string; handle: string; name: string; bio: string; avatar?: string; level: Level; posts: number; followers: number; following: number; followed: boolean; routineId?: string | null; progressVisible?: boolean; routinePublic?: boolean; progressPublic?: boolean }
-export interface CommunityPost { id: string; userId: string; handle: string; name: string; caption: string; created: string; likes: number; liked: boolean }
-export interface PostPage { posts: CommunityPost[]; next: number | null }
+export interface CommunityUser { id: string; handle: string; name: string; bio: string; avatar?: string; level: Level; posts: number; followers: number; following: number; followed: boolean; followsYou?: boolean; connected?: boolean; trainerEnabled?: boolean; routineId?: string | null; progressVisible?: boolean; routinePublic?: boolean; progressPublic?: boolean; progressVisibility?: "private" | "friends" | "public"; detailsPublic?: boolean; bodyWeightPublic?: boolean; rankingPublic?: boolean; achievementsPublic?: boolean; trainingPlace?: string; gymId?: string | null; city?: string; }
+export interface CommunityGym { id: string; provider: string; name: string; address: string; city: string; status: string; }
+export interface CommunityAchievement { id: string; userId: string; handle: string; name: string; type: "tier" | "personal_best"; tierId?: string; exerciseId?: string; exerciseName?: string; created: string; likes: number; liked: boolean }
+export interface AchievementPage { achievements: CommunityAchievement[]; next: number | null }
 export interface PublishedRoutine { id: string; owner: Pick<CommunityUser, "handle" | "name">; routine: SharedRoutine; updated: string }
+export interface CoachingRelationship { id: string; status: "pending" | "active"; role: "client" | "trainer"; requestedByMe: boolean; statsConsent?: boolean; created: string; updated: string; person: Pick<CommunityUser, "id" | "handle" | "name" | "avatar">; }
+export interface ManagedRoutine { routine: SharedRoutine; revision: number; updated: string; author: Pick<CommunityUser, "id" | "handle" | "name">; }
+export interface TrainerProfile { public: boolean; specialties: string[]; modalities: string[]; experienceYears: number; credentials: string; availability: string; pricing: string; statsPublic: boolean; updated?: string; stats?: { clientsActive: number; clientsSupported: number; eligibleClients: number; sampleSufficient: boolean; averageSessions90Days?: number; consistencyRate?: number }; }
+export interface TrainerReview { id: string; rating: number; communication: number; adaptation: number; followUp: number; body: string; created: string; author: Pick<CommunityUser, "handle" | "name">; }
 export type PublishedProgress = SharedProgress;
 export class CommunityError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function communityRequest<T>(path: string, token?: string, method = "GET", data?: unknown): Promise<T> {

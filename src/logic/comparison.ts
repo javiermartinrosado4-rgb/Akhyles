@@ -1,5 +1,6 @@
 import { catalog } from "../data/catalog";
 import { AppState, Level } from "../types";
+import { scoreLoad } from "./load";
 
 export interface ComparisonRecord {
   exerciseId: string;
@@ -30,7 +31,7 @@ export function comparisonSample(state: AppState, now = Date.now()): ComparisonS
       if (time < now - 28 * DAY || time > now) return [];
       return workout.records.filter(r => comparableIds.has(r.prescription.exerciseId)).flatMap(r => {
         const strengths = r.sets.filter(s => s.weight > 0 && s.reps >= 1 && s.reps <= 12)
-          .map(s => s.weight * (1 + s.reps / 30));
+          .map(s => scoreLoad(r.prescription.exerciseId, s.weight, r.apparatusWeight ?? r.barWeight) * (1 + s.reps / 30));
         return strengths.length ? [{ exerciseId: r.prescription.exerciseId, date: workout.date, strength: Math.max(...strengths) }] : [];
       });
     }),

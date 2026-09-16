@@ -1,15 +1,66 @@
-# Verificación Android — 9 de septiembre de 2026
+# Verificación Android — 11 de septiembre de 2026
 
-## Revisión actual: versionCode 3
+## Entrega actual: 1.0.6 / versionCode 8
 
-**Estado: Akhyles 1.0.1, vista previa offline firmada. No hay backend público ni Google OAuth real
+Código actualizado con calendario histórico, Akhyles Points relativos y barra
+personalizable por ejercicio (0–100 kg, decimales incluidos). Cada sesión conserva
+su barra, sexo y peso corporal para no recalcular el pasado con preferencias nuevas.
+TypeScript, ESLint, 93 pruebas y escaneo de secretos pasan.
+
+APK/AAB compilados y verificados con la firma original, versión 8, alineación
+APK de 16 KB, AAB válido y manifest sin debug ni HTTP. No probados en móvil físico.
+Las dos pruebas de interfaz de barra (0 y 15,5 kg) pasan: recarga, conversión entre
+total y por lado, guardado y conservación histórica. Los intentos iniciales
+agotaron el tiempo de carga de Metro; repetición final: 2/2, sin errores.
+Evidencia: `artifacts/qa-bar-weight-106-confirmed`.
+
+- APK: 78.358.543 bytes; SHA-256 `97f4f467631b47242c43b731e6e775b93674ed3197e63175549cf338cb91f732`.
+- AAB: 56.518.984 bytes; SHA-256 `e1ae2977a3d37d2b811c84ef312dce66feb8f19d4a0befbd71344126f760f774`.
+- Informe: `artifacts/android/release-verification.json`.
+- Exportación de app web actualizada: `artifacts/web-1.0.6`.
+
+Contenido comercial preparado en `docs/WEB-AKHYLES-1.0.6.md`; publicación IONOS
+bloqueada por conexión de Edge («Debugger unattached»), incluso tras recargar.
+El usuario ha pedido dejar la web en pausa. No se considera actualizado el botón
+público de descarga. Cuentas/Comunidad
+online siguen pendientes del despliegue; esta compilación es offline.
+
+## Entrega histórica: 1.0.4 / versionCode 6
+
+APK y AAB offline compilados, sin servicio real de cuentas ni Comunidad. La
+web mantiene la APK 1.0.3. No se ha publicado la nueva entrega ni subido a Play.
+
+- APK `artifacts/android/akhyles-offline-preview.apk`: 78.313.739 bytes,
+  SHA-256 `853bd54d1c2690667fd5d47c5d4b9b4dca3fd6e7935e29cfe410cf64ecbc2c63`.
+- AAB `artifacts/android/akhyles-offline-preview.aab`: 56.499.375 bytes,
+  SHA-256 `9f9139a9d976677b63162f20963286fa30bad4f061a009e3efcc8d5d93790dbf`.
+- Verificador: firma original, APK alineada a 16 KB, AAB validado, versión 6,
+  paquete correcto, sin debug, HTTP bloqueado. Resultado completo en
+  `artifacts/android/release-verification.json` y manifest adjunto.
+- TypeScript, ESLint, 79 pruebas y escaneo de secretos pasan. Nueve pruebas de
+  navegador pasan: cuatro de cuentas y cinco de regresión de la app.
+- El servidor privado supera 36 comprobaciones con SQLite y 36 con MariaDB,
+  además de restauración cifrada. SMTP/Google reales y recuperación Android
+  contra IONOS siguen pendientes: no confundir los dobles de prueba con producción.
+
+Las secciones inferiores corresponden a entregas históricas.
+
+Prueba nativa adicional: instalación y arranque correctos en emulador API 36;
+pantalla de cuenta offline inspeccionada y continuación al alta local comprobada.
+Captura: `artifacts/android/qa/account-104-offline.png`. No había una versión
+anterior del paquete en ese emulador: actualización con datos antiguos y
+recuperación de nube real siguen pendientes de prueba física.
+
+## Revisión actual: versionCode 4
+
+**Estado: Akhyles 1.0.2, vista previa offline firmada. No hay backend público ni Google OAuth real
 activados; no se ha subido a Play.** Los apartados posteriores titulados Entrega y
 Comprobaciones describen la revisión histórica `versionCode` 1.
 
 | Archivo nuevo excluido de Git | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `artifacts/android/akhyles-offline-preview.apk` | 73755637 | `9f66520515449ee80cd03e5d0d74150ba99e481f1e4ffae9e81b0b91fb6ff81d` |
-| `artifacts/android/akhyles-offline-preview.aab` | 52041043 | `92b71103e8c739b2a2b81cc4d30b4fe37838a1be0303e7a9bcfc933518a0f30d` |
+| `artifacts/android/akhyles-offline-preview.apk` | 77337141 | `0033db96b76ea26f1b77bf00594c40b57382233ce85abf3b3837c6be91e7d3ff` |
+| `artifacts/android/akhyles-offline-preview.aab` | 55626442 | `16e41d80c530bcbfe9f9096be3d0974da74e9e12144efa8c23ecc1d27d06877c` |
 
 Comprobación reproducible: `node scripts/verify-android.mjs artifacts/android/akhyles-offline-preview.apk artifacts/android/akhyles-offline-preview.aab`.
 Informe generado: `artifacts/android/release-verification.json`; manifest extraído
@@ -24,7 +75,7 @@ en `artifacts/android/release-manifest.xml`. Firma original conservada, SHA-1
   DYNAMIC_RECEIVER_NOT_EXPORTED. SecureStore declara biometría, aunque este flujo
   guarda la sesión sin solicitar autenticación biométrica. Sin cámara, micrófono,
   lectura global de fotos ni superposición.
-- 59 pruebas de lógica/API/configuración/restauración; tipos y lint correctos.
+- 69 pruebas de lógica/API/configuración/restauración; tipos y lint correctos.
 - Guardia de release sin URL pública: salida 1 esperada, impide compilar por error
   una release conectada sin backend configurado.
 - 27 pruebas web aprobadas en ejecución completa. Primer intento interrumpido por
@@ -70,13 +121,13 @@ Guías: `docs/DESPLIEGUE-COMUNIDAD.md`, `server/GOOGLE-SETUP.md`, `docs/GOOGLE-P
 
 ## Entrega
 
-Gym Buddy 1.0.0 (versionCode 1), paquete `com.javiermartinrosado.gymbuddy`.
+Akhyles 1.0.0 (versionCode 1), paquete `com.javiermartinrosado.akhyles`.
 APK release firmada, con JavaScript y recursos incluidos. AAB release firmado.
 Android mínimo API 24, objetivo API 36; arquitecturas ARM64 y x86_64.
 
 | Archivo local, excluido de Git | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `artifacts/android/gym-buddy-preview.apk` | 73761061 | `413ba923bbdd8d86f80833baa10d231726d108061c66ec1b2c1d04ff80bd8ab1` |
+| `artifacts/android/akhyles-preview.apk` | 73761061 | `413ba923bbdd8d86f80833baa10d231726d108061c66ec1b2c1d04ff80bd8ab1` |
 | `artifacts/android/akhyles-release.aab` | 52075111 | `bb6d8c1e7bf05b43ad8cec230fdbd30b8c193131c9ac472d60ad9d3a7a95ede8` |
 
 Firma local de publicación, distinta de la firma debug. SHA-1 del certificado:
@@ -106,12 +157,12 @@ Emulador Android 16/API 36, x86_64, 1080 × 2400. Instalación de la APK release
 - Pestañas Entrenamiento, Calendario, Progreso, Comunidad y Perfil: accesibles.
 - Tema oscuro: aplicado y conservado tras actualizar la aplicación.
 - Selector nativo de fotos: apertura, cancelación y selección de una imagen sintética de prueba; no pide acceso a toda la galería.
-- Enlace `gym-buddy://shared-routine` sin identificador: muestra error comprensible; botón Volver operativo en la APK final.
+- Enlace `akhyles://shared-routine` sin identificador: muestra error comprensible; botón Volver operativo en la APK final.
 - Google sin servidor configurado: aviso inmediato de indisponibilidad, sin cierre inesperado.
 - Actualización con `adb install -r`: mantiene historial y preferencias.
 - Arranque final con Metro detenido y Wi-Fi/datos del emulador desactivados: Entrenamiento y el historial de Progreso siguen disponibles. Conectividad restaurada después de la prueba.
 - Inspección visual final: navegación inferior en una línea, sin palabras partidas, en tema oscuro.
-- Sin errores AndroidRuntime/ReactNativeJS del proceso de Gym Buddy. El historial de salida solo refleja el cierre forzado de prueba y la actualización del paquete. Una ejecución simultánea accidental de UIAutomator falló en la herramienta de pruebas, no en la app; las inspecciones posteriores se ejecutaron en serie.
+- Sin errores AndroidRuntime/ReactNativeJS del proceso de Akhyles. El historial de salida solo refleja el cierre forzado de prueba y la actualización del paquete. Una ejecución simultánea accidental de UIAutomator falló en la herramienta de pruebas, no en la app; las inspecciones posteriores se ejecutaron en serie.
 
 Capturas locales: `artifacts/android/qa/`. `scripts/android-ui.mjs` permite repetir inspecciones, pulsaciones y capturas mediante ADB. No ejecutes dos inspecciones simultáneamente. Los datos usados son de prueba en el emulador, no datos del usuario.
 

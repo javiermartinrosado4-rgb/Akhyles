@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { Button, Card, Field, Notice, Pill, Row, Txt } from "./ui";
@@ -6,6 +7,7 @@ import { number, validWeight } from "../logic/validation";
 import { confirmWeight } from "../logic/workout";
 import { useStore } from "../state/Store";
 export function ProgressionDemo() {
+  const { t, locale } = useLanguage();
   const { update } = useStore();
   const [reps, setReps] = useState("7");
   const [next, setNext] = useState("42");
@@ -39,13 +41,11 @@ export function ProgressionDemo() {
           numeric
         />
       </Row>
-      <Notice>{result.message}</Notice>
+      <Notice>{result.increase ? t("Máximo alcanzado en todas las series. Próxima sesión: {weight} kg (+{percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.", { weight: result.suggested.toLocaleString(locale), percent: result.percent.toLocaleString(locale) }) : t(result.message)}</Notice>
       {result.increase && (
         <>
           <Txt weight="600">
-            {messages.ProgressionDemo.sugerencia}
-            {result.suggested.toFixed(2).replace(".", ",")}
-            {messages.ProgressionDemo.kg}
+            {t("Sugerencia: {weight} kg", { weight: result.suggested.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}
           </Txt>
           <Field
             label={messages.ProgressionDemo.pesoQueQuieresConfirmar}

@@ -12,7 +12,7 @@ test("Android release never silently connects to the phone's loopback address", 
 });
 
 test("shared routines prefer an HTTPS web preview and preserve the native deep link fallback", () => {
-  assert.equal(routineShareUrl("abc", undefined, "gym-buddy://shared-routine?id=abc"), "gym-buddy://shared-routine?id=abc");
+  assert.equal(routineShareUrl("abc", undefined, "akhyles://shared-routine?id=abc"), "akhyles://shared-routine?id=abc");
   assert.equal(routineShareUrl("a&b", "https://gym.example.com/", "unused"), "https://gym.example.com/shared-routine?id=a%26b");
   assert.throws(() => routineShareUrl("abc", "http://gym.example.com", "unused"));
 });

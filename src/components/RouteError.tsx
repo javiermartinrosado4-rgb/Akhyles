@@ -1,7 +1,9 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { ErrorBoundaryProps } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { t } = useLanguage();
   return (
     <View
       style={{
@@ -14,10 +16,10 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
       }}
     >
       <Text style={{ color: "#242C28", fontSize: 22 }}>
-        {messages.RouteError.noHemosPodidoAbrirEstaPantalla}
+        {t(messages.RouteError.noHemosPodidoAbrirEstaPantalla)}
       </Text>
       <Text style={{ color: "#667068" }}>
-        {messages.RouteError.tusDatosGuardadosSiguenEnElDispositivo}
+        {t(messages.RouteError.tusDatosGuardadosSiguenEnElDispositivo)}
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -25,7 +27,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
         style={{ padding: 18, backgroundColor: "#456351", borderRadius: 12 }}
       >
         <Text style={{ color: "#FFFFFF" }}>
-          {messages.RouteError.volverAIntentarlo}
+          {t(messages.RouteError.volverAIntentarlo)}
         </Text>
       </Pressable>
     </View>

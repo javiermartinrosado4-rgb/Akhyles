@@ -39,6 +39,7 @@ function e(
     equipment: {
       machine: "Máquina específica",
       free: "Barra o mancuernas",
+      bodyweight: "Peso corporal",
       cable: "Polea ajustable",
       smith: "Multipower",
     }[variant],
@@ -48,7 +49,7 @@ function e(
     pullPattern: muscle === "back"
       ? (id.includes("row") || id.includes("face-pull") ? "horizontal" : id.includes("pulldown") || id.includes("pullup") || id.includes("pullover") ? "vertical" : undefined)
       : undefined,
-    scoreEligible: variant === "free",
+    scoreEligible: variant === "free" || variant === "bodyweight",
     // Total load increment for bars; per-dumbbell increment for dumbbells.
     loadStep: variant === "free" && !formattedName.toLocaleLowerCase("es-ES").includes("mancuernas") ? 2.5 : 1.25,
   };
@@ -166,7 +167,7 @@ const entries: Exercise[] = [
   ),
   e(
     "t-row",
-    "Remo en T con apoyo en máquina",
+    "Remo en T",
     "back",
     2.5,
     "beginner",
@@ -231,6 +232,7 @@ const entries: Exercise[] = [
     "free",
     ["triceps"],
   ),
+  e("handstand-push-up", "Flexiones de pino", "shoulders", 4, "intermediate", "compound", "bodyweight", ["triceps"]),
   e(
     "rear-cable",
     "Pájaros en cable cruzados",
@@ -258,6 +260,8 @@ const entries: Exercise[] = [
     "isolation",
     "cable",
   ),
+  e("cable-curl-unilateral", "Curl en cable unilateral", "biceps", 2.5, "beginner", "isolation", "cable"),
+  e("cable-curl-bar", "Curl en cable con barra", "biceps", 2.6, "beginner", "isolation", "cable"),
   e(
     "dumbbell-curl",
     "Curl de bíceps con mancuernas",
@@ -314,13 +318,14 @@ const entries: Exercise[] = [
     "cable",
   ),
   e("dumbbell-bench", "Press banca con mancuernas", "chest", 3.3, "intermediate", "compound", "free", ["triceps", "shoulders"]),
-  e("weighted-dips", "Fondos libres con lastre", "chest", 3.4, "intermediate", "compound", "free", ["triceps", "shoulders"]),
+  e("weighted-dips", "Fondos", "chest", 3.4, "intermediate", "compound", "bodyweight", ["triceps", "shoulders"]),
+  e("push-up", "Flexiones", "chest", 3.45, "beginner", "compound", "bodyweight", ["triceps", "shoulders"]),
   e("bench-smith", "Press banca en multipower", "chest", 3.5, "beginner", "compound", "smith", ["triceps", "shoulders"]),
   e("incline-smith", "Press banca inclinada en multipower", "chest", 3.6, "beginner", "compound", "smith", ["triceps", "shoulders"]),
   e("standing-cable-pec-dec", "Pec dec con cable de pie", "chest", 3.8, "beginner", "isolation", "cable"),
   e("gironda-row", "Remo Gironda neutro", "back", 2.4, "beginner", "compound", "cable", ["biceps"]),
-  e("pronated-pullup", "Dominadas pronas", "back", 3, "intermediate", "compound", "free", ["biceps"]),
-  e("neutral-pullup", "Dominadas neutras", "back", 3.1, "intermediate", "compound", "free", ["biceps"]),
+  e("pronated-pullup", "Dominadas pronas", "back", 3, "intermediate", "compound", "bodyweight", ["biceps"]),
+  e("neutral-pullup", "Dominadas neutras", "back", 3.1, "intermediate", "compound", "bodyweight", ["biceps"]),
   e("barbell-row", "Remo libre con barra", "back", 3.2, "intermediate", "compound", "free", ["biceps"]),
   e("one-arm-row", "Remo unilateral libre", "back", 3.3, "intermediate", "compound", "free", ["biceps"]),
   e("seated-face-pull", "Face pull sentado", "back", 3.4, "beginner", "isolation", "cable", ["shoulders"]),
@@ -335,6 +340,7 @@ const entries: Exercise[] = [
   e("incline-curl", "Curl banco 45 grados", "biceps", 3.3, "intermediate", "isolation", "free"),
   e("pronated-curl", "Curl prono", "biceps", 3.4, "intermediate", "isolation", "free", [], "Mayor impacto en el antebrazo."),
   e("katana-bar", "Katanas en cable con barra", "triceps", 2, "beginner", "isolation", "cable"),
+  e("triceps-machine", "Extensión de tríceps en máquina", "triceps", 2.4, "beginner", "isolation", "machine"),
   e("french-press", "Press francés libre tumbado", "triceps", 2.1, "intermediate", "isolation", "free"),
   e("katana-dumbbell", "Katanas con mancuerna libre", "triceps", 3.2, "intermediate", "isolation", "free"),
   e("high-bar-squat", "Sentadilla high bar", "quads", 2, "intermediate", "compound", "free", ["glutes"]),
@@ -372,6 +378,7 @@ const entries: Exercise[] = [
     ["hamstrings"],
   ),
   e("abductor", "Abductores en máquina", "glutes", 2),
+  e("adductor-machine", "Adductor", "adductors", 2.1),
   e(
     "bulgarian-smith",
     "Sentadilla búlgara en multipower",
@@ -454,6 +461,17 @@ const entries: Exercise[] = [
     "compound",
     "free",
     ["glutes"],
+  ),
+  e(
+    "deadlift-conventional",
+    "Peso muerto convencional con barra",
+    "hamstrings",
+    3.2,
+    "intermediate",
+    "compound",
+    "free",
+    ["glutes"],
+    "Bisagra de cadera Tier A orientada a fuerza. Puede sustituir al rumano, pero para hipertrofia priorizamos el rumano en multipower cuando esté disponible.",
   ),
   e(
     "rdl-dumbbell",

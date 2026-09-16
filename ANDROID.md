@@ -1,16 +1,16 @@
 # Akhyles para Android
 
-> Revisión actual: `versionCode` 3. La release conectada requiere URL pública HTTPS
+> Revisión del código: 1.0.6, `versionCode` 8. La release conectada requiere URL pública HTTPS
 > comprobada y produce `akhyles-release.apk` / `.aab`. Sin hosting, usar
-> `-OfflinePreview`: produce `akhyles-offline-preview.apk` / `.aab`, sin Comunidad.
+> `-OfflinePreview`: produce `akhyles-offline-preview.apk` / `.aab`, sin cuentas en nube ni Comunidad.
 > El script exige la firma existente; no crea otra si falta. Validación repetible:
 > `node scripts/verify-android.mjs RUTA_APK RUTA_AAB`.
 
-La aplicación Android comparte pantallas, rutinas, historial y lógica con la versión web. El identificador es `com.javiermartinrosado.gymbuddy`; el esquema de enlaces es `gym-buddy://`.
+La aplicación Android comparte pantallas, rutinas, historial y lógica con la versión web. El identificador es `com.javiermartinrosado.akhyles`; el esquema de enlaces es `akhyles://`.
 
 ## Compilar en Windows
 
-Requisitos: Node 24, JDK 17, Android SDK API 36 y Build Tools 36. La primera compilación descarga Gradle, NDK y CMake si faltan. Configura `JAVA_HOME` y `ANDROID_HOME` o usa las herramientas instaladas en `.local/gym-buddy-android/java` y `AppData/Local/Android/Sdk`.
+Requisitos: Node 24, JDK 17, Android SDK API 36 y Build Tools 36. La primera compilación descarga Gradle, NDK y CMake si faltan. Configura `JAVA_HOME` y `ANDROID_HOME` o usa las herramientas instaladas en `.local/akhyles-android/java` y `AppData/Local/Android/Sdk`.
 
 ```powershell
 npm.cmd ci
@@ -29,11 +29,32 @@ La release conectada se guarda en `artifacts/android/akhyles-release.apk` y `art
 
 ## Firma y actualizaciones
 
-El script exige y reutiliza la firma existente en `%USERPROFILE%/.local/gym-buddy-android/signing/`. Conserva una copia privada de **toda esa carpeta**: `gym-buddy.jks` y `signing.properties`. Las contraseñas no se imprimen ni se incluyen en Git. Si falta, recupera la copia; no crees otra. Para actualizar una instalación conservando sus datos deben mantenerse el identificador y la firma; incrementa `android.versionCode` en `app.config.ts` para cada versión publicada.
+El script exige y reutiliza la firma existente en `%USERPROFILE%/.local/akhyles-android/signing/`. Conserva una copia privada de **toda esa carpeta**: `akhyles.jks` y `signing.properties`. Las contraseñas no se imprimen ni se incluyen en Git. Si falta, recupera la copia; no crees otra. Para actualizar una instalación conservando sus datos deben mantenerse el identificador y la firma; incrementa `android.versionCode` en `app.config.ts` para cada versión publicada.
 
 No desinstales la app para actualizar: instala encima con `adb install -r`. Los entrenamientos web y Android se almacenan por separado; los datos del navegador no aparecen automáticamente en una instalación nueva de Android. Se conserva la clave histórica de almacenamiento para futuras actualizaciones. Las cuentas y fotos de Comunidad residen en el servidor.
 
-## Comunidad y Google
+## Cuentas, nube y Google
+
+El servicio de cuentas PHP es independiente del backend social experimental.
+Configuración: [server-php/README.md](server-php/README.md).
+Solo tras desplegarlo y verificar HTTPS, correo, Google y recuperación real:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format both -AccountUrl https://api.akhyles.com
+```
+
+El script verifica el servicio antes de compilar. Las cuentas conservan primero
+el estado local y después sincronizan la copia privada del usuario autenticado.
+Los cambios divergentes piden elegir una copia; no se regenera la rutina al
+actualizar. Para recuperar en una instalación nueva, debe existir una copia
+confirmada en la nube y accederse con la misma cuenta. Las pruebas de navegador
+no sustituyen la prueba de actualización/reinstalación en Android.
+
+La URL se incorpora a la APK al compilar; activar el servidor no conecta
+automáticamente una APK offline ya distribuida. Nunca incluir contraseñas,
+claves SMTP ni claves de cifrado en variables `EXPO_PUBLIC_*`.
+
+## Comunidad experimental
 
 Define `EXPO_PUBLIC_COMMUNITY_URL` con la URL HTTPS real del backend **antes de compilar**. Opcionalmente, define `EXPO_PUBLIC_WEB_URL` con la URL HTTPS de la app web para que los enlaces compartidos tengan una vista previa accesible desde el navegador. Sin ella, se usa el enlace nativo que requiere Akhyles instalada.
 

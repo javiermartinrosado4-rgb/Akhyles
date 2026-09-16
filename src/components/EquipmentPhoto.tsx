@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { useState } from "react";
 import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { getEquipmentPhoto } from "../data/equipment";
@@ -5,6 +6,7 @@ import { useTheme } from "../theme";
 import { Button, Icon, Txt } from "./ui";
 
 export function EquipmentPhoto({ exerciseId, exerciseName }: { exerciseId: string; exerciseName: string }) {
+  const { t } = useLanguage();
   const { colors, dark } = useTheme();
   const { width } = useWindowDimensions();
   const [expanded, setExpanded] = useState(false);
@@ -27,13 +29,13 @@ export function EquipmentPhoto({ exerciseId, exerciseName }: { exerciseId: strin
       <Image
         source={equipment.image}
         resizeMode="contain"
-        accessibilityLabel={`Equipamiento: ${equipment.label}`}
+        accessibilityLabel={t("Equipamiento: {name}", { name: t(equipment.label) })}
         style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
         onError={() => { setFailed(true); setExpanded(false); }}
       />
       {equipment.extraImage && (
         <View style={{ position: "absolute", right: 5, bottom: 5, width: large ? 100 : 42, aspectRatio: 1, backgroundColor: "#FFFFFF", borderRadius: 9, overflow: "hidden", borderWidth: 1, borderColor: "#D9DED7" }}>
-          <Image source={equipment.extraImage} resizeMode="contain" accessibilityLabel={`Material adicional: ${equipment.label}`} style={{ width: "100%", height: "100%" }} />
+          <Image source={equipment.extraImage} resizeMode="contain" accessibilityLabel={t("Material adicional: {name}", { name: t(equipment.label) })} style={{ width: "100%", height: "100%" }} />
         </View>
       )}
       {/* A subtle sage photographic treatment retains all mechanical details.
@@ -47,8 +49,8 @@ export function EquipmentPhoto({ exerciseId, exerciseName }: { exerciseId: strin
       <Pressable
         testID="equipment-photo"
         accessibilityRole="button"
-        accessibilityLabel={`Ampliar foto: ${exerciseName}`}
-        accessibilityHint="Muestra el equipamiento en grande"
+        accessibilityLabel={t("Ampliar foto: {name}", { name: exerciseName })}
+        accessibilityHint={t("Muestra el equipamiento en grande")}
         onPress={() => setExpanded(true)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -62,16 +64,16 @@ export function EquipmentPhoto({ exerciseId, exerciseName }: { exerciseId: strin
       </Pressable>
       <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(8, 16, 10, 0.64)", justifyContent: "center", alignItems: "center", padding: 20 }}>
-          <Pressable accessibilityLabel="Cerrar foto del equipo" accessibilityRole="button" onPress={() => setExpanded(false)} style={StyleSheet.absoluteFill} />
+          <Pressable accessibilityLabel={t("Cerrar foto del equipo")} accessibilityRole="button" onPress={() => setExpanded(false)} style={StyleSheet.absoluteFill} />
           <View accessibilityViewIsModal style={{ width: "100%", maxWidth: 440, maxHeight: "90%", borderRadius: 24, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, overflow: "hidden" }}>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
               <Txt size={11} weight="600" muted style={{ letterSpacing: 2 }}>TU EQUIPAMIENTO</Txt>
-              <Txt accessibilityRole="header" size={23} weight="600">{exerciseName}</Txt>
+              <Txt translate={false} accessibilityRole="header" size={23} weight="600">{exerciseName}</Txt>
               {photo(true)}
               <Txt weight="600">{equipment.label}</Txt>
               <Txt muted size={12}>Foto orientativa: el modelo de tu gimnasio puede variar.</Txt>
-              <Pressable accessibilityRole="link" accessibilityLabel={`Ver foto original de ${equipment.credit}`} onPress={() => { void Linking.openURL(equipment.sourceUrl).catch(() => {}); }}>
-                <Txt size={12} style={{ color: colors.accent, textDecorationLine: "underline" }}>Foto: {equipment.credit} ↗</Txt>
+              <Pressable accessibilityRole="link" accessibilityLabel={t("Ver foto original de {credit}", { credit: equipment.credit })} onPress={() => { void Linking.openURL(equipment.sourceUrl).catch(() => {}); }}>
+                <Txt size={12} style={{ color: colors.accent, textDecorationLine: "underline" }}>{t("Foto: {credit} ↗", { credit: equipment.credit })}</Txt>
               </Pressable>
               <Button label="Volver al ejercicio" icon="arrow-left" onPress={() => setExpanded(false)} />
             </ScrollView>

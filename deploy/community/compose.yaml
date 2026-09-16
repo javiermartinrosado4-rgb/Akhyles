@@ -1,4 +1,4 @@
-name: gym-buddy
+name: akhyles
 services:
   api:
     build:
@@ -7,7 +7,7 @@ services:
     env_file:
       - ../../server/.env.production
     volumes:
-      - gym_buddy_data:/data
+      - akhyles_data:/data
     restart: unless-stopped
     init: true
     read_only: true
@@ -52,13 +52,13 @@ services:
     env_file:
       - ../../server/.env.backup
     volumes:
-      - gym_buddy_data:/data:ro
+      - akhyles_data:/data:ro
       - ../../server/backup-password.txt:/run/secrets/restic-password:ro
     tmpfs:
       - /backup-staging:size=2g,uid=1000,gid=1000,mode=0700
       - /tmp:size=128m,mode=1777
     environment:
-      GYM_DATABASE: /data/gym-buddy.sqlite
+      GYM_DATABASE: /data/akhyles.sqlite
       RESTIC_PASSWORD_FILE: /run/secrets/restic-password
       RESTIC_CACHE_DIR: /tmp/restic-cache
     depends_on:
@@ -78,6 +78,6 @@ services:
       start_period: 10m
 
 volumes:
-  gym_buddy_data:
+  akhyles_data:
   caddy_data:
   caddy_config:

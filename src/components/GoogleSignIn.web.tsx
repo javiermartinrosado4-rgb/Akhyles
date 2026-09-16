@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import { useCommunity } from "../state/Community";
@@ -23,6 +24,7 @@ function loadGoogle() {
   return sdk;
 }
 export function GoogleSignIn({ enter = false }: { enter?: boolean }) {
+  const { t, language } = useLanguage();
   const { authenticateGoogle, user } = useCommunity();
   const { state } = useStore();
   const host = useRef<HTMLDivElement>(null);
@@ -48,11 +50,11 @@ export function GoogleSignIn({ enter = false }: { enter?: boolean }) {
         },
       });
       host.current.replaceChildren();
-      google.accounts.id.renderButton(host.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", locale: "es" });
+      google.accounts.id.renderButton(host.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", locale: language });
     }).catch(error => { if (alive) setError(error.message); });
     return () => { alive = false; };
-  }, [attempt, enter, state.completed, user]);
-  if (user) return <Txt muted>Conectado como {user.name}</Txt>;
+  }, [attempt, enter, state.completed, user, language]);
+  if (user) return <Txt muted>{t("Conectado como {value1}", { value1: user.name })}</Txt>;
   return <>
     <div ref={host} style={{ minHeight: error ? 0 : 44, pointerEvents: busy ? "none" : "auto" }} />
     {busy && <Txt muted>Verificando tu cuenta…</Txt>}

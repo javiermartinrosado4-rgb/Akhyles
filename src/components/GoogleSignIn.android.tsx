@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { useRef, useState } from "react";
 import { router } from "expo-router";
 import { GoogleOneTapSignIn, isSuccessResponse, isErrorWithCode, statusCodes } from "react-native-nitro-google-signin";
@@ -7,6 +8,7 @@ import { communityRequest } from "../services/community";
 import { Button, Notice, Txt } from "./ui";
 
 export function GoogleSignIn({ enter = false }: { enter?: boolean }) {
+  const { t } = useLanguage();
   const { authenticateGoogle, user } = useCommunity();
   const { state } = useStore();
   const running = useRef(false);
@@ -34,7 +36,7 @@ export function GoogleSignIn({ enter = false }: { enter?: boolean }) {
       setBusy(false);
     }
   };
-  if (user) return <Txt muted>Conectado como {user.name}</Txt>;
+  if (user) return <Txt muted>{t("Conectado como {value1}", { value1: user.name })}</Txt>;
   return <>
     <Button label={busy ? "Conectando con Google…" : "Continuar con Google"} variant="secondary" disabled={busy} onPress={() => void signIn()} />
     {!!error && <Notice error>{error}</Notice>}

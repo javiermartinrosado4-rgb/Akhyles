@@ -1,10 +1,9 @@
-import { communitySession as AsyncStorage } from "../storage/communitySession";
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
-import { CommunityError, communityRequest, communityUrl, CommunityUser } from "../services/community";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { communityRequest, CommunityError, CommunityUser } from "../services/community";
 import { useStore } from "./Store";
-import { exportProgress } from "../logic/sharing";
+import { useAccount } from "./Account";
+import { exportProgress, exportRoutine } from "../logic/sharing";
 
-const tokenKey = `gym-buddy:community:${communityUrl}`;
 interface CommunityContext {
   token: string | null;
   user: CommunityUser | null;
@@ -19,80 +18,113 @@ interface CommunityContext {
 }
 const Context = createContext<CommunityContext | null>(null);
 export function CommunityProvider({ children }: { children: ReactNode }) {
-  const { state, update } = useStore();
-  const history = state.history;
+  const { state, ready: storeReady } = useStore();
+  const { user: accountUser, request: accountRequest } = useAccount();
   const [token, setToken] = useState<string | null>(null);
+  const demoSession = useRef(false);
+  const currentToken = useRef<string | null>(null);
+  const uploads = useRef(Promise.resolve());
+  const scheduleUpload = useCallback((session: string, upload: () => Promise<unknown>) => {
+    let alive = true;
+    const timer = setTimeout(() => {
+      uploads.current = uploads.current.then(async () => {
+        if (alive && currentToken.current === session) await upload();
+      }).catch(() => undefined);
+    }, 1000);
+    return () => { alive = false; clearTimeout(timer); };
+  }, []);
+  const setSessionToken = useCallback((value: string | null) => { currentToken.current = value; setToken(value); }, []);
   const [user, setUser] = useState<CommunityUser | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
-    AsyncStorage.getItem(tokenKey).then(saved => { if (alive) setToken(saved); })
-      .catch(() => { if (alive) setError("No se ha podido recuperar tu sesión de Comunidad."); })
-      .finally(() => { if (alive) setReady(true); });
+    if (alive) { setSessionToken(accountUser?.id ?? null); setReady(true); }
+    return () => { alive = false; currentToken.current = null; };
+  }, [accountUser?.id, setSessionToken]);
+  useEffect(() => {
+    if (accountUser || !__DEV__ || typeof window === "undefined" || !new URLSearchParams(window.location.search).has("demo")) return;
+    let alive = true;
+    void communityRequest<{ token: string; user: CommunityUser }>("/auth/login", undefined, "POST", { handle: "marcos_avanza", password: "Akhyles-demo-local-2026" })
+      .then(session => { if (alive) { demoSession.current = true; setSessionToken(session.token); setUser(session.user); setError(""); } })
+      .catch(error => { if (alive) setError(error.message); });
     return () => { alive = false; };
-  }, []);
+  }, [accountUser, setSessionToken]);
   const request = useCallback(async <T,>(path: string, method = "GET", data?: unknown): Promise<T> => {
-    try { return await communityRequest<T>(path, token ?? undefined, method, data); }
+    try { return demoSession.current ? await communityRequest<T>(path, currentToken.current ?? undefined, method, data) : await accountRequest<T>(`/community${path}`, method, data); }
     catch (error) {
-      if (error instanceof CommunityError && error.status === 401) {
-        setToken(null); setUser(null);
-        await AsyncStorage.removeItem(tokenKey).catch(() => undefined);
-      }
+      if (error instanceof CommunityError && error.status === 401) { setSessionToken(null); setUser(null); }
       throw error;
     }
-  }, [token]);
+  }, [accountRequest, setSessionToken]);
   const refresh = useCallback(async () => {
     if (!token) return;
     const profile = await request<CommunityUser>("/me");
+    if (currentToken.current !== token) return;
     setUser(profile); setError("");
   }, [token, request]);
   useEffect(() => {
     if (!token) return;
     let alive = true;
-    communityRequest<CommunityUser>("/me", token).then(profile => { if (alive) { setUser(profile); setError(""); } })
+    request<CommunityUser>("/me").then(profile => { if (alive) { setUser(profile); setError(""); } })
       .catch(error => {
         if (!alive) return;
-        if (error instanceof CommunityError && error.status === 401) { setToken(null); setUser(null); void AsyncStorage.removeItem(tokenKey).catch(() => undefined); }
+        if (error instanceof CommunityError && error.status === 401) { setSessionToken(null); setUser(null); }
         setError(error.message);
       });
     return () => { alive = false; };
-  }, [token]);
+  }, [token, request, setSessionToken]);
+  // The @ chosen in the main profile is the Community handle too. The server
+  // is authoritative: it reserves the handle and rejects duplicates.
+  useEffect(() => {
+    const handle = (state.profile.handle ?? "").trim().replace(/^@/, "").toLowerCase();
+    if (!token || !user || !/^[a-z0-9_]{3,24}$/.test(handle) || handle === user.handle) return;
+    let alive = true;
+    request<CommunityUser>("/me", "PATCH", {
+      handle,
+      name: state.profile.name || user.name,
+      avatar: state.profile.avatar || user.avatar,
+      level: state.profile.level || user.level,
+    }).then(profile => { if (alive) { setUser(profile); setError(""); } })
+      .catch(error => { if (alive) setError(error.message); });
+    return () => { alive = false; };
+  }, [token, user?.handle, user?.name, user?.avatar, user?.level, state.profile.handle, state.profile.name, state.profile.avatar, state.profile.level, request]);
   const logout = useCallback(async () => {
-    if (token) await communityRequest("/auth/logout", token, "POST");
-    await AsyncStorage.removeItem(tokenKey);
-    setToken(null); setUser(null); setError("");
-  }, [token]);
+    setSessionToken(null); setUser(null); setError("");
+  }, [setSessionToken]);
   const deleteAccount = useCallback(async () => {
-    if (!token) return;
-    await communityRequest("/me", token, "DELETE");
-    await AsyncStorage.removeItem(tokenKey);
-    setToken(null); setUser(null); setError("");
-  }, [token]);
+    throw new Error("Tu perfil de Comunidad forma parte de tu cuenta Akhyles. Gestiona la cuenta desde Cuenta y copias.");
+  }, []);
   useEffect(() => {
     if (state.signedOut && token) {
-      void communityRequest("/auth/logout", token, "POST").catch(() => undefined);
-      void AsyncStorage.removeItem(tokenKey).catch(() => undefined).finally(() => { setToken(null); setUser(null); });
+      currentToken.current = null;
+      setSessionToken(null); setUser(null);
     }
-  }, [state.signedOut, token]);
-  // Once a user opts in, followers with a mutual connection see a current
-  // compact snapshot after each completed session. No full history is sent.
+  }, [state.signedOut, token, setSessionToken]);
+  // Detailed history and body measurements each require their own opt-in.
   useEffect(() => {
-    if (!token || !user?.progressPublic) return;
-    void communityRequest("/progress/me", token, "PUT", exportProgress({ history })).catch(() => undefined);
-  }, [history, token, user?.progressPublic]);
+    if (!storeReady || state.signedOut || !token || !(user?.progressPublic || user?.rankingPublic)) return;
+    return scheduleUpload(token, () => request("/progress/me", "PUT", exportProgress(state, !!user?.detailsPublic && !!user?.progressPublic, !!user?.bodyWeightPublic && !!user?.progressPublic)));
+  }, [state, storeReady, token, user?.progressPublic, user?.detailsPublic, user?.bodyWeightPublic, user?.rankingPublic, scheduleUpload, request]);
+  useEffect(() => {
+    if (!storeReady || state.signedOut || !token || !user?.routinePublic || !state.routine.length) return;
+    return scheduleUpload(token, () => request("/routines/me", "PUT", exportRoutine(state.routine, state.preferences)));
+  }, [storeReady, state.signedOut, state.routine, state.preferences, token, user?.routinePublic, scheduleUpload, request]);
+  // Managed routines are separate from public Community sharing. A client only syncs a plan
+  // after an explicitly accepted coaching relationship exists.
+  useEffect(() => {
+    if (!storeReady || state.signedOut || !token || !state.routine.length) return;
+    let alive = true;
+    void request<{ status: string; role: string }[]>("/coaching").then(relationships => {
+      if (alive && relationships.some(item => item.status === "active" && item.role === "client"))
+        return request("/coaching/routine/me", "PUT", exportRoutine(state.routine, state.preferences));
+      return undefined;
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [storeReady, state.signedOut, state.routine, state.preferences, token, request]);
   return <Context.Provider value={{ token, user, ready, error, request, refresh, logout, deleteAccount,
-    authenticateGoogle: async (credential, nonce) => {
-      const result = await communityRequest<{ token: string; user: CommunityUser }>("/auth/google", undefined, "POST", { credential, nonce, level: state.profile.level });
-      await AsyncStorage.setItem(tokenKey, result.token);
-      update(s => ({ ...s, signedOut: false, profile: { ...s.profile, name: s.profile.name || result.user.name, handle: s.profile.handle || result.user.handle } }));
-      setToken(result.token); setUser(result.user); setError("");
-    },
-    authenticate: async (register, data) => {
-      const result = await communityRequest<{ token: string; user: CommunityUser }>(register ? "/auth/register" : "/auth/login", undefined, "POST", data);
-      await AsyncStorage.setItem(tokenKey, result.token);
-      setToken(result.token); setUser(result.user); setError("");
-    },
+    authenticateGoogle: async () => { throw new Error("Inicia sesión con tu cuenta Akhyles."); },
+    authenticate: async () => { throw new Error("Crea o inicia sesión en tu cuenta Akhyles."); },
   }}>{children}</Context.Provider>;
 }
 export function useCommunity() {

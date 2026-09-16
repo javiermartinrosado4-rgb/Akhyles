@@ -10,12 +10,12 @@ import { createGymServer } from "../server/app";
 import { requirePublicHttps, resolveCommunityUrl } from "../src/logic/endpoints";
 
 test("production rejects local, cleartext, credentials, IP obfuscation and fallback endpoints", () => {
-  for (const url of ["http://api.gymbuddy.app", "https://localhost", "https://localhost.", "https://foo.localhost", "https://127.1", "https://2130706433", "https://0x7f000001", "https://[::1]", "https://10.0.2.2", "https://192.168.1.1", "https://api.local", "https://api.internal", "https://api.example.com", "https://user:secret@api.gymbuddy.app", "https://api.gymbuddy.app?token=x", "https://api.gymbuddy.app#x"]) {
+  for (const url of ["http://api.akhyles.app", "https://localhost", "https://localhost.", "https://foo.localhost", "https://127.1", "https://2130706433", "https://0x7f000001", "https://[::1]", "https://10.0.2.2", "https://192.168.1.1", "https://api.local", "https://api.internal", "https://api.example.com", "https://user:secret@api.akhyles.app", "https://api.akhyles.app?token=x", "https://api.akhyles.app#x"]) {
     assert.throws(() => requirePublicHttps(url), url);
     assert.throws(() => resolveCommunityUrl(url, undefined, undefined, true), url);
   }
   assert.equal(resolveCommunityUrl(undefined, "http://localhost:8081", "10.0.2.2", true), "");
-  assert.equal(resolveCommunityUrl("https://api.gymbuddy.app/", undefined, undefined, true), "https://api.gymbuddy.app");
+  assert.equal(resolveCommunityUrl("https://api.akhyles.app/", undefined, undefined, true), "https://api.akhyles.app");
 });
 
 test("production environment fails closed and supports native-only CORS", () => {
@@ -24,7 +24,7 @@ test("production environment fails closed and supports native-only CORS", () => 
   assert.throws(() => serverConfig({ ...env, GYM_DATABASE: ":memory:" }));
   assert.throws(() => serverConfig({ ...env, GYM_DATABASE: "relative.sqlite" }));
   assert.throws(() => serverConfig({ ...env, GYM_ALLOWED_ORIGINS: undefined }));
-  for (const origin of ["*", "http://localhost:8081", "https://app.gymbuddy.app/", "https://app.gymbuddy.app/path"]) {
+  for (const origin of ["*", "http://localhost:8081", "https://app.akhyles.app/", "https://app.akhyles.app/path"]) {
     assert.throws(() => serverConfig({ ...env, GYM_ALLOWED_ORIGINS: origin }));
   }
   assert.throws(() => serverConfig({ ...env, GYM_API_PORT: "NaN" }));

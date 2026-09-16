@@ -17,6 +17,7 @@ async function onboard(page: Page) {
   await expect(
     page.getByRole("button", { name: "Entrenamiento", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
 }
 
 test("profile changes regenerate five days and keep unavailable exercise preferences", async ({
@@ -35,6 +36,7 @@ test("profile changes regenerate five days and keep unavailable exercise prefere
     .click();
   await page.getByRole("radio", { name: "Avanzado", exact: true }).click();
   await page.getByRole("button", { name: "7", exact: true }).click();
+  await page.getByRole("button", { name: /^Elegir mesociclo:/ }).click();
   await page.getByRole("radio", { name: "Glúteos", exact: true }).click();
   await page.getByRole("checkbox", { name: "Peso libre", exact: true }).click();
   await page
@@ -45,6 +47,7 @@ test("profile changes regenerate five days and keep unavailable exercise prefere
     .click();
   await expect(page.getByText(/Perfil actualizado/)).toBeVisible();
   await page.getByRole("button", { name: "Entrenamiento", exact: true }).click();
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await expect(
     page.getByRole("radio", { name: /Especialización/ }),
   ).toBeVisible();
@@ -106,6 +109,7 @@ test("complete onboarding, back navigation, validation, editing, workout and per
   await expect(
     page.getByRole("button", { name: "Entrenamiento", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await page.screenshot({ path: "test-results/rutina.png" });
   await page
     .getByRole("button", { name: "Editar ejercicio 1", exact: true })
@@ -127,8 +131,9 @@ test("complete onboarding, back navigation, validation, editing, workout and per
     .getByRole("button", { name: "Guardar cambios", exact: true })
     .click();
   await page.reload();
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Ver detalles de Pecho Mi Gimnasio", exact: true }),
+    page.getByRole("button", { name: "Ver detalles de Pecho en mi gimnasio", exact: true }),
   ).toBeVisible();
   await page.evaluate(() => {
     const key = "gym60:state:v1";
@@ -150,7 +155,7 @@ test("complete onboarding, back navigation, validation, editing, workout and per
     page.getByText(/Completa cada serie con un peso válido/),
   ).toBeVisible();
   await page
-    .getByRole("textbox", { name: "Peso serie 1", exact: true })
+    .getByRole("textbox", { name: "Peso total serie 1", exact: true })
     .fill("20,25");
   await page
     .getByRole("textbox", { name: "Repeticiones serie 1", exact: true })
@@ -161,7 +166,7 @@ test("complete onboarding, back navigation, validation, editing, workout and per
   ).toHaveValue("10");
   let finished = false;
   for (let i = 0; i < 10; i++) {
-    const weights = page.getByRole("textbox", { name: /^Peso serie / });
+    const weights = page.getByRole("textbox", { name: /^Peso total serie / });
     const repetitions = page.getByRole("textbox", { name: /^Repeticiones serie / });
     for (let j = 0; j < await weights.count(); j++) {
       await weights.nth(j).fill("35");
@@ -186,69 +191,29 @@ test("complete onboarding, back navigation, validation, editing, workout and per
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).preferences.weights["chest-press"])).toBe(36.25);
   await page.getByRole("button", { name: "Volver a Entrenamiento", exact: true }).click();
   await page.getByRole("button", { name: "Progreso", exact: true }).click();
-  await expect(page.getByText("Tu historial", { exact: true })).toBeVisible();
+  await expect(page.getByText("Gráficas", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText("Pecho Mi Gimnasio", { exact: true }).last(),
+    page.getByRole("textbox", { name: "Peso corporal de hoy", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
-test("photo consent, age restriction, fictitious editable result, no photo persistence", async ({
-  page,
-}) => {
+test("retired body-fat simulation is removed from legacy profiles without losing weight", async ({ page }) => {
   await page.goto("/onboarding");
-  await page
-    .getByRole("button", { name: "Rellenar con datos de ejemplo" })
-    .click();
-  await page.getByRole("textbox", { name: "Edad", exact: true }).fill("18");
-  await expect(
-    page.getByRole("radio", {
-      name: "Estimarlo mediante fotografías",
-      exact: true,
-    }),
-  ).toBeDisabled();
-  await page.getByRole("textbox", { name: "Edad", exact: true }).fill("19");
-  await page
-    .getByRole("radio", { name: "Estimarlo mediante fotografías", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Simular carga y análisis" }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("checkbox", { name: "Doy mi consentimiento explícito" })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Simular carga y análisis" }),
-  ).toBeDisabled();
-  const photo = {
-    name: "foto-prueba.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7WQAAAAASUVORK5CYII=",
-      "base64",
-    ),
-  };
-  await page.locator("input[type=file]").nth(0).setInputFiles(photo);
-  await page.locator("input[type=file]").nth(1).setInputFiles(photo);
-  await page.getByRole("button", { name: "Simular carga y análisis" }).click();
-  await expect(page.getByText("14–17 %", { exact: true })).toBeVisible();
-  await page
-    .getByRole("textbox", { name: "Valor central editable" })
-    .fill("16,25");
-  await page
-    .getByRole("button", { name: "Confirmar resultado", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Tu punto de partida" }),
-  ).toBeVisible();
-  const storage = await page.evaluate(() =>
-    localStorage.getItem("gym60:state:v1"),
-  );
-  expect(storage).toContain("16,25");
-  expect(storage).not.toContain("foto-prueba");
-  expect(storage).not.toContain("base64");
+  await page.getByRole("button", { name: "Rellenar con datos de ejemplo" }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).profile.weight)).toBe("76,5");
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("gym60:state:v1")!);
+    s.profile.fatMode = "photo"; s.profile.bodyFat = "16,25"; s.profile.photoConfirmed = true;
+    localStorage.setItem("gym60:state:v1", JSON.stringify(s));
+  });
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "Peso corporal", exact: true })).toHaveValue("76,5");
+  await expect(page.getByRole("radio", { name: "Estimarlo mediante fotografías", exact: true })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Edad", exact: true }).fill("30");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).profile.fatMode)).toBeUndefined();
 });
+
 test("substitution preferences, custom exercises, demo progression, themes and small viewport", async ({
   page,
 }) => {
@@ -267,6 +232,7 @@ test("substitution preferences, custom exercises, demo progression, themes and s
         .unavailable,
   );
   expect(unavailable).toContain("chest-press");
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await page.getByRole("button", { name: "Editar ejercicio 1", exact: true }).click();
   await page.getByRole("button", { name: "Sustituir ejercicio", exact: true }).click();
   await page
@@ -282,7 +248,7 @@ test("substitution preferences, custom exercises, demo progression, themes and s
     })
     .click();
   await expect(
-    page.getByText("Mi Máquina Pecho", { exact: true }),
+    page.getByRole("button", { name: "Ver detalles de Mi máquina de pecho", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Perfil", exact: true }).click();
   await page
@@ -308,6 +274,7 @@ test("substitution preferences, custom exercises, demo progression, themes and s
   await page.getByRole("button", { name: "Volver", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Entrenamiento", exact: true }).click();
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await page.screenshot({ path: "test-results/movil.png" });
   expect(
     await page.evaluate(

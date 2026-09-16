@@ -8,9 +8,10 @@ export type Muscle =
   | "glutes"
   | "quads"
   | "hamstrings"
+  | "adductors"
   | "calves"
   | "abs";
-export type Variant = "machine" | "free" | "cable" | "smith";
+export type Variant = "machine" | "free" | "cable" | "smith" | "bodyweight";
 export type ExerciseType = "compound" | "isolation";
 export type ExerciseTier = "S+" | "S" | "A" | "B";
 export type Range = [number, number];
@@ -23,12 +24,13 @@ export interface Profile {
   includeGlutes?: boolean;
   mesocycle?: boolean;
   sex: "male" | "female" | "";
+  /** ISO calendar date selected by the athlete. */
+  birthDate?: string;
+  /** Retained only to hydrate profiles created before birth dates were introduced. */
   age: string;
   height: string;
   weight: string;
-  fatMode: "manual" | "unknown" | "photo";
-  bodyFat: string;
-  photoConfirmed: boolean;
+  weightReminder?: boolean;
   level: Level;
   days: number;
   trainingDays?: Weekday[];
@@ -66,6 +68,9 @@ export interface Day {
   exercises: Prescription[];
 }
 export interface Preferences {
+  barWeights?: Record<string, number>;
+  /** Base carriage/frame mass for selectorized and plate-loaded apparatuses. */
+  apparatusWeights?: Record<string, number>;
   unavailable: string[];
   /** Exercises the athlete wants the automatic generator to prefer when compatible. */
   favorites?: string[];
@@ -83,12 +88,18 @@ export interface SetRecord {
   reps: number;
 }
 export interface ExerciseRecord {
+  /** Extra bar mass used with the logged external/plate load, frozen per session. */
+  barWeight?: number;
+  /** Apparatus base mass, frozen when the workout is saved. */
+  apparatusWeight?: number;
   prescription: Prescription;
   name: string;
   type: ExerciseType;
   sets: SetRecord[];
 }
 export interface Workout {
+  /** Sex reference at session time; absent legacy values are not inferred. */
+  sex?: Profile["sex"];
   startedAt?: string;
   level?: Level;
   bodyWeight?: number;
@@ -105,7 +116,16 @@ export interface PlannedWorkout {
   dayId: string;
   day: Day;
 }
+/** A program snapshot starts on this date and never rewrites prior calendar data. */
+export interface RoutineVersion {
+  effectiveFrom: string;
+  profile: Profile;
+  routine: Day[];
+}
 export interface ActiveWorkout {
+  barWeights?: Record<string, string>;
+  apparatusWeights?: Record<string, string>;
+  sex?: Profile["sex"];
   level?: Level;
   bodyWeight?: number;
   day: Day;
@@ -114,12 +134,19 @@ export interface ActiveWorkout {
   records: ExerciseRecord[];
   draft: { weight: string; reps: string }[];
   drafts?: Record<string, { weight: string; reps: string }[]>;
+  /** Bodyweight movements only expose added load when the athlete enables it. */
+  weighted?: Record<string, boolean>;
+  /** Whether each exercise is currently entered as total plates or plates per side. */
+  loadModes?: Record<string, import("./logic/load").LoadInputMode>;
   skipped?: string[];
 }
 export interface AppState {
+  /** Device-only synchronization metadata; never included in uploaded progress. */
+  cloud?: import("./logic/cloud").CloudMetadata;
   programRevision?: number;
   signedOut?: boolean;
   bodyWeights?: { date: string; weight: number }[];
+  weightReminderNotificationId?: string;
   version: 1;
   profile: Profile;
   onboardingStep: number;
@@ -128,6 +155,7 @@ export interface AppState {
   preferences: Preferences;
   volumeTargets?: Partial<Record<Muscle, number>>;
   routine: Day[];
+  routineVersions?: RoutineVersion[];
   history: Workout[];
   plannedWorkouts?: PlannedWorkout[];
   skippedWorkoutDates?: string[];

@@ -1,19 +1,17 @@
-# Solicitud de eliminación de cuenta de Akhyles
+# Eliminación de cuenta de Akhyles
 
-Texto listo para publicar cuando exista email público verificado y URL HTTPS.
+**Contacto:** javi@akhyles.com
 
-Puedes eliminar tu cuenta desde **Comunidad > Eliminar cuenta de Comunidad**.
-Se eliminan perfil, publicaciones/fotos, seguidores, reacciones, denuncias asociadas,
-rutinas, progreso compartido, identidad Google vinculada y sesiones del servidor.
-Los datos de entrenamiento locales permanecen en tu dispositivo.
+Puedes eliminar tu cuenta privada de Akhyles desde la aplicación:
 
-Si no puedes acceder a la app, solicita el borrado en **[EMAIL DE SOPORTE REAL]**,
-indicando tu alias de Comunidad. No envíes contraseñas ni tokens. El responsable
-verificará la titularidad antes de borrar datos y comunicará el resultado.
-El operador debe definir y atender ese procedimiento; no está automatizado por este texto.
+1. Abre **Perfil > Cuenta y copias**.
+2. Selecciona **Eliminar cuenta**.
+3. Escribe el correo de la cuenta para confirmar.
 
-Las copias, si se activa el despliegue documentado, tienen retención de 30 días.
-Los datos borrados no se reactivarán al restaurar una copia: el operador reconciliará
-las solicitudes posteriores. Confirmar también la retención de versiones del bucket.
+La eliminación borra del servicio la cuenta, las sesiones, los códigos pendientes, las copias sincronizadas y las revisiones de esas copias. La acción cierra la sesión en la aplicación.
 
-Pendiente: email real, plazo operativo de respuesta, titular y URL pública.
+El entrenamiento que aún esté guardado solo en el dispositivo no se borra automáticamente al eliminar la cuenta remota. Puedes eliminarlo desde la aplicación o desinstalarla. Las copias técnicas de seguridad pueden conservar datos durante un máximo de 30 días para recuperación ante incidentes; las solicitudes de borrado se reaplican si fuera necesario restaurar una copia.
+
+Si no puedes entrar en la aplicación, escribe a **javi@akhyles.com** con el asunto **“Eliminación de cuenta Akhyles”** e indica el correo de la cuenta. No envíes contraseñas, códigos de acceso ni tokens. Verificaremos la titularidad antes de completar la solicitud.
+
+La URL pública prevista es `https://akhyles.com/eliminar-cuenta-de-comunidad/`. Debe comprobarse por HTTPS y enlazarse desde la política de privacidad y Google Play antes del lanzamiento.

@@ -11,16 +11,19 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useTheme } from "../theme";
 import { space } from "../config";
+import { useLanguage } from "../i18n";
 export function Txt({
   children,
   size = 15,
   muted = false,
   weight = "400",
   style,
+  translate = true,
   ...props
 }: {
   children?: React.ReactNode;
@@ -28,11 +31,15 @@ export function Txt({
   muted?: boolean;
   weight?: TextStyle["fontWeight"];
   style?: TextStyle;
+  /** Disable for user-authored names, notes and posts. */
+  translate?: boolean;
 } & Pick<
   React.ComponentProps<typeof Text>,
   "accessibilityRole" | "accessibilityLiveRegion" | "testID" | "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"
 >) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
+  const translatedChildren = translate ? React.Children.map(children, child => typeof child === 'string' ? t(child) : child) : children;
   return (
     <Text
       {...props}
@@ -47,7 +54,7 @@ export function Txt({
         style,
       ]}
     >
-      {children}
+      {translatedChildren}
     </Text>
   );
 }
@@ -70,7 +77,11 @@ export function Button({
   disabled,
   icon,
   compact,
+  tight,
+  hideLabel = false,
+  accessibilityLabel,
   testID,
+  style,
 }: {
   label: string;
   onPress: () => void;
@@ -78,16 +89,23 @@ export function Button({
   disabled?: boolean;
   icon?: React.ComponentProps<typeof Feather>["name"];
   compact?: boolean;
+  /** Keeps a large touch target while allowing very short labels in narrow rows. */
+  tight?: boolean;
+  /** Keeps an icon-only control accessible without rendering duplicate text. */
+  hideLabel?: boolean;
+  accessibilityLabel?: string;
   testID?: string;
+  style?: ViewStyle;
 }) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [focus, setFocus] = useState(false);
   const fg = variant === "primary" ? colors.onAccent : colors.accent;
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ? t(accessibilityLabel) : t(label)}
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -95,7 +113,7 @@ export function Button({
       onBlur={() => setFocus(false)}
       style={({ pressed }) => ({
         minHeight: compact ? 42 : 54,
-        paddingHorizontal: compact ? 12 : 20,
+        paddingHorizontal: tight ? 4 : compact ? 12 : 20,
         paddingVertical: 10,
         borderRadius: 14,
         alignItems: "center",
@@ -111,12 +129,13 @@ export function Button({
         opacity: disabled ? 0.45 : pressed ? 0.78 : 1,
         borderWidth: 2,
         borderColor: focus ? colors.text : "transparent",
+        ...style,
       })}
     >
       {icon && <Icon name={icon} size={18} color={fg} />}
-      <Txt weight="600" size={compact ? 13 : 15} style={{ color: fg }}>
+      {!hideLabel && <Txt weight="600" size={tight ? 16 : compact ? 13 : 15} style={{ color: fg, flexShrink: 1, textAlign: "center" }}>
         {label}
-      </Txt>
+      </Txt>}
     </Pressable>
   );
 }
@@ -148,6 +167,7 @@ export function Card({
 }
 export function Choice({
   title,
+  translateTitle = true,
   description,
   selected,
   onPress,
@@ -157,6 +177,7 @@ export function Choice({
   multiple = false,
 }: {
   title: string;
+  translateTitle?: boolean;
   description?: string;
   selected: boolean;
   onPress: () => void;
@@ -166,11 +187,12 @@ export function Choice({
   multiple?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [focus, setFocus] = useState(false);
   return (
     <Pressable
       accessibilityRole={multiple ? "checkbox" : "radio"}
-      accessibilityLabel={title}
+      accessibilityLabel={translateTitle ? t(title) : title}
       aria-checked={selected}
       aria-disabled={!!disabled}
       accessibilityState={{ checked: selected, disabled: !!disabled }}
@@ -210,7 +232,7 @@ export function Choice({
     >
       {icon && <Icon name={icon} />}
       <View style={{ flex: 1, gap: 4 }}>
-        <Txt weight="600">{title}</Txt>
+        <Txt weight="600" translate={translateTitle}>{title}</Txt>
         {description && (
           <Txt size={13} muted>
             {description}
@@ -246,6 +268,7 @@ export function Field({
   secure = false,
   maxLength,
   multiline = false,
+  email = false,
 }: {
   label: string;
   value: string;
@@ -257,8 +280,10 @@ export function Field({
   secure?: boolean;
   maxLength?: number;
   multiline?: boolean;
+  email?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [focus, setFocus] = useState(false);
   return (
     <View style={{ gap: 7, flex: 1 }}>
@@ -281,19 +306,19 @@ export function Field({
         }}
       >
         <TextInput
-          accessibilityLabel={label}
+          accessibilityLabel={t(label)}
           value={value}
           onChangeText={onChangeText}
-          inputMode={numeric ? "decimal" : "text"}
+          inputMode={email ? "email" : numeric ? "decimal" : "text"}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
-          placeholder={placeholder}
+          placeholder={placeholder ? t(placeholder) : undefined}
           placeholderTextColor={colors.muted}
           maxLength={maxLength ?? (numeric ? 8 : 80)}
           secureTextEntry={secure}
           multiline={multiline}
-          autoCapitalize={secure ? "none" : "sentences"}
-          autoCorrect={!secure}
+          autoCapitalize={secure || email ? "none" : "sentences"}
+          autoCorrect={!secure && !email}
           style={{
             flex: 1,
             minWidth: 0,
@@ -379,13 +404,17 @@ export function Pill({ children }: { children: React.ReactNode }) {
 }
 export function Page({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const desktop = Platform.OS === "web" && width >= 840;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: space.lg, paddingBottom: 36, gap: 20 }}
+      contentContainerStyle={{ padding: desktop ? 36 : space.lg, paddingBottom: 36 }}
       keyboardShouldPersistTaps="handled"
     >
-      {children}
+      <View style={{ width: "100%", maxWidth: desktop ? 1060 : undefined, alignSelf: "center", gap: 20 }}>
+        {children}
+      </View>
     </ScrollView>
   );
 }
@@ -398,11 +427,12 @@ export function Heading({
   title: string;
   subtitle?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <View style={{ gap: 8 }}>
       {eyebrow && (
         <Txt size={11} weight="600" muted style={{ letterSpacing: 2 }}>
-          {eyebrow.toUpperCase()}
+          {t(eyebrow).toUpperCase()}
         </Txt>
       )}
       <Txt

@@ -2,6 +2,11 @@
 
 Android: consulta [ANDROID.md](ANDROID.md) para generar la APK instalable, conservar la firma y configurar Comunidad.
 
+Cuentas y copias privadas: [diseño y estado](docs/CUENTAS-Y-SINCRONIZACION.md),
+[servicio PHP para IONOS](server-php/README.md). Implementadas y probadas
+localmente; pendientes de activación real. Consultar primero [DIARIO.md](DIARIO.md)
+antes de retomar el proyecto.
+
 Antes de publicar: [materiales de Google Play](docs/GOOGLE-PLAY.md), [borrador de privacidad](docs/PRIVACIDAD.md) y [despliegue de Comunidad](docs/DESPLIEGUE-COMUNIDAD.md).
 
 Aplicación local de gimnasio en español, construida con React Native, Expo SDK 57, Expo Router y TypeScript.

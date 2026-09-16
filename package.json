@@ -1,6 +1,6 @@
 {
-  "name": "gym-buddy",
-  "version": "1.0.1",
+  "name": "akhyles",
+  "version": "1.0.11",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -11,6 +11,8 @@
     "expo-font": "~57.0.3",
     "expo-image-picker": "~57.0.16",
     "expo-linking": "~57.0.9",
+    "expo-localization": "~57.0.2",
+    "expo-notifications": "~57.0.17",
     "expo-router": "~57.0.20",
     "expo-secure-store": "~57.0.3",
     "expo-splash-screen": "~57.0.8",
@@ -47,6 +49,8 @@
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
     "server": "tsx server/index.ts",
+    "demo:community": "tsx scripts/start-community-demo.ts",
+    "demo:lucia": "tsx scripts/refresh-lucia-demo.ts",
     "test:e2e": "playwright test",
     "android:apk": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format apk",
     "android:aab": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format aab",

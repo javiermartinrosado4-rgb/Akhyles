@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const output = new URL("../assets/play/", import.meta.url);
 await mkdir(output, { recursive: true });
-await sharp(fileURLToPath(new URL("../assets/brand/icon.png", import.meta.url)))
+await sharp(fileURLToPath(new URL("../assets/play/Logo final.png", import.meta.url)))
   .resize(512, 512)
   .flatten({ background: "#070A09" })
   .png()

@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Button, Card, Choice, Heading, Page, Txt } from "../components/ui";
 import { useStore } from "../state/Store";
 import { copy } from "../config";
+import { LanguageSelector } from "../components/LanguageSelector";
 export default function Settings() {
   const { state, update } = useStore();
   return (
@@ -19,8 +20,9 @@ export default function Settings() {
       <Heading
         eyebrow={messages.Settings.configuracion}
         title={messages.Settings.aTuManera}
-        subtitle={messages.Settings.eligeElAmbienteEnElQueTe}
+        subtitle="Personaliza el idioma y la apariencia de tu app."
       />
+      <LanguageSelector />
       {(
         [
           {

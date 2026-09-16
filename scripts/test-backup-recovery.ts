@@ -33,7 +33,7 @@ async function main() {
       for (const entry of await readdir(root, { withFileTypes: true })) {
         const path = join(root, entry.name);
         if (entry.isDirectory()) { const found = await find(path); if (found) return found; }
-        else if (entry.name === "gym-buddy.sqlite") return path;
+        else if (entry.name === "akhyles.sqlite") return path;
       }
     };
     const restored = await find(target);

@@ -1,112 +1,61 @@
 import { messages } from "../content/es";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "../types";
 import { emptyPreferences, emptyProfile } from "../data/options";
-import { localRepository } from "../storage/repository";
+import { archiveState, localRepository } from "../storage/repository";
+import { repairLegacyDemoScores } from "../data/demoScenarios";
 import { resumeWorkout } from "../logic/workout";
+import { ensureProgramHistory, preserveProgramHistory } from "../logic/programHistory";
 export const initialState: AppState = {
-  version: 1,
-  profile: emptyProfile,
-  preferences: emptyPreferences,
-  onboardingStep: 0,
-  completed: false,
-  theme: "system",
-  routine: [],
-  history: [],
+  version: 1, profile: emptyProfile, preferences: emptyPreferences,
+  onboardingStep: 0, completed: false, theme: "system", routine: [], history: [],
 };
 type Store = {
   state: AppState;
   update: (fn: (s: AppState) => AppState) => void;
-  ready: boolean;
-  storageError: string;
-  retry: () => void;
+  persist: (fn: (s: AppState) => AppState) => Promise<AppState>;
+  getState: () => AppState;
+  ready: boolean; storageBlocked: boolean; storageError: string; retry: () => void;
 };
 const Context = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(initialState);
   const [ready, setReady] = useState(false);
   const [storageError, setError] = useState("");
-  const blocked = useRef(false);
-  const dirty = useRef(false);
+  const [storageBlocked, setStorageBlocked] = useState(true);
+  const blocked = useRef(true);
   const queue = useRef(Promise.resolve());
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-  useEffect(() => {
-    let mounted = true;
-    localRepository
-      .load()
-      .then((saved) => {
-        if (mounted && saved) setState(saved);
-      })
-      .catch(() => {
-        blocked.current = true;
-        if (mounted)
-          setError(messages.Store.noHemosPodidoRecuperarTusDatosPuedes);
-      })
-      .finally(() => {
-        if (mounted) setReady(true);
-      });
-    return () => {
-      mounted = false;
-    };
+  const getState = useCallback(() => stateRef.current, []);
+  const hydrate = useCallback(async () => {
+    try {
+      const saved = await localRepository.load();
+      if (saved) {
+        const repaired = __DEV__ ? repairLegacyDemoScores(saved) : saved;
+        if (repaired !== saved) await archiveState(saved);
+        const migrated = ensureProgramHistory(repaired);
+        if (migrated !== saved) await localRepository.save(migrated);
+        stateRef.current = migrated; setState(migrated);
+      }
+      blocked.current = false; setStorageBlocked(false); setError("");
+    } catch { setError(messages.Store.noHemosPodidoRecuperarTusDatosPuedes); }
+    finally { setReady(true); }
   }, []);
-  useEffect(() => {
-    if (!ready || blocked.current || !dirty.current) return;
-    queue.current = queue.current
-      .then(() => localRepository.save(state))
-      .then(() => setError(""))
-      .catch(() => setError(messages.Store.noSeHanPodidoGuardarLosUltimos));
-  }, [state, ready]);
-  const retry = () => {
-    if (blocked.current) {
-      localRepository
-        .load()
-        .then((saved) => {
-          if (saved) setState(saved);
-          blocked.current = false;
-          setError("");
-        })
-        .catch(() => setError(messages.Store.tusDatosSiguenSinPoderLeerseSe));
-    } else {
-      queue.current = queue.current
-        .then(() => localRepository.save(stateRef.current))
-        .then(() => setError(""))
-        .catch(() =>
-          setError(messages.Store.aunNoPodemosGuardarMantenEstaPestana),
-        );
-    }
-  };
-  return (
-    <Context.Provider
-      value={{
-        state,
-        ready,
-        storageError,
-        retry,
-        update: (fn) => {
-          if (blocked.current) return;
-          dirty.current = true;
-          setState(previous => {
-            const next = fn(previous);
-            return next.active ? { ...next, active: resumeWorkout(next) } : next;
-          });
-        },
-      }}
-    >
-      {children}
-    </Context.Provider>
-  );
+  useEffect(() => { void Promise.resolve().then(hydrate); }, [hydrate]);
+  const persist = useCallback((fn: (s: AppState) => AppState): Promise<AppState> => {
+    if (blocked.current) return Promise.reject(new Error("El almacenamiento local aún no está disponible."));
+    const changed = preserveProgramHistory(stateRef.current, fn(stateRef.current));
+    const next = changed.active ? { ...changed, active: resumeWorkout(changed) } : changed;
+    stateRef.current = next; setState(next);
+    const write = queue.current.then(() => localRepository.save(next)).then(() => { setError(""); return next; });
+    queue.current = write.then(() => undefined, () => { setError(messages.Store.noSeHanPodidoGuardarLosUltimos); });
+    return write;
+  }, []);
+  const update = useCallback((fn: (s: AppState) => AppState) => { void persist(fn).catch(() => undefined); }, [persist]);
+  const retry = useCallback(() => {
+    if (blocked.current) void hydrate();
+    else void persist(s => s).catch(() => undefined);
+  }, [hydrate,persist]);
+  return <Context.Provider value={{state,update,persist,getState,ready,storageBlocked,storageError,retry}}>{children}</Context.Provider>;
 }
-export function useStore() {
-  const value = useContext(Context);
-  if (!value) throw new Error("Store missing");
-  return value;
-}
+export function useStore() { const v=useContext(Context); if (!v) throw new Error("Store missing"); return v; }

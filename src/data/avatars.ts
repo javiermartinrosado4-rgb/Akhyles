@@ -7,4 +7,6 @@ export const avatars = [
   { id: "moon", name: "Luna", color: "#525C91", symbol: "☾" },
 ] as const;
 export const validAvatar = (id: unknown): id is string => typeof id === "string" && avatars.some(a => a.id === id);
-export const validAvatarPhoto = (value: unknown): value is string => typeof value === "string" && value.length <= 700000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
+// The server stores this as a 256px JPEG after upload, so the source can be
+// comfortably larger without making the stored profile data heavy.
+export const validAvatarPhoto = (value: unknown): value is string => typeof value === "string" && value.length <= 2_000_000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value);

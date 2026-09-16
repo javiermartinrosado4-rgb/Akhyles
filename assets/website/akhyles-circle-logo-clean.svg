@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Akhyles">
+  <circle cx="512" cy="512" r="480" fill="#0E1210"/>
+  <path fill="#8FAF9B" d="M512 246 236 692h164l112-181 112 181h164L512 246Zm0 184-96 155h192L512 430Z" fill-rule="evenodd"/>
+  <path fill="#8FAF9B" d="M300 736h424l54 86H246l54-86Z"/>
+</svg>

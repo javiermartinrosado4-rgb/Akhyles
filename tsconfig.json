@@ -6,5 +6,5 @@
     "types": ["node", "react"]
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["node_modules", "android", "ios", "artifacts", "dist"]
+  "exclude": ["node_modules", "android", "ios", "artifacts", "dist", "server-php/vendor"]
 }

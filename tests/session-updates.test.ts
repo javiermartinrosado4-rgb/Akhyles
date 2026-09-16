@@ -35,11 +35,27 @@ test("finishing is idempotent and a finished session cannot be resumed", () => {
   assert.equal(resumeWorkout({ ...finished, active: s.active }), undefined);
   assert.throws(() => startWorkout({ id: "empty", name: "Empty", exercises: [] }));
 });
-test("an unfinished workout from a previous date is not resumable today", () => {
+test("an unfinished workout from a previous date remains recoverable", () => {
   const s = state();
   s.active = startWorkout(s.routine[0], "80");
   s.active.startedAt = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  assert.equal(resumeWorkout(s), undefined);
+  s.active.draft[0] = { weight: "42.5", reps: "8" };
+  const resumed = resumeWorkout(s);
+  assert.ok(resumed);
+  assert.equal(resumed.startedAt, s.active.startedAt);
+  assert.deepEqual(resumed.draft[0], { weight: "42.5", reps: "8" });
+});
+test("resuming never relabels recorded work after a routine replacement reuses its id", () => {
+  const s = state();
+  s.active = startWorkout(s.routine[0], "80");
+  const original = s.active.day.exercises[0];
+  s.active.records = [{ prescription: original, name: "Original", type: "compound", sets: [{ weight: 42, reps: 8 }] }];
+  s.routine[0].exercises[0] = { ...original, exerciseId: "neutral-pulldown" };
+
+  const resumed = resumeWorkout(s)!;
+
+  assert.equal(resumed.day.exercises[0].exerciseId, original.exerciseId);
+  assert.equal(resumed.records[0].prescription.exerciseId, original.exerciseId);
 });
 test("calories depend on completed exercise work and body weight, not an open timer", () => {
   const s = state();

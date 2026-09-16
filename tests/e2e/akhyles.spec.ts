@@ -25,11 +25,12 @@ test("reorder, profile edits during a workout, community and local logout surviv
   const initial = seed();
   await load(page, initial);
   await expect(page).toHaveTitle(/Akhyles/);
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await page.getByRole("button", { name: "Bajar ejercicio 1", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).routine[0].exercises[0].id)).toBe(initial.routine[0].exercises[1].id);
   await page.reload();
   await page.getByRole("button", { name: "Iniciar entrenamiento", exact: true }).click();
-  await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).fill("35");
+  await page.getByRole("textbox", { name: "Peso total serie 1", exact: true }).fill("35");
   await page.getByRole("button", { name: "Guardar y salir", exact: true }).click();
   await page.getByRole("button", { name: "Perfil", exact: true }).click();
   await page.getByRole("button", { name: "Editar perfil y gimnasio", exact: true }).click();
@@ -51,7 +52,7 @@ test("reorder, profile edits during a workout, community and local logout surviv
   await expect(page.getByRole("button", { name: "Continuar con mi perfil", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continuar con mi perfil", exact: true }).click();
   await page.getByRole("button", { name: "Continuar entrenamiento", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Peso serie 1", exact: true })).toHaveValue("35");
+  await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toHaveValue("35");
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!));
   expect(saved.active.bodyWeight).toBe(76.5);
   expect(saved.profile.weight).toBe("78");
@@ -65,13 +66,14 @@ test("old plans remain intact until updating the new rules and small viewports f
   delete state.profile.handle;
   state.routine[0].exercises[0].sets = 6;
   await load(page, state);
+  await page.getByRole("button", { name: "Editar mi rutina", exact: true }).click();
   await expect(page.getByRole("button", { name: "Actualizar rutina a nuevas reglas", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Actualizar rutina a nuevas reglas", exact: true }).click();
   await page.reload();
   await expect(page.getByRole("button", { name: "Actualizar rutina a nuevas reglas", exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Comunidad", exact: true }).click();
-  await expect(page.getByText("Crecer juntos", { exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Usuario de Comunidad", exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/akhyles-comunidad.png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -81,14 +83,14 @@ test("workout arrows preserve drafts and skipped exercises only affect today's s
   const routineIds = state.routine[0].exercises.map((entry) => entry.id);
   await load(page, state);
   await page.getByRole("button", { name: "Iniciar entrenamiento", exact: true }).click();
-  await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).fill("35");
+  await page.getByRole("textbox", { name: "Peso total serie 1", exact: true }).fill("35");
   await page.getByRole("textbox", { name: "Repeticiones serie 1", exact: true }).fill("8");
   await page.getByRole("button", { name: "Ejercicio siguiente", exact: true }).click();
   await page.getByRole("button", { name: "Ejercicio anterior", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Peso serie 1", exact: true })).toHaveValue("35");
+  await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toHaveValue("35");
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Repeticiones serie 1", exact: true })).toHaveValue("8");
-  const weights = page.getByRole("textbox", { name: /^Peso serie / });
+  const weights = page.getByRole("textbox", { name: /^Peso total serie / });
   const repetitions = page.getByRole("textbox", { name: /^Repeticiones serie / });
   for (let i = 0; i < await weights.count(); i++) {
     await weights.nth(i).fill("35");

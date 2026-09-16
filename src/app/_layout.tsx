@@ -1,5 +1,5 @@
 import React from "react";
-import { Slot } from "expo-router";
+import { Redirect, Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -8,19 +8,31 @@ import { StoreProvider, useStore } from "../state/Store";
 import { CommunityProvider } from "../state/Community";
 import { ThemeProvider, useTheme } from "../theme";
 import { Button, Loading, Notice } from "../components/ui";
+import { WeightReminder } from "../components/WeightReminder";
+import { AccountProvider, useAccount } from "../state/Account";
+import { LanguageProvider, useLanguage } from "../i18n";
+import { accountUrl } from "../services/account";
 export { ErrorBoundary } from "../components/RouteError";
 function Frame() {
-  const { ready, storageError, retry } = useStore();
+  const { language, t } = useLanguage();
+  const { ready, storageBlocked, storageError, retry } = useStore();
   const { colors, dark } = useTheme();
+  const account = useAccount();
+  const pathname = usePathname();
   const { width } = useWindowDimensions();
-  const wide = Platform.OS === "web" && width > 600;
+  const wide = Platform.OS === "web" && width >= 840;
+  // The browser build is a private companion to the mobile app. Local Expo
+  // development intentionally stays open so the interface can be built and
+  // tested before the account API is deployed.
+  const requiresWebSignIn = Platform.OS === "web" && !__DEV__ && !!accountUrl;
+  const publicPath = pathname === "/" || pathname === "/account" || pathname === "/+not-found";
   React.useEffect(() => {
     if (Platform.OS === "web") {
-      document.title = `${APP.name} · Entrena con intención`;
-      document.documentElement.lang = "es";
+      document.title = `${APP.name} · ${t('Entrena con intención')}`;
+      document.documentElement.lang = language;
       document.body.style.backgroundColor = colors.outside;
     }
-  }, [colors.outside]);
+  }, [colors.outside, language, t]);
   return (
     <View
       style={{
@@ -35,10 +47,13 @@ function Frame() {
         style={{
           flex: 1,
           width: "100%",
-          maxWidth: 480,
-          maxHeight: wide ? 960 : undefined,
+          // On the web this is the actual application, not a phone preview.
+          // Keep the compact mobile frame on small screens while allowing the
+          // authenticated area to use a comfortable desktop workspace.
+          maxWidth: wide ? 1440 : 480,
+          maxHeight: wide ? undefined : undefined,
           backgroundColor: colors.background,
-          borderRadius: wide ? 28 : 0,
+          borderRadius: wide ? 24 : 0,
           overflow: "hidden",
           borderWidth: wide ? 1 : 0,
           borderColor: colors.border,
@@ -56,19 +71,26 @@ function Frame() {
             />
           </View>
         ) : null}
-        {ready ? <Slot /> : <Loading />}
+        {!ready || (requiresWebSignIn && !account.ready) ? <Loading /> : storageBlocked ? null : requiresWebSignIn && !account.user && !publicPath ? <Redirect href="/account" /> : <><WeightReminder /><Slot /></>}
       </SafeAreaView>
     </View>
   );
 }
+function ProfileCommunity() {
+  const { state, ready } = useStore();
+  // Account switches must unmount social requests before the new profile can publish.
+  return <CommunityProvider key={ready ? state.cloud?.owner ?? "guest" : "hydrating"}><Frame /></CommunityProvider>;
+}
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <LanguageProvider>
       <StoreProvider>
         <ThemeProvider>
-          <CommunityProvider><Frame /></CommunityProvider>
+          <AccountProvider><ProfileCommunity /></AccountProvider>
         </ThemeProvider>
       </StoreProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

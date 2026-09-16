@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { Redirect, router } from "expo-router";
@@ -14,7 +15,7 @@ import {
   Field,
 } from "../components/ui";
 import { useStore } from "../state/Store";
-import { displayName, getExercise, restSeconds } from "../logic/routine";
+import { allExercises, displayName, getExercise, restSeconds } from "../logic/routine";
 import { draftFor, finishWorkout } from "../logic/workout";
 import { number, validWeight } from "../logic/validation";
 import { ExerciseRecord, SetRecord } from "../types";
@@ -22,14 +23,22 @@ import { WeightSuggestion } from "../components/WeightSuggestion";
 import { useTheme } from "../theme";
 import { Calories } from "../components/Calories";
 import { EquipmentPhoto } from "../components/EquipmentPhoto";
+import { ExerciseEditor } from "../components/ExerciseEditor";
+import { defaultBarWeight, defaultLoadInputMode, formatLoad, fromStoredLoad, loadHint, LoadInputMode, supportsBarWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../logic/load";
 
-const draftFromRecord = (sets: SetRecord[]) =>
-  sets.map((set) => ({ weight: String(set.weight), reps: String(set.reps) }));
+const draftFromRecord = (sets: SetRecord[], mode: LoadInputMode = "total") =>
+  sets.map((set) => ({ weight: formatLoad(fromStoredLoad(set.weight, mode)), reps: String(set.reps) }));
 
 export default function Workout() {
+  const { t } = useLanguage();
   const { state, update } = useStore();
   const { colors } = useTheme();
+  const skippedName = (name: string) => {
+    const exercise = allExercises(state.preferences).find(item => (state.preferences.names[item.id] ?? item.name) === name);
+    return exercise ? displayName(exercise.id, state.preferences) : name;
+  };
   const [error, setError] = useState("");
+  const [editingExercise, setEditingExercise] = useState(false);
   const active = state.active;
   if (!state.completed || state.signedOut) return <Redirect href="/" />;
   if (!active) {
@@ -45,7 +54,7 @@ export default function Workout() {
           }
           subtitle={
             workout
-              ? `${workout.dayName} · ${workout.records.length} ejercicios registrados${workout.skipped?.length ? ` · ${workout.skipped.length} omitidos` : ""}`
+              ? t(workout.records.length === 1 ? "{value1} · {value2} ejercicio registrado{value3}" : "{value1} · {value2} ejercicios registrados{value3}", { value1: t(workout.dayName), value2: workout.records.length, value3: workout.skipped?.length ? t(workout.skipped.length === 1 ? " · {count} omitido" : " · {count} omitidos", { count: workout.skipped.length }) : "" })
               : messages.Workout.eligeUnDiaDesdeTuRutina
           }
         />
@@ -54,7 +63,7 @@ export default function Workout() {
             <Pill>{messages.Workout.entrenamientoGuardado}</Pill>
             <Calories workout={workout} />
             {!!workout.skipped?.length && (
-              <Notice>Hoy no has podido hacer: {workout.skipped.join(", ")}. Tu rutina no se ha modificado.</Notice>
+              <Notice>{t("Hoy no has podido hacer: {exercises}. Tu rutina no se ha modificado.", { exercises: workout.skipped.map(skippedName).join(", ") })}</Notice>
             )}
             <Txt muted>{messages.Workout.revisaLasCargasParaTuProximaSesion}</Txt>
             {workout.records.map((record, i) => (
@@ -76,6 +85,31 @@ export default function Workout() {
   const drafts = active.drafts ?? { [entry.id]: active.draft };
   const completed = new Set(active.records.map((record) => record.prescription.id));
   const isSkipped = skipped.includes(entry.id);
+  const loadMode = active.loadModes?.[entry.id] ?? defaultLoadInputMode(entry.exerciseId);
+  const barWeightText = active.barWeights?.[entry.exerciseId] ?? String(defaultBarWeight(entry.exerciseId));
+  const apparatusWeightText = active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0);
+  const isBodyweight = exercise.variant === "bodyweight";
+  const hasApparatusWeight = exercise.variant === "machine" || exercise.variant === "smith";
+  const hasAddedBaseWeight = supportsBarWeight(entry.exerciseId) || hasApparatusWeight;
+  const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
+  const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
+  const weighted = active.weighted?.[entry.id] ?? false;
+  const changeBarWeight = (value: string) => {
+    setError("");
+    update(s => !s.active ? s : ({ ...s,
+      active: { ...s.active, barWeights: { ...s.active.barWeights, [entry.exerciseId]: value } },
+      preferences: value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
+        barWeights: { ...s.preferences.barWeights, [entry.exerciseId]: number(value) } } : s.preferences,
+    }));
+  };
+  const changeApparatusWeight = (value: string) => {
+    setError("");
+    update(s => !s.active ? s : ({ ...s,
+      active: { ...s.active, apparatusWeights: { ...s.active.apparatusWeights, [entry.exerciseId]: value } },
+      preferences: value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
+        apparatusWeights: { ...s.preferences.apparatusWeights, [entry.exerciseId]: number(value) } } : s.preferences,
+    }));
+  };
 
   const changeSet = (
     index: number,
@@ -99,6 +133,22 @@ export default function Workout() {
     });
   };
 
+  const changeLoadMode = (nextMode: LoadInputMode) => {
+    if (nextMode === loadMode) return;
+    update(s => {
+      if (!s.active) return s;
+      const bar = number(barWeightText) || 0;
+      const toPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value * 2 : mode === "total-with-bar" ? Math.max(0, value - bar) : value;
+      const fromPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value / 2 : mode === "total-with-bar" ? value + bar : value;
+      const draft = s.active.draft.map(set => ({ ...set, weight: formatLoad(fromPlates(toPlates(number(set.weight), loadMode), nextMode)) }));
+      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } } };
+    });
+  };
+
+  const changeWeighted = (value: boolean) => {
+    update(s => !s.active ? s : ({ ...s, active: { ...s.active, weighted: { ...s.active.weighted, [entry.id]: value } } }));
+  };
+
   const changeExerciseNote = (note: string) => {
     update((s) => ({
       ...s,
@@ -119,7 +169,7 @@ export default function Workout() {
     const saved = records.find((record) => record.prescription.id === targetEntry.id);
     const savedDraft =
       nextDrafts[targetEntry.id] ??
-      (saved ? draftFromRecord(saved.sets) : draftFor(targetEntry));
+      (saved ? draftFromRecord(saved.sets, active.loadModes?.[targetEntry.id] ?? defaultLoadInputMode(targetEntry.exerciseId)) : draftFor(targetEntry));
     const draft = draftFor(targetEntry).map((blank, index) => savedDraft[index] ?? blank);
     update((s) =>
       s.active
@@ -135,6 +185,7 @@ export default function Workout() {
                 [entry.id]: active.draft,
                 [targetEntry.id]: draft,
               },
+              loadModes: s.active.loadModes,
               draft,
             },
           }
@@ -163,6 +214,7 @@ export default function Workout() {
     update((s) =>
       finishWorkout(s, {
         level: active.level,
+        sex: active.sex,
         startedAt: active.startedAt,
         bodyWeight: active.bodyWeight ?? number(s.profile.weight),
         id: `session-${Date.now()}`,
@@ -178,15 +230,18 @@ export default function Workout() {
         records: ordered,
         skipped: active.day.exercises
           .filter((item) => nextSkipped.includes(item.id))
-          .map((item) => displayName(item.exerciseId, state.preferences)),
+          .map((item) => state.preferences.names[item.exerciseId] ?? getExercise(item.exerciseId, state.preferences).name),
       }),
     );
     setError("");
   };
 
   const saveExercise = () => {
+    if (!isBodyweight && hasAddedBaseWeight && loadMode !== "total-with-bar" && (!baseWeightText.trim() || !validBarWeight(number(baseWeightText)))) {
+      setError("Introduce un peso base entre 0 y 100 kg. Puedes poner 0."); return;
+    }
     const sets = active.draft.map((set) => ({
-      weight: number(set.weight),
+      weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, number(set.weight) - (number(barWeightText) || 0)) : toStoredLoad(number(set.weight), loadMode),
       reps: number(set.reps),
     }));
     if (
@@ -202,8 +257,10 @@ export default function Workout() {
       return;
     }
     const record: ExerciseRecord = {
+      ...(supportsBarWeight(entry.exerciseId) ? { barWeight: number(barWeightText) || 0 } : {}),
+      ...(hasApparatusWeight ? { apparatusWeight: number(apparatusWeightText) || 0 } : {}),
       prescription: entry,
-      name: displayName(entry.exerciseId, state.preferences),
+      name: state.preferences.names[entry.exerciseId] ?? exercise.name,
       type: exercise.type,
       sets,
     };
@@ -287,24 +344,53 @@ export default function Workout() {
         />
       </Row>
       <View style={{ gap: 12 }}>
-        <Txt size={11} weight="600" muted style={{ letterSpacing: 2 }}>{active.day.name.toUpperCase()}</Txt>
+        <Txt size={11} weight="600" muted style={{ letterSpacing: 2 }}>{t(active.day.name).toUpperCase()}</Txt>
         <View testID="workout-exercise-heading" style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Txt accessibilityRole="header" size={26} weight="600" style={{ letterSpacing: -0.8 }}>
+            <Txt translate={false} accessibilityRole="header" size={26} weight="600" style={{ letterSpacing: -0.8 }}>
               {displayName(entry.exerciseId, state.preferences)}
             </Txt>
           </View>
           <EquipmentPhoto key={entry.exerciseId} exerciseId={entry.exerciseId} exerciseName={displayName(entry.exerciseId, state.preferences)} />
         </View>
-        <Txt muted>{`${entry.sets} series efectivas · ${entry.range[0]}–${entry.range[1]} repeticiones`}</Txt>
+        <Txt muted>{t(entry.sets === 1 ? "{value1} serie efectiva · {value2}–{value3} repeticiones" : "{value1} series efectivas · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
       </View>
+      <Button
+        label="Cambiar ejercicio para hoy"
+        compact
+        variant="secondary"
+        icon="repeat"
+        onPress={() => setEditingExercise(value => !value)}
+      />
+      {editingExercise && (
+        <ExerciseEditor
+          dayId={active.day.id}
+          prescription={entry}
+          close={() => setEditingExercise(false)}
+          report={setError}
+        />
+      )}
       {completed.has(entry.id) && <Pill>Ejercicio registrado · puedes corregirlo</Pill>}
       {isSkipped && <Pill>Omitido por hoy · puedes volver y registrarlo</Pill>}
-      <Pill>
-        Descanso recomendado: {restSeconds(exercise) / 60} min
-      </Pill>
+      <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
       <Notice>{messages.Workout.hazElCalentamientoYLasAproximacionesQue}</Notice>
       {exercise.note && <Notice>{exercise.note}</Notice>}
+      {!isBodyweight && <Card>
+        <Txt weight="600">Cómo introduces la carga</Txt>
+        <Txt muted size={12}>{loadHint(entry.exerciseId)}</Txt>
+        <Row>
+          <Button label="Total" compact variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} />
+          {supportsPerSideInput(entry.exerciseId) && <Button label="Por lado" compact variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} />}
+          {supportsBarWeight(entry.exerciseId) && <Button label="Total levantado" compact variant={loadMode === "total-with-bar" ? "primary" : "secondary"} onPress={() => changeLoadMode("total-with-bar")} />}
+        </Row>
+        {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} numeric suffix="kg" />}
+        {hasAddedBaseWeight && <Txt muted size={12}>{loadMode === "total-with-bar" ? "El total ya incluye la barra; no se añadirá nada más." : supportsBarWeight(entry.exerciseId) ? t("Barra añadida: {value1} kg. Se suma una sola vez a la carga externa. Si no hay barra, usa 0.", { value1: barWeightText || "0" }) : `Peso del aparato: ${apparatusWeightText || "0"} kg. Se suma a la carga indicada y la gráfica muestra el total, también para sesiones anteriores.`}</Txt>}
+      </Card>}
+      {isBodyweight && <Card>
+        <Txt weight="600">Peso corporal</Txt>
+        <Txt muted size={12}>{loadHint(entry.exerciseId)}</Txt>
+        <Row><Button label="Sin lastre" compact variant={!weighted ? "primary" : "secondary"} onPress={() => changeWeighted(false)} /><Button label="Con lastre" compact variant={weighted ? "primary" : "secondary"} onPress={() => changeWeighted(true)} /></Row>
+      </Card>}
       <Field
         label="Notas para este ejercicio"
         value={state.preferences.notes?.[entry.exerciseId] ?? ""}
@@ -317,19 +403,18 @@ export default function Workout() {
       {active.draft.map((set, index) => (
         <Card key={`${entry.id}-${index}`}>
           <Txt weight="600">
-            {messages.Workout.serie}
-            {index + 1}
+            {t("Serie {count}", { count: index + 1 })}
           </Txt>
           <Row>
-            <Field
-              label={`Peso serie ${index + 1}`}
+            {(!isBodyweight || weighted) && <Field
+              label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : loadMode === "per-side" ? "Peso por lado" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
               value={set.weight}
               onChangeText={(value) => changeSet(index, "weight", value)}
               numeric
               suffix={messages.Workout.kg}
-            />
+            />}
             <Field
-              label={`Repeticiones serie ${index + 1}`}
+              label={t("Repeticiones serie {value1}", { value1: index + 1 })}
               value={set.reps}
               onChangeText={(value) => changeSet(index, "reps", value)}
               numeric

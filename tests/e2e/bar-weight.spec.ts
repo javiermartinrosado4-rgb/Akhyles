@@ -1,0 +1,30 @@
+import { test, expect } from "@playwright/test";
+import { createDemoScenario } from "../../src/data/demoScenarios";
+import { startWorkout } from "../../src/logic/workout";
+
+for (const bar of ["0", "15,5"]) test(`per-side bar ${bar} survives reload and is frozen in the session`, async ({ page }) => {
+  const state = createDemoScenario(false);
+  state.history = []; state.routine = [{ id: "bar-day", name: "Bar test", exercises: [{ id: "bench", exerciseId: "chest-press-free", sets: 1, range: [5, 5], weight: 60 }] }];
+  state.active = startWorkout(state.routine[0], "80", "intermediate", "male");
+  await page.goto("/");
+  await page.evaluate(s => localStorage.setItem("gym60:state:v1", JSON.stringify(s)), state);
+  await page.goto("/workout");
+  await page.getByRole("button", { name: "Por lado", exact: true }).click();
+  const field = page.getByRole("textbox", { name: "Peso de la barra", exact: true });
+  await expect(field).toHaveValue("0");
+  await field.fill(bar);
+  await page.getByRole("textbox", { name: "Peso por lado serie 1", exact: true }).fill("30");
+  await page.reload();
+  await expect(field).toHaveValue(bar);
+  await page.getByRole("button", { name: "Total", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Peso total serie 1", exact: true })).toHaveValue("60");
+  await page.getByRole("button", { name: "Por lado", exact: true }).click();
+  await expect(field).toHaveValue(bar);
+  await page.getByRole("textbox", { name: "Repeticiones serie 1", exact: true }).fill("5");
+  await page.getByRole("button", { name: "Finalizar entrenamiento", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!).history.length)).toBe(1);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!));
+  expect(saved.history[0].records[0].barWeight).toBe(Number(bar.replace(",", ".")));
+  expect(saved.history[0].records[0].sets[0].weight).toBe(60);
+  expect(saved.preferences.barWeights["chest-press-free"]).toBe(Number(bar.replace(",", ".")));
+});

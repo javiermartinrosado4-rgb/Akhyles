@@ -86,7 +86,7 @@ La edad IARC la determinará Play con el cuestionario real, no este documento.
 
 ## Cuentas y credenciales que conservar
 
-- Carpeta privada `%USERPROFILE%/.local/gym-buddy-android/signing/`, con `gym-buddy.jks`
+- Carpeta privada `%USERPROFILE%/.local/akhyles-android/signing/`, con `akhyles.jks`
   y `signing.properties`. No borrar, sustituir ni subir a Git. Conservar copia privada externa.
 - Cuenta propietaria de GitHub y permisos del repositorio.
 - Cuenta del hosting, acceso SSH, cuenta del dominio/DNS y acceso al disco persistente.
@@ -104,10 +104,10 @@ No se incluyen valores secretos en este informe ni en Git.
    DNS: dominio elegido. Almacenamiento > bucket privado: endpoint y región; secretos
    solo en el host. Guía [DESPLIEGUE-COMUNIDAD.md](DESPLIEGUE-COMUNIDAD.md).
 2. https://console.cloud.google.com/auth/overview > proyecto > Branding, Audience,
-   Clients. Cliente Android `com.javiermartinrosado.gymbuddy`, SHA-1
+   Clients. Cliente Android `com.javiermartinrosado.akhyles`, SHA-1
    `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`; cliente web en el
    mismo proyecto. Hace falta únicamente su ID público, no el secreto.
-3. https://play.google.com/console > Gym Buddy > Prueba interna. Verificar permisos,
+3. https://play.google.com/console > Akhyles > Prueba interna. Verificar permisos,
    integridad/firma, ficha y subir AAB conectado. No publicar producción sin nueva
    confirmación explícita del titular.
 

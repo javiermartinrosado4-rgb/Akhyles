@@ -1,4 +1,5 @@
 import { messages } from "../content/es";
+import { translate } from "../i18n/translate";
 import { ExerciseType, Range, SetRecord } from "../types";
 import { validRange, validWeight } from "./validation";
 export const roundWeight = (value: number) => Math.round(value * 4) / 4;
@@ -45,7 +46,7 @@ export function progression(
       : !sameWeight
         ? messages.progression.hasUsadoCargasDistintasEligeLaCarga
         : canIncrease
-          ? `Máximo alcanzado en todas las series. Próxima sesión: ${suggested} kg (+${percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.`
+          ? translate("Máximo alcanzado en todas las series. Próxima sesión: {suggested} kg (+{percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.", { suggested, percent })
           : increase && current > 0
             ? "Máximo alcanzado. Tu incremento disponible no permite una subida del 3–5 %; se mantiene la carga. Puedes ajustar el incremento en Editar ejercicio."
           : messages.progression.mantenElPesoHastaAlcanzarElMaximo,

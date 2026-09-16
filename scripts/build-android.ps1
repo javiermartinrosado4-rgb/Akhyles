@@ -1,6 +1,7 @@
 param(
     [ValidateSet('apk', 'aab', 'both')] [string]$Format = 'apk',
     [string]$CommunityUrl = '',
+    [string]$AccountUrl = '',
     [switch]$LocalTest,
     [switch]$OfflinePreview,
     [switch]$SkipPrebuild
@@ -9,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 if ($LocalTest -and $Format -ne 'apk') { throw 'La variante HTTP local solo genera APK de prueba.' }
 if ($LocalTest -and $OfflinePreview) { throw 'Elige una sola variante de prueba.' }
 $projectPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
-$toolPath = Join-Path $env:USERPROFILE '.local\gym-buddy-android'
+$toolPath = if ($env:AKHYLES_ANDROID_TOOL_PATH) { $env:AKHYLES_ANDROID_TOOL_PATH } else { Join-Path $env:USERPROFILE '.local\akhyles-android' }
 if (-not $env:JAVA_HOME) {
     $jdk = Get-ChildItem -LiteralPath (Join-Path $toolPath 'java') -Directory | Select-Object -First 1
     if (-not $jdk) { throw 'Instala JDK 17 y configura JAVA_HOME.' }
@@ -18,24 +19,35 @@ if (-not $env:JAVA_HOME) {
 if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 if (-not (Test-Path -LiteralPath (Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe'))) { throw 'Instala Android SDK (API 36, Build Tools 36) y configura ANDROID_HOME.' }
 if ($CommunityUrl) { $env:EXPO_PUBLIC_COMMUNITY_URL = $CommunityUrl }
-if (-not $LocalTest -and -not $OfflinePreview -and -not $env:EXPO_PUBLIC_COMMUNITY_URL) { throw 'Define EXPO_PUBLIC_COMMUNITY_URL real antes de generar una release. -OfflinePreview genera solo una entrega offline identificada.' }
-if ($OfflinePreview -and $env:EXPO_PUBLIC_COMMUNITY_URL) { throw 'OfflinePreview requiere EXPO_PUBLIC_COMMUNITY_URL vacia.' }
+if ($AccountUrl) { $env:EXPO_PUBLIC_ACCOUNT_URL = $AccountUrl }
+if (-not $LocalTest -and -not $OfflinePreview -and -not $env:EXPO_PUBLIC_COMMUNITY_URL -and -not $env:EXPO_PUBLIC_ACCOUNT_URL) { throw 'Configura una URL real de cuentas o Comunidad antes de generar una release; OfflinePreview es solo local.' }
+if ($OfflinePreview -and ($env:EXPO_PUBLIC_COMMUNITY_URL -or $env:EXPO_PUBLIC_ACCOUNT_URL)) { throw 'OfflinePreview requiere las URLs de cuentas y Comunidad vacias.' }
+if ($env:EXPO_PUBLIC_ACCOUNT_URL) {
+    $accountUri = [uri]$env:EXPO_PUBLIC_ACCOUNT_URL
+    if (-not $accountUri.IsAbsoluteUri -or $accountUri.UserInfo -or $accountUri.Query -or $accountUri.Fragment -or ($accountUri.Scheme -ne 'https' -and -not ($LocalTest -and $accountUri.Scheme -eq 'http'))) { throw 'Cuentas necesita HTTPS sin credenciales ni parametros.' }
+}
 if ($env:EXPO_PUBLIC_COMMUNITY_URL) {
     $uri = [uri]$env:EXPO_PUBLIC_COMMUNITY_URL
     if (-not $uri.IsAbsoluteUri -or $uri.UserInfo -or $uri.Query -or $uri.Fragment -or ($uri.Scheme -ne 'https' -and -not ($LocalTest -and $uri.Scheme -eq 'http'))) { throw 'Comunidad necesita una URL HTTPS sin credenciales ni parametros; HTTP solo se admite con -LocalTest.' }
 }
-$env:GYM_ANDROID_LOCAL = if ($LocalTest) { '1' } else { '0' }
-$env:GYM_ANDROID_SIGNING_FILE = Join-Path $toolPath 'signing\signing.properties'
-if (-not (Test-Path -LiteralPath $env:GYM_ANDROID_SIGNING_FILE) -or -not (Test-Path -LiteralPath (Join-Path $toolPath 'signing\gym-buddy.jks'))) { throw 'Falta la firma original. Recupera la copia privada; esta compilacion no crea ni sustituye claves.' }
+$env:AKHYLES_ANDROID_LOCAL = if ($LocalTest) { '1' } else { '0' }
+$env:AKHYLES_ANDROID_SIGNING_FILE = Join-Path $toolPath 'signing\signing.properties'
 $env:NODE_ENV = 'production'
 Push-Location $projectPath
 try {
     if (-not $LocalTest -and -not $OfflinePreview) {
-        node --import tsx scripts/check-community-release.ts
-        if ($LASTEXITCODE -ne 0) { throw 'El backend publico no supera la comprobacion HTTPS/DNS.' }
+        if ($env:EXPO_PUBLIC_COMMUNITY_URL) {
+            node --import tsx scripts/check-community-release.ts
+            if ($LASTEXITCODE -ne 0) { throw 'Comunidad no supera HTTPS/DNS.' }
+        }
+        if ($env:EXPO_PUBLIC_ACCOUNT_URL) {
+            node --import tsx scripts/check-account-release.ts
+            if ($LASTEXITCODE -ne 0) { throw 'Cuentas no supera HTTPS/DNS.' }
+        }
     }
     node scripts/android-signing.mjs (Join-Path $toolPath 'signing')
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar la firma Android.' }
+    if (-not (Test-Path -LiteralPath $env:AKHYLES_ANDROID_SIGNING_FILE)) { throw 'No se pudo crear o recuperar las credenciales de firma de Akhyles.' }
     if (-not $SkipPrebuild) {
         npx.cmd expo prebuild --platform android --no-install
         if ($LASTEXITCODE -ne 0) { throw 'No se pudo generar el proyecto Android.' }

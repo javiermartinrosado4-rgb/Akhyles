@@ -1,6 +1,6 @@
 # Fotos de equipamiento
 
-40 fotografías de producto para los 83 ejercicios del catálogo. Las variantes
+42 fotografías de producto para los 86 ejercicios del catálogo. Las variantes
 que utilizan el mismo equipo comparten imagen; los montajes con banco y barra
 o mancuernas añaden una segunda miniatura. La correspondencia está en
 `src/data/equipment.ts`. No se adivina la máquina de los ejercicios personalizados.
@@ -15,6 +15,8 @@ Descarga reproducible: `node scripts/download-equipment.mjs`. Se solicitan
 versiones de 640 píxeles al CDN del fabricante. El script solo descarga archivos
 ausentes. Metro los incluye en la aplicación; no hay enlaces remotos de imágenes
 durante el entrenamiento.
+
+Las fotografías locales de `adductor-machine.png` y `triceps-machine.png` se generaron específicamente para Akhyles y aparecen en la app con la atribución «Akhyles · imagen generada». No proceden de un catálogo externo.
 
 Tratamiento visual en `EquipmentPhoto.tsx`: foto completa sin recortar la máquina,
 velo salvia suave, marco redondeado y colores adaptados al tema claro/oscuro.

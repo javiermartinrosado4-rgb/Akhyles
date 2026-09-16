@@ -9,7 +9,7 @@ privacidad reales. **Audience**: público adecuado y cuentas de prueba si usa Te
 **Clients > Create client > Android**:
 
 - Nombre: Akhyles Android local release.
-- Paquete: `com.javiermartinrosado.gymbuddy`.
+- Paquete: `com.javiermartinrosado.akhyles`.
 - SHA-1 existente: `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
 
 **Clients > Create client > Web application**: cliente que será audiencia del backend
@@ -29,7 +29,7 @@ con verificador simulado no son evidencia de activación.
 2. Autoriza los orígenes exactos donde se abre Akhyles (desarrollo: `http://localhost:8081` y `http://127.0.0.1:8081`; producción: el dominio HTTPS real).
 3. Define `GYM_GOOGLE_CLIENT_ID` en el entorno del servidor con el identificador terminado en `.apps.googleusercontent.com` y reinicia el servidor de Comunidad. No se necesita un secreto de cliente para este flujo.
 4. Si la aplicación de Google está en pruebas, incluye las cuentas de prueba en su configuración.
-5. Para Android, crea además un cliente OAuth de tipo Android con el paquete `com.javiermartinrosado.gymbuddy` y la huella SHA-1 de la firma de publicación que figura en `ANDROID-QA.md`. El cliente web sigue siendo el `webClientId` que recibe el flujo nativo para verificar el ID token en el backend.
+5. Para Android, crea además un cliente OAuth de tipo Android con el paquete `com.javiermartinrosado.akhyles` y la huella SHA-1 de la firma de publicación que figura en `ANDROID-QA.md`. El cliente web sigue siendo el `webClientId` que recibe el flujo nativo para verificar el ID token en el backend.
 6. Añade el dominio HTTPS real a los orígenes autorizados del cliente web. El cliente Android se vincula por paquete y SHA-1, no por origen web.
 7. Abre Inicio, Perfil o Comunidad y usa el botón oficial de Google. Comprueba cancelación, cierre de sesión y acceso posterior con la misma cuenta tanto en web como en Android.
 

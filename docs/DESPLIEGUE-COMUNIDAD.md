@@ -10,7 +10,7 @@ Para la separación entre `akhyles.com` en IONOS y `api.akhyles.com`, consultar
 ## Arquitectura
 
 Una instancia Node 24 detrás de Caddy, SQLite/WAL y fotos en el volumen persistente
-`gym-buddy_gym_buddy_data`. Solo Caddy publica 80/443. No escalar a varias réplicas:
+`akhyles_akhyles_data`. Solo Caddy publica 80/443. No escalar a varias réplicas:
 nonces y límites están en memoria. Reiniciar invalida nonces, conserva sesiones y cuentas.
 
 API como usuario `node`, raíz de solo lectura, capacidades Linux retiradas y límites
@@ -33,7 +33,7 @@ de sus ejemplos, con permisos 0600 y fuera de Git.
 | Variable | Valor |
 | --- | --- |
 | `NODE_ENV` | `production` |
-| `GYM_DATABASE` | `/data/gym-buddy.sqlite`, disco persistente |
+| `GYM_DATABASE` | `/data/akhyles.sqlite`, disco persistente |
 | `GYM_API_HOST` / `GYM_API_PORT` | `0.0.0.0` / `8082`, sin publicar el puerto |
 | `GYM_ALLOWED_ORIGINS` | Vacío para solo Android; orígenes HTTPS reales exactos para web |
 | `GYM_TRUST_PROXY` | `1` solo con API aislada detrás de Caddy, que sustituye `X-Forwarded-For` |
@@ -67,7 +67,7 @@ Configurar alertas externas para errores, disponibilidad, disco y copias.
 `server/backup-worker.ts` realiza copia al arrancar y cada 24 horas. SQLite online
 backup incluye transacciones confirmadas del WAL. Verifica integridad y claves
 foráneas, envía con cifrado Restic y comprueba el repositorio. Después aplica
-retención de 30 días solo al host `gym-buddy-community` y etiqueta `community`.
+retención de 30 días solo al host `akhyles-community` y etiqueta `community`.
 El staging temporal se elimina. Ajustar el ciclo de vida del bucket: conservar
 versiones borradas puede prolongar el plazo efectivo de retención.
 
@@ -78,7 +78,7 @@ RTO pendiente de medir. Staging máximo 2 GB: ampliar antes de que la base lo al
 Simulacro mensual, en carpeta nueva privada:
 
 ```bash
-restic snapshots --host gym-buddy-community --tag community
+restic snapshots --host akhyles-community --tag community
 restic check --read-data
 restic restore ID_VERIFICADO --target /ruta/nueva/restore-check
 ```

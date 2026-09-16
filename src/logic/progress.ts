@@ -1,40 +1,105 @@
-import { AppState, Exercise, Workout } from "../types";
+import { AppState, Exercise, Muscle, Workout } from "../types";
+import { getLocale, translate } from "../i18n/translate";
 import { allExercises } from "./routine";
+import { scoreLoad, validBarWeight } from "./load";
+import { estimatedMax, wilksCoefficient } from "./strengthScore";
+import { displayPoints, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
+import { localDateKey } from "./schedule";
 export interface ChartPoint { date: string; value: number; detail?: string }
-export const eligibleForScore = (e: Exercise) => !e.custom && (e.variant === "free" || e.scoreEligible === true);
-export function exerciseProgress(history: Workout[], id: string): ChartPoint[] {
+export function periodProgress(points: ChartPoint[], cutoff: number, end = Infinity, includePrevious = true): ChartPoint[] {
+  const sorted = [...points].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  if (!Number.isFinite(cutoff) && !Number.isFinite(end)) return sorted;
+  const current = sorted.filter(point => Date.parse(point.date) >= cutoff && Date.parse(point.date) < end);
+  // A point immediately before the selected range is useful context for a
+  // line chart. Keep it even when the period contains several measurements so
+  // a monthly view connects naturally with the end of the previous month.
+  if (!includePrevious || !current.length) return current;
+  const previous = sorted.filter(point => Date.parse(point.date) < cutoff).at(-1);
+  return previous ? [previous, ...current] : current;
+}
+export const eligibleForScore = (e: Exercise) => !e.custom && scoreReferences[e.id] !== undefined;
+export function exerciseProgress(history: Workout[], id: string, apparatusWeights: Record<string, number> = {}): ChartPoint[] {
   return [...history].sort((a, b) => a.date.localeCompare(b.date)).flatMap(w => {
-    const sets = w.records.filter(r => r.prescription.exerciseId === id).flatMap(r => r.sets);
-    const best = sets.filter(s => s.weight > 0 && s.reps > 0).sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
-    return best ? [{ date: w.date, value: best.weight, detail: `${best.reps} rep · peso corporal ${w.bodyWeight ?? "sin registrar"} kg` }] : [];
+    const sets = w.records.filter(r => r.prescription.exerciseId === id)
+      .flatMap(r => r.sets.map(set => ({ ...set, total: scoreLoad(id, set.weight, r.apparatusWeight ?? r.barWeight ?? apparatusWeights[id] ?? 0) })));
+    const best = sets.filter(s => s.weight > 0 && s.reps > 0).sort((a, b) => b.total - a.total || b.reps - a.reps)[0];
+    return best ? [{ date: w.date, value: best.total, detail: translate("{reps} rep · peso corporal {weight} kg", { reps: best.reps, weight: w.bodyWeight ?? translate("sin registrar") }) }] : [];
   });
 }
-export function scoreProgress(state: AppState): { points: ChartPoint[]; exercises: string[] } {
-  const eligible = new Set(allExercises(state.preferences).filter(eligibleForScore).map(e => e.id));
+export function scoreProgress(state: AppState) {
+  const eligible = new Map(allExercises(state.preferences).filter(eligibleForScore).map(e => [e.id, e]));
   const history = [...state.history].sort((a, b) => a.date.localeCompare(b.date));
-  const exercises = [...new Set(history.filter(w => Number.isFinite(w.bodyWeight) && w.bodyWeight! > 0)
-    .flatMap(w => w.records.filter(r => eligible.has(r.prescription.exerciseId) && r.sets.some(s => s.weight > 0 && s.reps > 0)).map(r => r.prescription.exerciseId)))];
-  const ratios = new Map<string, number>();
+  const exercises = new Set<string>();
+  const scoredSessions = new Set<string>();
+  const best = new Map<Muscle, number>();
+  const evidence = new Map<Muscle, { exerciseId: string; kind: string; exerciseName: string; load: number; reps: number; maximum: number; date: string; body?: "add" | "subtract" }>();
   const points: ChartPoint[] = [];
   for (const w of history) {
-    if (!Number.isFinite(w.bodyWeight) || w.bodyWeight! <= 0) continue;
+    // Missing historic demographics must not be guessed from today's profile.
+    const sex = w.sex ?? [...(state.routineVersions ?? [])]
+      .filter(version => version.effectiveFrom !== "1970-01-01" && localDateKey(version.effectiveFrom) <= localDateKey(w.date))
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.profile.sex;
+    if (!Number.isFinite(w.bodyWeight) || !sex) continue;
+    const coefficient = wilksCoefficient(w.bodyWeight!, sex);
+    if (coefficient === undefined) continue;
     let changed = false;
     for (const r of w.records) {
-      const loads = r.sets.filter(s => s.weight > 0 && s.reps > 0).map(s => s.weight);
-      if (!eligible.has(r.prescription.exerciseId) || !loads.length) continue;
-      ratios.set(r.prescription.exerciseId, Math.max(...loads) / w.bodyWeight!);
-      changed = true;
+      const exercise = eligible.get(r.prescription.exerciseId);
+      if (!exercise) continue;
+      if (r.barWeight !== undefined && !validBarWeight(r.barWeight)) continue;
+      const category = exercise.muscle;
+      const reference = scoreReferences[exercise.id];
+      for (const set of r.sets) {
+        if (!Number.isFinite(set.weight) || set.weight < 0 || set.weight > 1000 || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100) continue;
+        const externalLoad = scoreLoad(exercise.id, set.weight, r.apparatusWeight ?? r.barWeight);
+        const load = reference.body === "add" ? w.bodyWeight! + externalLoad : reference.body === "subtract" ? w.bodyWeight! - externalLoad : externalLoad;
+        // Higher-rep work remains valid training; no extra strength bonus beyond ten reps.
+        const maximum = estimatedMax(load, Math.min(set.reps, 10));
+        const value = maximum === undefined ? undefined : maximum / reference[sex] * (sex === "male" ? 2.52 : 2.41) * coefficient / 4;
+        if (value === undefined) continue;
+        exercises.add(r.prescription.exerciseId);
+        scoredSessions.add(w.date);
+        if (value > (best.get(category) ?? 0)) evidence.set(category, {
+          exerciseId: exercise.id, kind: reference.kind, exerciseName: r.name || exercise.name,
+          load, reps: set.reps, maximum: maximum!, date: w.date, body: reference.body,
+        });
+        best.set(category, Math.max(best.get(category) ?? 0, value));
+        changed = true;
+      }
     }
-    // Use one fixed exercise cohort for the displayed series; additions do not create artificial jumps.
-    if (changed && exercises.length && exercises.every(id => ratios.has(id))) {
-      points.push({ date: w.date, value: Math.round(1000 * exercises.reduce((sum, id) => sum + ratios.get(id)!, 0) / exercises.length) / 10 });
+    if (changed && best.size) {
+      // A partial training profile must not lose Points just for omitting a
+      // muscle group. Normalize only against the homologated groups recorded.
+      const weighted = [...best].reduce((sum, [group, value]) => sum + value * groupWeights[group], 0);
+      const coverageWeight = [...best].reduce((sum, [group]) => sum + groupWeights[group], 0);
+      points.push({ date: w.date, value: displayPoints(weighted / coverageWeight),
+        detail: translate("{count}/11 grupos · equivalencias beta", { count: best.size }) });
     }
   }
-  return { points, exercises };
+  const categories = (Object.keys(scoreGroups) as Muscle[]).map(id => ({ id, name: scoreGroups[id], value: best.has(id) ? displayPoints(best.get(id)!) : undefined, ...evidence.get(id) }));
+  const dates = [...scoredSessions].map(Date.parse).filter(Number.isFinite).sort((a, b) => a - b);
+  const latest = dates.at(-1);
+  const age = latest === undefined ? Infinity : Math.max(0, Date.now() - latest) / 86_400_000;
+  // Informative only: it never changes the score or excludes an athlete.
+  const reliability = best.size === 0 ? 0 : Math.round(
+    Math.min(best.size, 8) / 8 * 45 +
+    Math.min(exercises.size, 4) / 4 * 15 +
+    (age <= 14 ? 20 : age <= 42 ? 12 : age <= 84 ? 6 : 0) +
+    (dates.length >= 4 ? 20 : dates.length >= 2 ? 10 : 4),
+  );
+  const rankingEligible = best.size > 0;
+  return { points, exercises: [...exercises], categories, coverage: best.size, reliability, rankingEligible };
 }
 export function bodyWeightProgress(state: AppState): ChartPoint[] {
   return [
     ...(state.bodyWeights ?? []).map(p => ({ date: p.date, value: p.weight })),
     ...state.history.filter(w => Number.isFinite(w.bodyWeight) && w.bodyWeight! > 0).map(w => ({ date: w.date, value: w.bodyWeight! })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
+  ].sort((a, b) => a.date.localeCompare(b.date)).map(point => {
+    const atTime = Date.parse(point.date);
+    const history = state.history
+      .filter(workout => Date.parse(workout.date) <= atTime)
+      .map(workout => ({ ...workout, bodyWeight: point.value }));
+    const score = scoreProgress({ ...state, history }).points.at(-1);
+    return { ...point, detail: score ? `A-Points: ${score.value.toLocaleString(getLocale(), { maximumFractionDigits: 1 })}` : translate("A-Points: sin valoración todavía") };
+  });
 }

@@ -1,9 +1,12 @@
+import { useLanguage } from "../i18n";
+import { useState } from "react";
 import { messages } from "../content/es";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { APP } from "../config";
 import { defaultTrainingDays, levels, muscles, weekdays } from "../data/options";
 import { Profile, Weekday } from "../types";
-import { Button, Choice, Notice, Txt } from "./ui";
+import { Button, Choice, Icon, Notice, Txt } from "./ui";
+import { useTheme } from "../theme";
 export function LevelSelect({
   profile,
   change,
@@ -32,13 +35,15 @@ export function DaysSelect({
   profile: Profile;
   change: (p: Partial<Profile>) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <View style={{ gap: 16 }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      <View style={{ flexDirection: "row", gap: 6 }}>
         {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-          <View key={day} style={{ width: 48 }}>
+          <View key={day} style={{ flex: 1, minWidth: 0 }}>
             <Button
               label={String(day)}
+              tight
               variant={profile.days === day ? "primary" : "secondary"}
               onPress={() => change({ days: day, trainingDays: defaultTrainingDays(day) })}
             />
@@ -46,11 +51,7 @@ export function DaysSelect({
         ))}
       </View>
       <Txt weight="600">
-        {profile.days}{" "}
-        {profile.days === 1
-          ? messages.Selections.diaDisponible
-          : messages.Selections.diasDisponibles}
-        {messages.Selections.porSemana}
+        {t(profile.days === 1 ? "{count} día disponible por semana" : "{count} días disponibles por semana", { count: profile.days })}
       </Txt>
       <Txt weight="600">¿Qué días puedes entrenar?</Txt>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -79,8 +80,8 @@ export function DaysSelect({
       </View>
       <Txt size={12} muted>
         {profile.days <= APP.maxDays
-          ? `Seleccionados ${(profile.trainingDays ?? defaultTrainingDays(profile.days)).length} de ${profile.days} días.`
-          : `Seleccionados ${(profile.trainingDays ?? defaultTrainingDays(profile.days)).length} días disponibles; se programarán ${APP.maxDays} sesiones.`}
+          ? t("Seleccionados {value1} de {value2} días.", { value1: (profile.trainingDays ?? defaultTrainingDays(profile.days)).length, value2: profile.days })
+          : t("Seleccionados {value1} días disponibles; se programarán {value2} sesiones.", { value1: (profile.trainingDays ?? defaultTrainingDays(profile.days)).length, value2: APP.maxDays })}
       </Txt>
       {profile.days > 5 && (
         <Notice>
@@ -93,23 +94,78 @@ export function DaysSelect({
 export function PrioritySelect({
   profile,
   change,
+  dropdown = false,
 }: {
   profile: Profile;
   change: (p: Partial<Profile>) => void;
+  /** The settings screen keeps the same choices behind a compact disclosure. */
+  dropdown?: boolean;
 }) {
+  const { t } = useLanguage();
+  const { colors } = useTheme();
+  const [open, setOpen] = useState(false);
+  const selected = muscles.find((muscle) => muscle.id === profile.priority) ?? muscles[0];
+  const description = selected.id === "balanced"
+    ? messages.Selections.sinPrioridadConcreta
+    : "Este músculo será tu mesociclo de especialización: aumenta sus series según tus días disponibles; desde 4 días se acerca a 16 series en nivel intermedio o avanzado.";
+  const choose = (id: Profile["priority"]) => {
+    change({ priority: id, mesocycle: id !== "balanced" });
+    setOpen(false);
+  };
+  if (dropdown) {
+    return (
+      <View style={{ gap: 10 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Elegir mesociclo: {name}", { name: t(selected.name) })}
+          accessibilityState={{ expanded: open }}
+          onPress={() => setOpen((value) => !value)}
+          style={({ pressed }) => ({
+            minHeight: 66,
+            padding: 16,
+            borderRadius: 15,
+            borderWidth: 2,
+            borderColor: open ? colors.accent : colors.border,
+            backgroundColor: open ? colors.accentSoft : colors.surface,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <View style={{ flex: 1, gap: 4 }}>
+            <Txt weight="600">{selected.name}</Txt>
+            <Txt size={13} muted>{description}</Txt>
+          </View>
+          <Icon name={open ? "chevron-up" : "chevron-down"} />
+        </Pressable>
+        {open && (
+          <View
+            accessibilityRole="menu"
+            style={{ gap: 8, padding: 8, borderRadius: 16, backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.border }}
+          >
+            {muscles.map((muscle) => (
+              <Choice
+                key={muscle.id}
+                title={muscle.name}
+                selected={profile.priority === muscle.id}
+                onPress={() => choose(muscle.id)}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
   return (
     <View style={{ gap: 10 }}>
       {muscles.map((m) => (
         <Choice
           key={m.id}
           title={m.name}
-          description={
-            m.id === "balanced"
-              ? messages.Selections.sinPrioridadConcreta
-              : "Este músculo será tu mesociclo de especialización: aumenta sus series según tus días disponibles; desde 4 días se acerca a 16 series en nivel intermedio o avanzado."
-          }
+          description={m.id === "balanced" ? messages.Selections.sinPrioridadConcreta : "Este músculo será tu mesociclo de especialización: aumenta sus series según tus días disponibles; desde 4 días se acerca a 16 series en nivel intermedio o avanzado."}
           selected={profile.priority === m.id}
-          onPress={() => change({ priority: m.id, mesocycle: m.id !== "balanced" })}
+          onPress={() => choose(m.id)}
         />
       ))}
     </View>

@@ -16,6 +16,7 @@ import { Profile } from "../types";
 import { profileErrors } from "../logic/validation";
 import { generateRoutine } from "../logic/routine";
 import { demoProfile } from "../data/options";
+import { LanguageSelector } from "../components/LanguageSelector";
 const steps = [
   [
     messages.Onboarding.empecemosPorTi,
@@ -49,7 +50,7 @@ export default function Onboarding() {
     const found = profileErrors(profile);
     if (Object.keys(found).length) {
       setErrors(found);
-      const personalFields = ["sex", "age", "height", "weight", "bodyFat", "photo", "name", "handle"];
+      const personalFields = ["sex", "birthDate", "height", "weight", "name", "handle"];
       if (step !== 0 && Object.keys(found).some((key) => personalFields.includes(key)))
         update((s) => ({ ...s, onboardingStep: 0 }));
       return;
@@ -101,6 +102,7 @@ export default function Onboarding() {
       <Heading title={steps[step][0]} subtitle={steps[step][1]} />
       {step === 0 && (
         <>
+          <LanguageSelector />
           <ProfileFields profile={profile} change={change} errors={errors} />
           <Button
             label={messages.Onboarding.rellenarConDatosDeEjemplo}

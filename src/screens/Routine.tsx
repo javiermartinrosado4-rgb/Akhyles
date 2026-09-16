@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { Pressable, Share, View } from "react-native";
@@ -25,7 +26,7 @@ import {
   heavyExerciseCount,
   heavyExerciseLimit,
   weeklyTargets,
-  weeklyVolume,
+  completedWeeklyVolume,
   generateRoutine,
   hasMesocycle,
 } from "../logic/routine";
@@ -38,6 +39,7 @@ import { Muscle } from "../types";
 import { useCommunity } from "../state/Community";
 import { exportRoutine } from "../logic/sharing";
 export function RoutineOverview() {
+  const { t, locale } = useLanguage();
   const { state, update } = useStore();
   const { user, request } = useCommunity();
   const [selected, setSelected] = useState(state.routine[0]?.id);
@@ -55,7 +57,7 @@ export function RoutineOverview() {
   const day = state.routine.find((d) => d.id === selected) ?? state.routine[0];
   const p = state.profile;
   const targets = weeklyTargets(p, state.volumeTargets);
-  const volume = weeklyVolume(state.routine, state.preferences);
+  const completedVolume = completedWeeklyVolume(state.history, state.preferences);
   const schedule = routineSchedule(p, state.routine);
   const move = (index: number, offset: number) => update(s => ({ ...s, routine: s.routine.map(d => {
     if (d.id !== day.id) return d;
@@ -80,7 +82,10 @@ export function RoutineOverview() {
       return;
     }
     const volumeTargets = Object.fromEntries(entries) as Partial<Record<Muscle, number>>;
-    update(s => ({ ...s, volumeTargets, routine: generateRoutine(s.profile, s.preferences, volumeTargets) }));
+    update(s => {
+      const routine = generateRoutine(s.profile, s.preferences, volumeTargets);
+      return { ...s, volumeTargets, routine };
+    });
     setRegenerating(false);
     setNotice("Rutina regenerada con tus series semanales. Las cargas guardadas se mantienen.");
   };
@@ -93,8 +98,8 @@ export function RoutineOverview() {
       const url = routineShareUrl(published.id, process.env.EXPO_PUBLIC_WEB_URL,
         Linking.createURL("/shared-routine", { queryParams: { id: published.id } }));
       await Share.share({
-        title: "Rutina de Akhyles",
-        message: `Te comparto mi rutina de Akhyles. Puedes copiar su estructura y las notas de cada ejercicio, sin mis pesos: ${url}`,
+        title: t("Rutina de Akhyles"),
+        message: t("Te comparto mi rutina de Akhyles. Puedes copiar su estructura y las notas de cada ejercicio, sin mis pesos: {value1}", { value1: url }),
         url,
       });
       setNotice("Enlace de rutina actualizado. Compártelo por WhatsApp o la red que prefieras.");
@@ -114,18 +119,15 @@ export function RoutineOverview() {
         <Row style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
           <Pill>{levelName(p.level)}</Pill>
           <Txt size={13} muted>
-            {state.routine.length}
-            {messages.Routine.diasSemana}
+            {t(state.routine.length === 1 ? "{count} día / semana" : "{count} días / semana", { count: state.routine.length })}
           </Txt>
         </Row>
         <Txt size={14}>
-          {hasMesocycle(p) ? messages.Routine.mesociclo : messages.Routine.prioridad}
-          {muscleName(p.priority)}
+          {t(hasMesocycle(p) ? "Mesociclo: {name}" : "Prioridad: {name}", { name: t(muscleName(p.priority)) })}
         </Txt>
         {p.days > 5 && (
           <Txt size={12} muted>
-            {p.days}
-            {messages.Routine.diasDisponiblesProgramados5}
+            {t("{count} días disponibles → programados 5.", { count: p.days })}
           </Txt>
         )}
       </Card>
@@ -138,7 +140,7 @@ export function RoutineOverview() {
           {muscles.filter(item => item.id !== "balanced").map(item => (
             <Field
               key={item.id}
-              label={`Series semanales de ${item.name}`}
+              label={t("Series semanales de {value1}", { value1: t(item.name) })}
               value={targetDraft[item.id as Muscle]}
               onChangeText={value => {
                 setTargetDraft(current => ({ ...current, [item.id as Muscle]: value }));
@@ -157,7 +159,7 @@ export function RoutineOverview() {
       <Txt size={17} weight="600">
         {messages.Routine.distribucionSemanal}
       </Txt>
-      <Notice>Los abdominales se colocan preferentemente en los días de pierna. Entrenarlos los fortalece; para que se marquen, lo principal es reducir el porcentaje graso mediante la dieta. Su efecto visual directo es menor.</Notice>
+      <Notice>Los abdominales se colocan preferentemente en los días de pierna para repartir mejor la fatiga de la semana.</Notice>
       {state.programRevision !== 6 && <Card>
         <Txt>Tu rutina guardada pertenece a la versión anterior. Puedes aplicar los nuevos volúmenes y límites conservando el historial y las cargas; se regenerará el orden y las series del plan.</Txt>
         <Button label="Actualizar rutina a nuevas reglas" onPress={() => update(s => ({ ...s, programRevision: 6, routine: generateRoutine(s.profile, s.preferences, s.volumeTargets) }))} />
@@ -165,8 +167,8 @@ export function RoutineOverview() {
       {state.routine.map((d, i) => (
         <Choice
           key={d.id}
-          title={`${weekdayName(schedule[i].weekday)} · ${d.name}`}
-          description={`${d.exercises.length} ejercicios · ${heavyExerciseCount(d, state.preferences)} pesados · ${duration(d, state.preferences)} min estimados`}
+          title={`${t(weekdayName(schedule[i].weekday))} · ${t(d.name)}`}
+          description={t("{value1} ejercicios · {value2} pesados · {value3} min estimados", { value1: d.exercises.length, value2: heavyExerciseCount(d, state.preferences), value3: duration(d, state.preferences) })}
           selected={day?.id === d.id}
           onPress={() => {
             setSelected(d.id);
@@ -181,7 +183,7 @@ export function RoutineOverview() {
         <>
           <Heading
             title={day.name}
-            subtitle={`${duration(day, state.preferences)} min estimados · 4 min en pesados y 3 min en el resto`}
+            subtitle={t("{value1} min estimados · 4 min en pesados y 3 min en el resto", { value1: duration(day, state.preferences) })}
           />
           {heavyExerciseLimit(p.days) !== Infinity && <Notice>Recomendamos hasta 2 ejercicios pesados por sesión en planes de más de 3 días. Puedes añadir más; tú decides.</Notice>}
           <Notice>{copy.twoSets}</Notice>
@@ -203,13 +205,13 @@ export function RoutineOverview() {
             return (
               <View key={entry.id} style={{ gap: 12 }}>
                 <Card>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalles de ${displayName(entry.exerciseId, state.preferences)}`} onPress={() => setExpanded(expanded === entry.id ? null : entry.id)}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("Ver detalles de {value1}", { value1: displayName(entry.exerciseId, state.preferences) })} onPress={() => setExpanded(expanded === entry.id ? null : entry.id)}>
                   <Row style={{ alignItems: "flex-start" }}>
                     <Txt size={13} muted style={{ paddingTop: 4 }}>
                       {String(index + 1).padStart(2, "0")}
                     </Txt>
                     <View style={{ flex: 1, gap: 5 }}>
-                      <Txt weight="600" size={17}>
+                      <Txt weight="600" size={17} translate={false}>
                         {displayName(entry.exerciseId, state.preferences)}
                       </Txt>
                       <Txt muted size={12}>
@@ -228,25 +230,23 @@ export function RoutineOverview() {
                     <Txt weight="600">
                       {entry.weight === 0
                         ? messages.Routine.cargaPorElegir
-                        : `${entry.weight.toFixed(2).replace(".", ",")} kg`}
+                        : `${entry.weight.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`}
                     </Txt>
                   </Row>
                   <Txt muted size={11}>{expanded === entry.id ? "Ocultar detalles" : "Ver detalles"}</Txt>
                   </Pressable>
                   {expanded === entry.id && <>
-                  <Txt muted size={12}>
-                    Descanso: {restSeconds(exercise) / 60} min recomendado. Calentamiento y aproximación aparte.
-                  </Txt>
+                  <Txt muted size={12}>{t("Descanso: {value1} min recomendado. Calentamiento y aproximación aparte.", { value1: restSeconds(exercise) / 60 })}</Txt>
                   {exercise.note && <Notice>{exercise.note}</Notice>}
                   </>}
                   <Row>
-                    <Button label={`Subir ejercicio ${index + 1}`} compact variant="ghost" icon="arrow-up" disabled={index === 0} onPress={() => move(index, -1)} />
-                    <Button label={`Bajar ejercicio ${index + 1}`} compact variant="ghost" icon="arrow-down" disabled={index === day.exercises.length - 1} onPress={() => move(index, 1)} />
+                    <Button label={t("Subir ejercicio {value1}", { value1: index + 1 })} accessibilityLabel={t("Subir ejercicio {value1}", { value1: index + 1 })} hideLabel compact variant="ghost" icon="arrow-up" disabled={index === 0} onPress={() => move(index, -1)} />
+                    <Button label={t("Bajar ejercicio {value1}", { value1: index + 1 })} accessibilityLabel={t("Bajar ejercicio {value1}", { value1: index + 1 })} hideLabel compact variant="ghost" icon="arrow-down" disabled={index === day.exercises.length - 1} onPress={() => move(index, 1)} />
                   </Row>
                   <Button
                     compact
                     variant="secondary"
-                    label={`Editar ejercicio ${index + 1}`}
+                    label={t("Editar ejercicio {value1}", { value1: index + 1 })}
                     icon="sliders"
                     onPress={() => {
                       setExpanded(entry.id);
@@ -285,11 +285,11 @@ export function RoutineOverview() {
       )}
       <Card>
         <Txt weight="600" size={18}>Series semanales por grupo muscular</Txt>
-        <Txt muted size={12}>Programadas / objetivo. Se cuentan las series directas, sin duplicar el trabajo de músculos secundarios.</Txt>
+        <Txt muted size={12}>Hechas esta semana / objetivo semanal. Solo se cuentan las series directas.</Txt>
         {Object.entries(targets).map(([muscle, target]) => {
-          const programmed = volume[muscle as keyof typeof volume];
+          const completed = completedVolume[muscle as keyof typeof completedVolume] ?? 0;
           return <Txt key={muscle} size={13}>
-            {muscleName(muscle as keyof typeof targets)}: {programmed} / {programmed === 0 ? 0 : target}
+            {muscleName(muscle as keyof typeof targets)}: {completed} / {target}
           </Txt>;
         })}
       </Card>
@@ -316,7 +316,7 @@ export default function Routine() {
     <Heading
       eyebrow="Tu planificación"
       title="Calendario"
-      subtitle="Consulta y ajusta tus sesiones por semana o por mes."
+      subtitle="Consulta tu calendario mensual y ajusta tus próximas sesiones."
     />
     <RoutineCalendar />
   </Page>;

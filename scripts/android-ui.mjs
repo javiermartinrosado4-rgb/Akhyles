@@ -11,8 +11,8 @@ export const adb = (...args) => execFileSync(adbPath, ["-s", serial, ...args], {
 export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const decode = value => value.replaceAll("&quot;", '"').replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&#10;", "\n");
 export function snapshot() {
-  adb("shell", "uiautomator", "dump", "/sdcard/gym-buddy-ui.xml");
-  adb("pull", "/sdcard/gym-buddy-ui.xml", `${output}/ui.xml`);
+  adb("shell", "uiautomator", "dump", "/sdcard/akhyles-ui.xml");
+  adb("pull", "/sdcard/akhyles-ui.xml", `${output}/ui.xml`);
   return [...readFileSync(`${output}/ui.xml`, "utf8").matchAll(/<node\s+([^>]+)>/g)].map(match =>
     Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(([, key, value]) => [key, decode(value)])));
 }

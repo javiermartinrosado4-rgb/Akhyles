@@ -46,6 +46,7 @@ export const muscles: { id: Muscle | "balanced"; name: string }[] = [
   { id: "glutes", name: "Glúteos" },
   { id: "quads", name: "Cuádriceps" },
   { id: "hamstrings", name: "Isquios" },
+  { id: "adductors", name: "Aductores" },
   { id: "calves", name: "Gemelos" },
   { id: "abs", name: "Abdominales" },
 ];
@@ -54,6 +55,7 @@ export const variants: { id: Variant; name: string }[] = [
   { id: "cable", name: "Poleas / cable" },
   { id: "smith", name: "Multipower" },
   { id: "free", name: "Peso libre" },
+  { id: "bodyweight", name: "Peso corporal" },
 ];
 export const levelRank: Record<Level, number> = {
   beginner: 0,
@@ -65,12 +67,11 @@ export const emptyProfile: Profile = {
   handle: "",
   mesocycle: false,
   sex: "",
+  birthDate: "",
   age: "",
   height: "",
   weight: "",
-  fatMode: "unknown",
-  bodyFat: "",
-  photoConfirmed: false,
+  weightReminder: false,
   level: "beginner",
   days: 3,
   trainingDays: defaultTrainingDays(3),
@@ -79,7 +80,7 @@ export const emptyProfile: Profile = {
 export const emptyPreferences: Preferences = {
   unavailable: [],
   favorites: [],
-  equipment: ["machine", "free", "cable", "smith"],
+  equipment: ["machine", "free", "cable", "smith", "bodyweight"],
   names: {},
   notes: {},
   weights: {},
@@ -89,11 +90,11 @@ export const emptyPreferences: Preferences = {
 export const demoProfile: Profile = {
   ...emptyProfile,
   sex: "male",
+  birthDate: "1998-01-01",
   age: "28",
   height: "178",
   weight: "76,5",
-  fatMode: "manual",
-  bodyFat: "15,5",
+  weightReminder: false,
   level: "intermediate",
   days: 3,
   priority: "chest",

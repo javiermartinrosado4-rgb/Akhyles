@@ -6,12 +6,42 @@ import { validRange, validWeight } from "../logic/validation";
 import { validAvatar, validAvatarPhoto } from "../data/avatars";
 import { resumeWorkout } from "../logic/workout";
 import { localDateKey } from "../logic/schedule";
+import { validBarWeight } from "../logic/load";
+import { validStoredCollections } from "../logic/storedState";
+import { defaultTrainingDays } from "../data/options";
 export interface StateRepository {
   load(): Promise<AppState | null>;
   save(state: AppState): Promise<void>;
 }
+
+/**
+ * A stale weekday selection can survive a program import or an earlier app
+ * version. Availability is derived metadata, so repair it while reading data
+ * instead of blocking a complete workout history or its cloud sync.
+ */
+export function repairTrainingDays(profile: AppState["profile"]): AppState["profile"] {
+  const { days, trainingDays } = profile;
+  if (trainingDays === undefined || !Number.isInteger(days) || days < 1 || days > 7) return profile;
+  const valid = Array.isArray(trainingDays)
+    ? [...new Set(trainingDays.filter(day => Number.isInteger(day) && day >= 1 && day <= 7))]
+    : [];
+  if (Array.isArray(trainingDays) && valid.length === days && valid.length === trainingDays.length) return profile;
+  const repaired = [...valid, ...defaultTrainingDays(days).filter(day => !valid.includes(day))].slice(0, days);
+  return { ...profile, trainingDays: repaired };
+}
+
+function repairStoredTrainingDays(state: AppState): AppState {
+  const profile = repairTrainingDays(state.profile);
+  const routineVersions = Array.isArray(state.routineVersions)
+    ? state.routineVersions.map(version => version && typeof version === "object" && "profile" in version
+      ? { ...version, profile: repairTrainingDays(version.profile) }
+      : version)
+    : state.routineVersions;
+  return profile === state.profile && routineVersions === state.routineVersions ? state : { ...state, profile, routineVersions };
+}
 export function decodeState(raw: string): AppState {
-  const s = JSON.parse(raw) as AppState;
+  const s = repairStoredTrainingDays(JSON.parse(raw) as AppState);
+  if (!validStoredCollections(s)) throw new Error("Invalid stored collections");
   if (
     !s ||
     s.version !== 1 ||
@@ -23,6 +53,21 @@ export function decodeState(raw: string): AppState {
   )
     throw new Error("Invalid state");
   const p = s.profile;
+  if (s.preferences.barWeights !== undefined && (!s.preferences.barWeights || typeof s.preferences.barWeights !== "object" || Array.isArray(s.preferences.barWeights) || Object.values(s.preferences.barWeights).some(value => !validBarWeight(value)))) throw new Error("Invalid bar weights");
+  if (s.preferences.apparatusWeights !== undefined && (!s.preferences.apparatusWeights || typeof s.preferences.apparatusWeights !== "object" || Array.isArray(s.preferences.apparatusWeights) || Object.values(s.preferences.apparatusWeights).some(value => !validBarWeight(value)))) throw new Error("Invalid apparatus weights");
+  if (s.history.some(workout => workout.records?.some(record => (record.barWeight !== undefined && !validBarWeight(record.barWeight)) || (record.apparatusWeight !== undefined && !validBarWeight(record.apparatusWeight))))) throw new Error("Invalid historical base weight");
+  if (s.routineVersions !== undefined && (!Array.isArray(s.routineVersions) || s.routineVersions.some(version =>
+    !version || typeof version.effectiveFrom !== "string" || !Number.isFinite(Date.parse(version.effectiveFrom)) ||
+    !version.profile || !Number.isInteger(version.profile.days) || version.profile.days < 1 || version.profile.days > 7 ||
+    (version.profile.trainingDays !== undefined && (!Array.isArray(version.profile.trainingDays) ||
+      new Set(version.profile.trainingDays).size !== version.profile.days || version.profile.trainingDays.some(day => !Number.isInteger(day) || day < 1 || day > 7))) ||
+    !Array.isArray(version.routine) || version.routine.some(day => !day || typeof day.id !== "string" || typeof day.name !== "string" ||
+      !Array.isArray(day.exercises) || day.exercises.some(entry => !entry || typeof entry.exerciseId !== "string" ||
+        !validRange(entry.range) || !validWeight(entry.weight) || !Number.isInteger(entry.sets) || entry.sets < 1 || entry.sets > 6))
+  ))) throw new Error("Invalid routine history");
+  if (s.cloud !== undefined && (!s.cloud || typeof s.cloud.owner !== "string" ||
+      !Number.isSafeInteger(s.cloud.revision) || s.cloud.revision < 0 ||
+      (s.cloud.base !== null && typeof s.cloud.base !== "string"))) throw new Error("Invalid sync metadata");
   if (p.avatar !== undefined && !validAvatar(p.avatar) && !validAvatarPhoto(p.avatar)) throw new Error("Invalid avatar");
   if ((p.name !== undefined && typeof p.name !== "string") || (p.handle !== undefined && typeof p.handle !== "string") ||
     (p.includeGlutes !== undefined && typeof p.includeGlutes !== "boolean") || (p.mesocycle !== undefined && typeof p.mesocycle !== "boolean") ||
@@ -35,6 +80,7 @@ export function decodeState(raw: string): AppState {
   )
     throw new Error("Invalid training days");
   if (s.bodyWeights !== undefined && (!Array.isArray(s.bodyWeights) || s.bodyWeights.some(p => !Number.isFinite(p.weight) || p.weight < 30 || p.weight > 350 || !Number.isFinite(Date.parse(p.date))))) throw new Error("Invalid body weight history");
+  if (s.weightReminderNotificationId !== undefined && typeof s.weightReminderNotificationId !== "string") throw new Error("Invalid weight reminder");
   if (s.volumeTargets !== undefined && (
     typeof s.volumeTargets !== "object" ||
     Object.entries(s.volumeTargets).some(([muscle, value]) =>
@@ -57,8 +103,9 @@ export function decodeState(raw: string): AppState {
     p.days < 1 ||
     p.days > 7 ||
     !["male", "female", ""].includes(p.sex) ||
-    !["manual", "photo", "unknown"].includes(p.fatMode) ||
-    ![p.age, p.height, p.weight, p.bodyFat].every((v) => typeof v === "string")
+    ![p.age, p.height, p.weight].every((v) => typeof v === "string") ||
+    (p.birthDate !== undefined && typeof p.birthDate !== "string") ||
+    (p.weightReminder !== undefined && typeof p.weightReminder !== "boolean")
   )
     throw new Error("Invalid profile");
   const prefs = s.preferences;
@@ -114,7 +161,18 @@ export function decodeState(raw: string): AppState {
       s.active.index >= s.active.day.exercises.length)
   )
     throw new Error("Invalid session");
-  return s.active ? { ...s, active: resumeWorkout(s) } : s;
+  // Older local profiles can contain the retired body-fat estimator. Drop it
+  // during hydration so it can neither reappear in the UI nor affect weight data.
+  const { fatMode: _fatMode, bodyFat: _bodyFat, photoConfirmed: _photoConfirmed, ...profile } = p as typeof p & {
+    fatMode?: unknown; bodyFat?: unknown; photoConfirmed?: unknown;
+  };
+  // Existing profiles predate the explicit bodyweight category. Keep it
+  // available without making users revisit their gym-equipment settings.
+  const preferences: AppState["preferences"] = s.preferences.equipment.includes("bodyweight")
+    ? s.preferences
+    : { ...s.preferences, equipment: [...s.preferences.equipment, "bodyweight"] as AppState["preferences"]["equipment"] };
+  const next = { ...s, profile, preferences };
+  return next.active ? { ...next, active: resumeWorkout(next) } : next;
 }
 export const localRepository: StateRepository = {
   async load() {
@@ -125,3 +183,17 @@ export const localRepository: StateRepository = {
     await AsyncStorage.setItem(APP.storageKey, JSON.stringify(state));
   },
 };
+
+/** Archive before account switching or conflict resolution, outside the active profile key. */
+export async function archiveState(state: AppState): Promise<string> {
+  const owner = state.cloud?.owner ?? "guest";
+  const key = `akhyles:archive:${owner}:${Date.now()}:${Math.random().toString(36).slice(2,10)}`;
+  await AsyncStorage.setItem(key, JSON.stringify(state));
+  return key;
+}
+export async function archivedStates(owner: string): Promise<{ key: string; state: AppState }[]> {
+  const prefix = `akhyles:archive:${owner}:`;
+  const keys = (await AsyncStorage.getAllKeys()).filter(k => k.startsWith(prefix)).sort().reverse();
+  const rows = await AsyncStorage.multiGet(keys);
+  return rows.flatMap(([key, raw]) => { try { return raw ? [{ key, state: decodeState(raw) }] : []; } catch { return []; } });
+}

@@ -33,13 +33,13 @@ export async function backupToRepository() {
   const staging = resolve(process.env.GYM_BACKUP_STAGING ?? "/backup-staging");
   await mkdir(staging, { recursive: true, mode: 0o700 });
   const directory = await mkdtemp(join(staging, "snapshot-"));
-  const file = join(directory, "gym-buddy.sqlite");
+  const file = join(directory, "akhyles.sqlite");
   try {
     await snapshotDatabase(process.env.GYM_DATABASE, file);
-    restic(["backup", "--host", "gym-buddy-community", "--tag", "community", "gym-buddy.sqlite"], directory);
+    restic(["backup", "--host", "akhyles-community", "--tag", "community", "akhyles.sqlite"], directory);
     restic(["check"]);
     // Apply retention explicitly to this application's snapshot group only.
-    restic(["forget", "--host", "gym-buddy-community", "--tag", "community", "--group-by", "host,tags", "--keep-within", "30d", "--prune"]);
+    restic(["forget", "--host", "akhyles-community", "--tag", "community", "--group-by", "host,tags", "--keep-within", "30d", "--prune"]);
     console.log(JSON.stringify({ event: "backup_ok", at: new Date().toISOString() }));
   } finally {
     // Exact files created by this operation; never recurse over user data.
