@@ -47,8 +47,9 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
       : [...state.history, { ...workout, records }] }));
   };
   return <Card>
-    <Txt weight="600" size={20} translate={false}>{workout.dayName}</Txt>
-    <Txt muted size={12}>{create ? "Puedes completar pesos y repeticiones aunque aún no hubiera ningún registro guardado." : "Revisa la sesión completa y corrige cualquier peso o repetición. La fecha y la estructura de tu rutina no cambian."}</Txt>
+    <Txt weight="600" size={20} translate={false}>{create ? "Editar entrenamiento" : editable ? "Editar entrenamiento" : "Visualizar entrenamiento"}</Txt>
+    <Txt translate={false} weight="600" size={16}>{workout.dayName}</Txt>
+    <Txt muted size={12}>{create ? "Puedes completar pesos y repeticiones aunque aún no hubiera ningún registro guardado." : editable ? "Edita los pesos y repeticiones de esta sesión. La fecha y la rutina no cambian." : "Esta sesión tiene más de una semana y solo se puede visualizar."}</Txt>
     {workout.records.map((record, r) => <Card key={`${workout.id}-${record.prescription.id}`} style={{ padding: 12, gap: 7 }}>
       <Row style={{ alignItems: "flex-start" }}>
         <Txt weight="600" size={13} style={{ color: colors.accent, width: 24 }}>{String(r + 1).padStart(2, "0")}</Txt>
@@ -58,8 +59,13 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
         </View>
       </Row>
       {record.sets.map((_set, s) => <Row key={s}>
-        <Field label={t("Peso {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].weight} onChangeText={value => set(r, s, "weight", value)} numeric suffix="kg" />
-        <Field label={t("Repeticiones {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].reps} onChangeText={value => set(r, s, "reps", value)} numeric suffix="rep" />
+        {editable ? <>
+          <Field label={t("Peso {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].weight} onChangeText={value => set(r, s, "weight", value)} numeric suffix="kg" />
+          <Field label={t("Repeticiones {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].reps} onChangeText={value => set(r, s, "reps", value)} numeric suffix="rep" />
+        </> : <>
+          <Txt muted>{t("Peso {name}, serie {n}", { name: record.name, n: s + 1 })}: {draft[r][s].weight} kg</Txt>
+          <Txt muted>{t("Repeticiones {name}, serie {n}", { name: record.name, n: s + 1 })}: {draft[r][s].reps}</Txt>
+        </>}
       </Row>)}
     </Card>)}
     {!!error && <Notice error>{error}</Notice>}
