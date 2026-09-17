@@ -17,6 +17,7 @@ const BARBELL_BASICS = new Set([
 // sees on either stack is the useful input, while the stored/scored load stays
 // the sum of both sides.
 const DUAL_CABLE_LOADS = new Set(["chest-cable", "standing-cable-pec-dec"]);
+export const usesPerSideDisplay = (exerciseId: string) => DUAL_CABLE_LOADS.has(exerciseId);
 
 // These movements are logged using the exercise load itself. A machine/frame
 // base weight is not useful for comparing them and should not be offered.
@@ -31,11 +32,16 @@ const APPARATUS_WEIGHT_EXCLUDED = new Set([
 ]);
 
 export const defaultLoadInputMode = (exerciseId: string): LoadInputMode =>
-  DUAL_CABLE_LOADS.has(exerciseId) ? "per-side" : "total";
+  usesPerSideDisplay(exerciseId) ? "per-side" : "total";
 
 /** Available for every entered load, including plate-loaded and Smith machines. */
 export const supportsPerSideInput = (_exerciseId: string) => true;
 export const supportsBarWeight = (exerciseId: string) => BARBELL_BASICS.has(exerciseId);
+
+/** Configured increments use the athlete's visible unit. On two cable stacks,
+ * 1.25 kg means 1.25 kg on each stack, or 2.5 kg internally. */
+export const storedProgressionStep = (exerciseId: string, step: number, mode: LoadInputMode) =>
+  mode === "per-side" && !supportsBarWeight(exerciseId) ? step * 2 : step;
 export const supportsApparatusWeight = (exerciseId: string) => !APPARATUS_WEIGHT_EXCLUDED.has(exerciseId);
 export const isAssistedPullup = (exerciseId: string) => exerciseId === "assisted-pullup";
 
@@ -73,7 +79,7 @@ export const storedSetLoad = (set: Pick<SetRecord, "weight" | "leftWeight" | "ri
     : set.weight;
 
 export const formatLoad = (value: number) =>
-  String(Math.round(value * 100) / 100);
+  Number.isFinite(value) ? String(Number(value.toFixed(8))) : "";
 
 export function loadHint(exerciseId: string): string {
   if (DUAL_CABLE_LOADS.has(exerciseId)) return "Usa Por lado: registra lo que indica una de las dos poleas. Akhyles suma ambas para guardarlo y puntuarlo (20 kg por lado = 40 kg totales).";

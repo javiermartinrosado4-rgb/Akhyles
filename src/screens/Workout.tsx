@@ -16,7 +16,7 @@ import {
 } from "../components/ui";
 import { useStore } from "../state/Store";
 import { allExercises, displayName, getExercise, restSeconds } from "../logic/routine";
-import { draftFor, finishWorkout } from "../logic/workout";
+import { applyExerciseRecommendation, draftFor, finishWorkout } from "../logic/workout";
 import { number, validWeight } from "../logic/validation";
 import { ExerciseRecord, SetRecord, PlannedWorkout } from "../types";
 import { WeightSuggestion } from "../components/WeightSuggestion";
@@ -28,7 +28,15 @@ import { MachineBrandSelect } from "../components/MachineBrandSelect";
 import { defaultBarWeight, defaultLoadInputMode, formatLoad, fromStoredLoad, isAssistedPullup, loadHint, LoadInputMode, supportsApparatusWeight, supportsBarWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../logic/load";
 
 const draftFromRecord = (sets: SetRecord[], mode: LoadInputMode = "total") =>
-  sets.map((set) => ({ weight: formatLoad(fromStoredLoad(set.weight, mode)), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }));
+  sets.map((set) => ({
+    weight: formatLoad(fromStoredLoad(set.weight, mode)),
+    reps: String(set.reps),
+    ...(mode === "per-side" ? {
+      leftWeight: formatLoad(set.leftWeight ?? fromStoredLoad(set.weight, mode)),
+      rightWeight: formatLoad(set.rightWeight ?? fromStoredLoad(set.weight, mode)),
+      ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}),
+    } : {}),
+  }));
 
 export default function Workout() {
   const { t } = useLanguage();
@@ -39,6 +47,7 @@ export default function Workout() {
     return exercise ? displayName(exercise.id, state.preferences) : name;
   };
   const [error, setError] = useState("");
+  const [savedNotice, setSavedNotice] = useState(false);
   const [editingExercise, setEditingExercise] = useState(false);
   const active = state.active;
   if (!state.completed || state.signedOut) return <Redirect href="/" />;
@@ -104,6 +113,7 @@ export default function Workout() {
   const weighted = active.weighted?.[entry.id] ?? false;
   const changeBarWeight = (value: string) => {
     setError("");
+    setSavedNotice(false);
     update(s => !s.active ? s : ({ ...s,
       active: { ...s.active, barWeights: { ...s.active.barWeights, [entry.exerciseId]: value } },
       preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
@@ -112,6 +122,7 @@ export default function Workout() {
   };
   const changeApparatusWeight = (value: string) => {
     setError("");
+    setSavedNotice(false);
     update(s => !s.active ? s : ({ ...s,
       active: { ...s.active, apparatusWeights: { ...s.active.apparatusWeights, [entry.exerciseId]: value } },
       preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
@@ -119,6 +130,7 @@ export default function Workout() {
     }));
   };
   const changeMachineBrand = (brand?: string) => {
+    setSavedNotice(false);
     update(s => !s.active ? s : ({ ...s, active: { ...s.active, machineBrands: { ...s.active.machineBrands, [entry.id]: brand ?? "" } },
       preferences: historical ? s.preferences : { ...s.preferences, machineBrands: { ...s.preferences.machineBrands, ...(brand ? { [entry.exerciseId]: brand } : {}) } } }));
   };
@@ -129,6 +141,7 @@ export default function Workout() {
     value: string,
   ) => {
     setError("");
+    setSavedNotice(false);
     update((s) => {
       if (!s.active) return s;
       const draft = s.active.draft.map((set, i) =>
@@ -147,6 +160,7 @@ export default function Workout() {
 
   const changeLoadMode = (nextMode: LoadInputMode) => {
     if (nextMode === loadMode) return;
+    setSavedNotice(false);
     update(s => {
       if (!s.active) return s;
       const bar = number(barWeightText) || 0;
@@ -190,6 +204,7 @@ export default function Workout() {
     nextDrafts = drafts,
   ) => {
     const targetEntry = active.day.exercises[target];
+    setSavedNotice(false);
     const saved = records.find((record) => record.prescription.id === targetEntry.id);
     const savedDraft =
       nextDrafts[targetEntry.id] ??
@@ -230,7 +245,7 @@ export default function Workout() {
     return -1;
   };
 
-  const complete = (records: ExerciseRecord[], nextSkipped: string[]) => {
+  const complete = (records: ExerciseRecord[], nextSkipped: string[], savedRecord?: ExerciseRecord, stayOpen = false) => {
     if (historical) {
       // Replacing a record appends it while editing. Restore the original
       // session sequence before persisting so a corrected exercise never
@@ -239,9 +254,14 @@ export default function Workout() {
         const record = records.find(candidate => candidate.prescription.id === item.id);
         return record ? [record] : [];
       });
-      update(s => ({ ...s, active: undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records: ordered, skipped: historical.skipped } : workout) }));
+      update(s => {
+        const saved = { ...s, active: stayOpen ? s.active : undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records: ordered, skipped: historical.skipped } : workout) };
+        const recommended = savedRecord ? applyExerciseRecommendation(saved, savedRecord, active.startedAt) : saved;
+        if (!stayOpen || !recommended.active) return recommended;
+        return { ...recommended, active: { ...recommended.active, records: ordered, skipped: nextSkipped, drafts: { ...(recommended.active.drafts ?? {}), [entry.id]: active.draft }, draft: active.draft } };
+      });
       setError("");
-      router.replace("/routine");
+      if (!stayOpen) router.replace("/routine");
       return;
     }
     if (active.preparing) {
@@ -342,7 +362,10 @@ export default function Workout() {
     ];
     const nextSkipped = skipped.filter((id) => id !== entry.id);
     const target = nextPending(records, nextSkipped);
-    if (target < 0) complete(records, nextSkipped);
+    if (historical) {
+      complete(records, nextSkipped, record, true);
+      setSavedNotice(true);
+    } else if (target < 0) complete(records, nextSkipped, record);
     else update(s => !s.active ? s : ({
       ...s,
       active: {
@@ -518,7 +541,7 @@ export default function Workout() {
       ))}
       {!!error && <Notice error>{error}</Notice>}
       {readOnly ? <Button label="Volver al calendario" onPress={closeHistorical} icon="arrow-left" /> : <Button
-        label={messages.Workout.guardar}
+        label={historical && savedNotice ? "Guardado" : messages.Workout.guardar}
         onPress={saveExercise}
         icon="check"
       />}

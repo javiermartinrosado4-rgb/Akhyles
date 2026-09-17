@@ -6,9 +6,10 @@ import { Pressable, View } from "react-native";
 import { Day, ExerciseRecord, PlannedWorkout, Workout } from "../types";
 import { useStore } from "../state/Store";
 import { displayName, getExercise } from "../logic/routine";
-import { openHistoricalWorkout, startWorkout } from "../logic/workout";
+import { applyExerciseRecommendation, openHistoricalWorkout, startWorkout } from "../logic/workout";
 import { datesForMonth, localDateKey, scheduledDay, scheduledWorkout, trainingStreak, weeklyAdherence } from "../logic/schedule";
 import { number, validWeight } from "../logic/validation";
+import { defaultLoadInputMode } from "../logic/load";
 import { useTheme } from "../theme";
 import { Button, Card, Choice, Field, Notice, Row, Txt } from "./ui";
 
@@ -42,9 +43,12 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
       setError("Revisa cada peso y repetición antes de guardar.");
       return;
     }
-    update(state => ({ ...state, history: state.history.some(item => item.id === workout.id)
-      ? state.history.map(item => item.id === workout.id ? { ...item, records } : item)
-      : [...state.history, { ...workout, records }] }));
+    update(state => {
+      const saved = { ...state, history: state.history.some(item => item.id === workout.id)
+        ? state.history.map(item => item.id === workout.id ? { ...item, records } : item)
+        : [...state.history, { ...workout, records }] };
+      return records.reduce((current, record) => applyExerciseRecommendation(current, record, workout.date), saved);
+    });
   };
   return <Card>
     <Txt weight="600" size={20} translate={false}>{create ? "Editar entrenamiento" : editable ? "Editar entrenamiento" : "Visualizar entrenamiento"}</Txt>
@@ -81,7 +85,7 @@ function PlannedWorkoutEditor({ date, day, existing }: { date: Date; day: Day; e
   const save = () => {
     const exercises = day.exercises.map(entry => ({ ...entry, weight: number(weights[entry.id]) }));
     if (exercises.some(entry => !validWeight(entry.weight))) {
-      setError("Indica un peso entre 0 y 1000 kg, en incrementos de 0,25 kg.");
+      setError("Indica un peso entre 0 y 1000 kg. Puedes usar decimales.");
       return;
     }
     const item: PlannedWorkout = { date: dateAtNoon(date), dayId: day.id, day: { ...cloneDay(day), exercises } };
@@ -170,7 +174,7 @@ export function RoutineCalendar() {
     minutes: 0,
     records: selectedPlan.exercises.map(entry => {
       const exercise = getExercise(entry.exerciseId, state.preferences);
-      return { prescription: entry, name: displayName(entry.exerciseId, state.preferences), type: exercise.type, sets: Array.from({ length: entry.sets }, () => ({ weight: entry.weight, reps: 1 })) };
+      return { prescription: entry, loadMode: defaultLoadInputMode(entry.exerciseId), name: displayName(entry.exerciseId, state.preferences), type: exercise.type, sets: Array.from({ length: entry.sets }, () => ({ weight: entry.weight, reps: 1 })) };
     }),
   } : undefined;
   return <Card>

@@ -1,4 +1,4 @@
-import { ActiveWorkout, AppState, Day, Level, Prescription, Profile, Workout } from "../types";
+import { ActiveWorkout, AppState, Day, ExerciseRecord, Level, Preferences, Prescription, Profile, Workout } from "../types";
 import { progression } from "./progression";
 import { getExercise } from "./routine";
 import { localDateKey } from "./schedule";
@@ -63,10 +63,35 @@ export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profi
     return [record.prescription.id, record.loadMode ?? (perSide ? "per-side" : "total")];
   }));
   const active = startWorkout(day, profile.weight, workout.level ?? profile.level, workout.sex ?? profile.sex, barWeights, apparatusWeights, historicalModes);
-  const drafts = Object.fromEntries(workout.records.map(record => [record.prescription.id, record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }))]));
+  const drafts = Object.fromEntries(workout.records.map(record => {
+    const mode = historicalModes[record.prescription.id] as LoadInputMode;
+    return [record.prescription.id, record.sets.map(set => ({
+      weight: formatLoad(fromStoredLoad(set.weight, mode)),
+      reps: String(set.reps),
+      ...(mode === "per-side" ? {
+        leftWeight: formatLoad(set.leftWeight ?? fromStoredLoad(set.weight, mode)),
+        rightWeight: formatLoad(set.rightWeight ?? fromStoredLoad(set.weight, mode)),
+        ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}),
+      } : {}),
+    }))];
+  }));
   const first = day.exercises[0];
   return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, records: orderedRecords, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
 }
+export function progressionForRecord(preferences: Preferences, record: ExerciseRecord) {
+  const e = getExercise(record.prescription.exerciseId, preferences);
+  const mode = record.loadMode ?? defaultLoadInputMode(e.id);
+  const result = progression(record.type, record.prescription.range, record.sets, record.prescription.sets,
+    undefined, e.id === "assisted-pullup" ? "decrease" : "increase");
+  return { e, result };
+}
+
+export function applyExerciseRecommendation(s: AppState, record: Workout["records"][number], fromDate?: string): AppState {
+  if (!record.sets.length) return s;
+  const { e, result } = progressionForRecord(s.preferences, record);
+  return confirmWeight(s, e.id, result.suggested, fromDate);
+}
+
 export function finishWorkout(s: AppState, workout: Workout): AppState {
   if (s.history.some(w => w.id === workout.id || (workout.startedAt && w.startedAt === workout.startedAt))) return { ...s, active: undefined };
   let next: AppState = { ...s, active: undefined, history: [...s.history, workout] };
@@ -77,12 +102,10 @@ export function finishWorkout(s: AppState, workout: Workout): AppState {
   const recommendations = new Map<string, number>();
   for (const r of workout.records) {
     if (!r.sets.length) continue;
-    const e = getExercise(r.prescription.exerciseId, s.preferences);
-    const result = progression(r.type, r.prescription.range, r.sets, r.prescription.sets,
-      s.preferences.loadSteps?.[e.id] ?? e.loadStep, e.id === "assisted-pullup" ? "decrease" : "increase");
-    recommendations.set(e.id, result.increase ? result.suggested : r.sets[0]!.weight);
+    const { e, result } = progressionForRecord(s.preferences, r);
+    recommendations.set(e.id, result.suggested);
   }
-  for (const [exerciseId, weight] of recommendations) next = confirmWeight(next, exerciseId, weight);
+  for (const [exerciseId, weight] of recommendations) next = confirmWeight(next, exerciseId, weight, workout.date);
   return syncPersonalAchievements(next);
 }
 // Refresh untouched exercises on resume while preserving all entered work.
@@ -130,18 +153,29 @@ export function confirmWeight(
   s: AppState,
   exerciseId: string,
   weight: number,
+  fromDate?: string,
 ): AppState {
+  const cutoff = localDateKey(fromDate ?? new Date());
+  const updateDay = (day: Day): Day => ({
+    ...day,
+    exercises: day.exercises.map((p) =>
+      p.exerciseId === exerciseId ? { ...p, weight } : p,
+    ),
+  });
+  const plannedWorkouts = s.plannedWorkouts?.map(item =>
+    localDateKey(item.date) > cutoff ? { ...item, day: updateDay(item.day) } : item,
+  );
+  const routineVersions = s.routineVersions?.map(version =>
+    localDateKey(version.effectiveFrom) > cutoff ? { ...version, routine: version.routine.map(updateDay) } : version,
+  );
   return {
     ...s,
     preferences: {
       ...s.preferences,
       weights: { ...s.preferences.weights, [exerciseId]: weight },
     },
-    routine: s.routine.map((d) => ({
-      ...d,
-      exercises: d.exercises.map((p) =>
-        p.exerciseId === exerciseId ? { ...p, weight } : p,
-      ),
-    })),
+    routine: s.routine.map(updateDay),
+    plannedWorkouts,
+    routineVersions,
   };
 }

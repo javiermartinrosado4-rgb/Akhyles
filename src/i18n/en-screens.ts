@@ -292,7 +292,7 @@ export const enScreens: Record<string, string> = {
   "Volver a Entrenamiento": "Back to Training",
   "Introduce un peso de barra entre 0 y 100 kg. Puedes poner 0.": "Enter a bar weight between 0 and 100 kg. You can use 0.",
   "Introduce un peso base entre 0 y 100 kg. Puedes poner 0.": "Enter a base weight between 0 and 100 kg. You can use 0.",
-  "Completa cada serie con un peso válido (saltos de 0,25 kg) y entre 1 y 100 repeticiones enteras.": "Complete each set with a valid load (in 0.25 kg increments) and a whole number of repetitions from 1 to 100.",
+  "Completa cada serie con un peso válido entre 0 y 1000 kg y entre 1 y 100 repeticiones enteras.": "Complete each set with a valid load between 0 and 1,000 kg and a whole number of repetitions from 1 to 100.",
   "Guardar y salir": "Save and exit",
   "Ejercicio anterior": "Previous exercise",
   "Ejercicio siguiente": "Next exercise",

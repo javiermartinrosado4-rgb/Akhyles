@@ -318,7 +318,9 @@ export function Field({
           onBlur={() => setFocus(false)}
           placeholder={placeholder ? t(placeholder) : undefined}
           placeholderTextColor={colors.muted}
-          maxLength={maxLength ?? (numeric ? 8 : 80)}
+          // Do not truncate decimal loads while the user is typing. Validation
+          // still enforces the relevant numeric range when saving.
+          maxLength={maxLength ?? (numeric ? 20 : 80)}
           secureTextEntry={secure}
           multiline={multiline}
           autoCapitalize={secure || email ? "none" : "sentences"}

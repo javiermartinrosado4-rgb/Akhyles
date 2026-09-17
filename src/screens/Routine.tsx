@@ -38,6 +38,7 @@ import { RoutineCalendar } from "../components/RoutineCalendar";
 import { Muscle } from "../types";
 import { useCommunity } from "../state/Community";
 import { exportRoutine } from "../logic/sharing";
+import { defaultLoadInputMode, fromStoredLoad } from "../logic/load";
 export function RoutineOverview() {
   const { t, locale } = useLanguage();
   const { state, update } = useStore();
@@ -230,7 +231,7 @@ export function RoutineOverview() {
                     <Txt weight="600">
                       {entry.weight === 0
                         ? messages.Routine.cargaPorElegir
-                        : `${entry.weight.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`}
+                        : `${fromStoredLoad(entry.weight, defaultLoadInputMode(entry.exerciseId)).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg${defaultLoadInputMode(entry.exerciseId) === "per-side" ? " por lado" : ""}`}
                     </Txt>
                   </Row>
                   <Txt muted size={11}>{expanded === entry.id ? "Ocultar detalles" : "Ver detalles"}</Txt>

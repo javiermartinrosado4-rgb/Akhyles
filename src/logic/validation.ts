@@ -6,8 +6,7 @@ export const number = (value: string) =>
 export const validWeight = (value: number) =>
   Number.isFinite(value) &&
   value >= 0 &&
-  value <= 1000 &&
-  Math.abs(value * 4 - Math.round(value * 4)) < 0.00001;
+  value <= 1000;
 export const validRange = (range: Range) =>
   Array.isArray(range) && range.length === 2 &&
   range.every(Number.isInteger) &&

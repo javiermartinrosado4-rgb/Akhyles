@@ -29,7 +29,7 @@ import {
 } from "../src/logic/routine";
 import { progression, roundWeight } from "../src/logic/progression";
 import { number, profileErrors, validWeight } from "../src/logic/validation";
-import { finishWorkout, startWorkout } from "../src/logic/workout";
+import { applyExerciseRecommendation, finishWorkout, progressionForRecord, startWorkout } from "../src/logic/workout";
 import { scoreProgress, exerciseProgress } from "../src/logic/progress";
 import { AppState, Weekday, Workout } from "../src/types";
 import {
@@ -59,18 +59,65 @@ test("weekly completed volume counts only direct recorded sets in the current we
   const previous = recorded("standing-calf", 20, 70, "2026-09-06T10:00:00");
   assert.equal(completedWeeklyVolume([recent, previous], emptyPreferences, now).calves, 2);
 });
-test("35 kg row automatically becomes 36.25 for next session, including persisted preferences", () => {
+test("35 kg row automatically becomes 3% heavier for next session", () => {
   const state = testState();
   const next = finishWorkout(state, recorded("supported-row", 35));
-  assert.equal(next.preferences.weights["supported-row"], 36.25);
+  assert.equal(next.preferences.weights["supported-row"], 36.05);
   assert.equal(next.history[0].records[0].sets[0].weight, 35);
-  assert.equal(JSON.parse(JSON.stringify(next)).preferences.weights["supported-row"], 36.25);
+  assert.equal(JSON.parse(JSON.stringify(next)).preferences.weights["supported-row"], 36.05);
   assert.equal(next.history[0].bodyWeight, 70);
   const day = next.routine.find(d => d.exercises.some(p => p.exerciseId === "supported-row"))!;
-  assert.equal(day.exercises.find(p => p.exerciseId === "supported-row")!.weight, 36.25);
+  assert.equal(day.exercises.find(p => p.exerciseId === "supported-row")!.weight, 36.05);
   assert.equal(startWorkout(day, "76,5").bodyWeight, 76.5);
-  assert.equal(progression("compound", [6, 8], [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }], 2, 2.5).increase, false);
+  assert.equal(progression("compound", [6, 8], [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }], 2, 2.5).suggested, 36.05);
   assert.doesNotThrow(() => progression("compound", [6, 8], [{ weight: Infinity, reps: 8 }]));
+});
+test("saving an edited historical exercise recalculates its future load", () => {
+  const state = testState();
+  const exercise = getExercise("supported-row", emptyPreferences);
+  const record = {
+    name: exercise.name,
+    type: exercise.type,
+    prescription: { ...prescribe(exercise, emptyPreferences), weight: 35 },
+    sets: [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }],
+  };
+  const next = applyExerciseRecommendation(state, record);
+  assert.equal(next.preferences.weights["supported-row"], 36.05);
+  assert.equal(next.routine.flatMap(day => day.exercises).find(entry => entry.exerciseId === "supported-row")?.weight, 36.05);
+});
+test("historical recalculation updates future calendar copies without rewriting past copies", () => {
+  const state = testState();
+  const day = state.routine.find(item => item.exercises.some(entry => entry.exerciseId === "supported-row"))!;
+  const entry = day.exercises.find(item => item.exerciseId === "supported-row")!;
+  state.plannedWorkouts = [
+    { date: "2026-09-06T12:00:00.000Z", dayId: day.id, day: { ...day, exercises: day.exercises.map(item => item.id === entry.id ? { ...item, weight: 30 } : item) } },
+    { date: "2026-09-21T12:00:00.000Z", dayId: day.id, day: { ...day, exercises: day.exercises.map(item => item.id === entry.id ? { ...item, weight: 30 } : item) } },
+  ];
+  const exercise = getExercise("supported-row", emptyPreferences);
+  const record = {
+    name: exercise.name,
+    type: exercise.type,
+    prescription: { ...prescribe(exercise, emptyPreferences), weight: 35 },
+    sets: [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }],
+  };
+  const next = applyExerciseRecommendation(state, record, "2026-09-07T10:00:00.000Z");
+  assert.equal(next.plannedWorkouts?.[0].day.exercises.find(item => item.exerciseId === "supported-row")?.weight, 30);
+  assert.equal(next.plannedWorkouts?.[1].day.exercises.find(item => item.exerciseId === "supported-row")?.weight, 36.05);
+});
+test("a configured per-side cable increment is applied per stack, not as a doubled display value", () => {
+  const exercise = getExercise("chest-cable", emptyPreferences);
+  const preferences = { ...emptyPreferences, loadSteps: { "chest-cable": 1.25 }, loadModes: { "chest-cable": "per-side" as const } };
+  const record = {
+    loadMode: "per-side" as const,
+    name: exercise.name,
+    type: exercise.type,
+    prescription: { ...prescribe(exercise, preferences), weight: 20 },
+    sets: [{ weight: 20, leftWeight: 10, rightWeight: 10, reps: 10 }, { weight: 20, leftWeight: 10, rightWeight: 10, reps: 10 }],
+  };
+  assert.equal(progressionForRecord(preferences, record).result.suggested, 20.6);
+  const next = applyExerciseRecommendation({ ...testState(), preferences, routine: [{ id: "cable", name: "Cable", exercises: [record.prescription] }] }, record);
+  assert.equal(next.preferences.weights["chest-cable"], 20.6);
+  assert.equal(startWorkout(next.routine[0], "70", undefined, undefined, undefined, undefined, next.preferences.loadModes).draft[0]?.weight, "10.3");
 });
 test("score excludes unsupported exercises and missing historical demographics", () => {
   const state = testState();
@@ -763,7 +810,7 @@ test("duration uses thirty-second sets and four or three minutes between sets", 
   assert.equal(duration({ id: "isolation", name: "Aislamiento", exercises: [{ ...isolation, sets: 2 }] }, emptyPreferences), 45);
   assert.equal(duration({ id: "mixed", name: "Mixto", exercises: [{ ...heavy, sets: 2 }, { ...isolation, sets: 2 }] }, emptyPreferences), 45);
 });
-test("double progression: first effective set, configurable range, 3% and 5% cap", () => {
+test("double progression: first effective set and proportional 3% increase", () => {
   assert.equal(
     progression(
       "compound",
@@ -784,7 +831,7 @@ test("double progression: first effective set, configurable range, 3% and 5% cap
         { weight: 40, reps: 8 },
       ],
     ).suggested,
-    41.25,
+    41.2,
   );
   assert.equal(
     progression(
@@ -795,7 +842,7 @@ test("double progression: first effective set, configurable range, 3% and 5% cap
         { weight: 40, reps: 9 },
       ],
     ).suggested,
-    41.25,
+    41.2,
     "superar el máximo del rango también debe preparar una subida de peso",
   );
   assert.equal(
@@ -807,7 +854,7 @@ test("double progression: first effective set, configurable range, 3% and 5% cap
         { weight: 12, reps: 10 },
       ],
     ).suggested,
-    12,
+    12.36,
   );
   assert.equal(
     progression(
@@ -876,11 +923,19 @@ test("double progression: first effective set, configurable range, 3% and 5% cap
         assert.ok(suggestion.suggested / kg <= 1.05 + 1e-8);
       }
     }
-  assert.equal(roundWeight(12.38), 12.5);
+  assert.equal(roundWeight(12.38), 12.38);
 });
 
 test("assisted pull-up progression reduces assistance", () => {
-  assert.equal(progression("compound", [6, 8], [{ weight: 30, reps: 8 }, { weight: 30, reps: 7 }], 2, 1.25, "decrease").suggested, 28.75);
+  assert.equal(progression("compound", [6, 8], [{ weight: 30, reps: 8 }, { weight: 30, reps: 7 }], 2, 1.25, "decrease").suggested, 29.1);
+});
+test("progression normalizes legacy per-side records before suggesting the next total", () => {
+  const result = progression("isolation", [8, 10], [
+    { weight: 10, leftWeight: 10, rightWeight: 10, reps: 10 },
+    { weight: 10, leftWeight: 10, rightWeight: 10, reps: 10 },
+  ], 2, 1.25);
+  assert.equal(result.current, 20);
+  assert.equal(result.suggested, 20.6);
 });
 test("profile validation accepts decimal commas without requiring body-fat data", () => {
   assert.deepEqual(profileErrors(demoProfile), {});
@@ -891,6 +946,10 @@ test("profile validation accepts decimal commas without requiring body-fat data"
 test("decimal dots and commas represent the same entered load", () => {
   assert.equal(number("12.5"), 12.5);
   assert.equal(number("12,5"), 12.5);
+  assert.equal(number("11,25"), 11.25);
+  assert.equal(validWeight(number("11,25")), true);
+  assert.equal(validWeight(11.2), true);
+  assert.equal(validWeight(11.125), true);
 });
 
 test("text and controls maintain at least 4.5:1 contrast in both themes", () => {

@@ -1317,4 +1317,12 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Verificaciones: typecheck correcto, 147 pruebas unitarias correctas (2 omitidas), ESLint de archivos modificados correcto y `git diff --check` correcto. La E2E de Playwright no terminÃ³ al arrancar el entorno web y se detuvo sin errores de aplicaciÃ³n.
 - Web: exportada con las URLs de producciÃ³n, publicada por SFTP tras preflight correcto y verificada con HTTP 200. Bundle servido: `entry-4f8e819869331f00347bc0cc010016cd.js`.
 - Git: commit `09b5d872878b0469e1aaf380d6e6bd32a16ff6d0` subido a `main`.
+
+### Progresión proporcional y sincronización de futuras sesiones — 18 de septiembre de 2026
+
+- Se cambió la progresión para calcular una subida proporcional del 3 % sobre la carga total realmente registrada, también en ejercicios por lado y cargas pequeñas. Se eliminó la dependencia del incremento disponible.
+- Se amplió el soporte de decimales y se conserva el modo total/por lado al editar sesiones históricas.
+- Se añadió la actualización de copias futuras del calendario y de versiones futuras de la rutina cuando se recalcula una sesión pasada.
+- **Pendiente/no confirmado como resuelto:** el usuario sigue observando que el peso del lunes siguiente no se actualiza al editar el lunes anterior. La corrección no debe considerarse cerrada hasta reproducirlo y verificarlo en la Web con sus datos reales.
+- Verificaciones locales: typecheck correcto; 155 pruebas correctas, 2 omitidas y 0 fallos.
 - Google Play: **no estÃ¡ actualizado con esta correcciÃ³n**. La versiÃ³n `1.0.24` / `versionCode 27` enviada a Prueba cerrada Alpha contiene el estado anterior y sigue en revisiÃ³n; para incluir este arreglo Android harÃ¡ falta una nueva build con un `versionCode` superior.

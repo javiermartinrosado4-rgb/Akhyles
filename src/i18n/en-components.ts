@@ -238,7 +238,7 @@ export const enComponents: Record<string, string> = {
   "Ejercicio guardado. Tu rutina conserva todos los ejercicios que añadas.": "Exercise saved. Your routine keeps every exercise you add.",
   "No quedan sustituciones compatibles para este músculo. Añade un ejercicio personalizado o revisa el equipamiento en Perfil.": "No compatible replacements remain for this muscle. Add a custom exercise or review your equipment in Profile.",
   "Escribe un nombre para el ejercicio.": "Enter an exercise name.",
-  "Usa un peso entre 0 y 1000 kg en saltos de 0,25 kg (por ejemplo 12,50).": "Use a weight between 0 and 1,000 kg in 0.25 kg increments (for example, 12.50).",
+  "Usa un peso entre 0 y 1000 kg (puedes usar decimales).": "Use a weight between 0 and 1,000 kg (decimals are allowed).",
   "El rango debe ir de menor a mayor, con repeticiones enteras entre 1 y 30.": "The range must go from lowest to highest, using whole reps between 1 and 30.",
   "Puedes programar entre 1 y 6 series efectivas.": "You can schedule between 1 and 6 working sets.",
   "Los ejercicios personalizados de peso libre requieren al menos nivel intermedio. Puedes elegir una variante guiada.": "Custom free-weight exercises require at least an intermediate level. You can choose a guided variation.",

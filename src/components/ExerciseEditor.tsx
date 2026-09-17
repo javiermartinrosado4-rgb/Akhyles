@@ -27,6 +27,7 @@ import { muscles, variants } from "../data/options";
 import { useTheme } from "../theme";
 import { localDateKey } from "../logic/schedule";
 import { useCommunity } from "../state/Community";
+import { defaultLoadInputMode, fromStoredLoad, toStoredLoad } from "../logic/load";
 
 const freshId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -112,8 +113,9 @@ export function ExerciseEditor({
   const [initialName] = useState(
     original ? displayName(original.id, prefs) : "",
   );
+  const inputMode = original ? defaultLoadInputMode(original.id) : "total";
   const [name, setName] = useState(initialName);
-  const [weight, setWeight] = useState(String(prescription?.weight ?? 0));
+  const [weight, setWeight] = useState(String(fromStoredLoad(prescription?.weight ?? 0, inputMode)));
   const [sets, setSets] = useState(String(prescription?.sets ?? 2));
   const [min, setMin] = useState(String(prescription?.range[0] ?? 8));
   const [max, setMax] = useState(String(prescription?.range[1] ?? 10));
@@ -127,7 +129,7 @@ export function ExerciseEditor({
   const [submitToCommunity, setSubmitToCommunity] = useState(Boolean(user));
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [loadStep, setLoadStep] = useState(String(original ? prefs.loadSteps?.[original.id] ?? original.loadStep ?? 1.25 : 1.25));
+  // Progression is calculated from the recorded load; no fixed increment is needed.
   const changeMachineBrand = (brand?: string) => {
     if (sessionOnly) return;
     if (!prescription) return;
@@ -281,10 +283,9 @@ export function ExerciseEditor({
     close();
   };
   const save = () => {
-    if (!Number.isFinite(number(loadStep)) || number(loadStep) <= 0 || number(loadStep) > 100) return setError("Introduce un incremento válido entre 0,01 y 100 kg.");
     const range: Range = [number(min), number(max)];
     const count = number(sets);
-    const kg = number(weight);
+    const kg = toStoredLoad(number(weight), inputMode);
     if (!name.trim())
       return setError(messages.ExerciseEditor.escribeUnNombreParaElEjercicio);
     if (!validWeight(kg))
@@ -325,7 +326,6 @@ export function ExerciseEditor({
     if (sessionOnly) return apply(exercise);
     const preferences = {
       ...prefs,
-      loadSteps: { ...prefs.loadSteps, [exercise.id]: number(loadStep) },
       names: mode === "edit" && name.trim() === initialName.trim()
         ? prefs.names
         : { ...prefs.names, [exercise.id]: name.trim() },
@@ -394,7 +394,7 @@ export function ExerciseEditor({
           {original && ["machine", "smith"].includes(original.variant) && <MachineBrandSelect exerciseId={original.id} value={prescription?.machineBrand ?? prefs.machineBrands?.[original.id]} onChange={changeMachineBrand} />}
           <Row style={{ alignItems: "flex-start" }}>
             <Field
-              label={messages.ExerciseEditor.pesoInicial}
+              label={inputMode === "per-side" ? "Peso inicial por lado" : messages.ExerciseEditor.pesoInicial}
               value={weight}
               onChangeText={setWeight}
               numeric
@@ -589,9 +589,6 @@ export function ExerciseEditor({
         </>
       )}
       {!!error && <Notice error>{error}</Notice>}
-      {!sessionOnly && <Txt weight="600">Incremento disponible de carga</Txt>}
-      {!sessionOnly && <Txt size={12} muted>Para barras, indica el incremento total de ambos lados (dos discos de 1,25 = 2,5 kg). En mancuernas, registra el peso de una mancuerna. Se guarda con «Guardar cambios».</Txt>}
-      {!sessionOnly && <Field label="Incremento disponible de carga" value={loadStep} onChangeText={setLoadStep} numeric suffix="kg" />}
     </Card>
   );
 }

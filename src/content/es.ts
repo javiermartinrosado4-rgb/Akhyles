@@ -171,7 +171,7 @@ export const messages = {
       "Las cargas de tu próxima sesión ya están preparadas. Podrás ajustarlas dentro de cada serie.",
     volverAHoy: "Volver a Entrenamiento",
     completaCadaSerieConUnPesoValido:
-      "Completa cada serie con un peso válido (saltos de 0,25 kg) y entre 1 y 100 repeticiones enteras.",
+      "Completa cada serie con un peso válido entre 0 y 1000 kg y entre 1 y 100 repeticiones enteras.",
     guardarYSalir: "Guardar y salir",
     descansoOrientativo: "DESCANSO ORIENTATIVO · ",
     s: " S",
@@ -195,7 +195,7 @@ export const messages = {
       "No quedan sustituciones compatibles para este músculo. Añade un ejercicio personalizado o revisa el equipamiento en Perfil.",
     escribeUnNombreParaElEjercicio: "Escribe un nombre para el ejercicio.",
     usaUnPesoEntre0Y1000:
-      "Usa un peso entre 0 y 1000 kg en saltos de 0,25 kg (por ejemplo 12,50).",
+      "Usa un peso entre 0 y 1000 kg (puedes usar decimales).",
     elRangoDebeIrDeMenorA:
       "El rango debe ir de menor a mayor, con repeticiones enteras entre 1 y 30.",
     puedesProgramarEntre2Y6Series:
