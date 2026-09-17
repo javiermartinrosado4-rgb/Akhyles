@@ -86,6 +86,8 @@ export interface Preferences {
   ranges: Record<string, Range>;
   custom: Exercise[];
   loadSteps?: Record<string, number>;
+  /** Preferred way to enter loads; once selected it is reused in future sessions. */
+  loadModes?: Record<string, import("./logic/load").LoadInputMode>;
 }
 export interface SetRecord {
   weight: number;
@@ -93,6 +95,9 @@ export interface SetRecord {
   /** When a set is logged asymmetrically, weight remains the conservative lower-side reference. */
   leftWeight?: number;
   rightWeight?: number;
+  /** Optional per-side repetitions; reps remains the conservative lower-side value. */
+  leftReps?: number;
+  rightReps?: number;
 }
 export interface ExerciseRecord {
   /** Extra bar mass used with the logged external/plate load, frozen per session. */
@@ -169,7 +174,7 @@ export interface ActiveWorkout {
   loadModes?: Record<string, import("./logic/load").LoadInputMode>;
   skipped?: string[];
 }
-export interface SetDraft { weight: string; reps: string; leftWeight?: string; rightWeight?: string; }
+export interface SetDraft { weight: string; reps: string; leftWeight?: string; rightWeight?: string; leftReps?: string; rightReps?: string; }
 export interface AppState {
   /** Device-only synchronization metadata; never included in uploaded progress. */
   cloud?: import("./logic/cloud").CloudMetadata;

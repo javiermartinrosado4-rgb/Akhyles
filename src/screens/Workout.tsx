@@ -28,7 +28,7 @@ import { MachineBrandSelect } from "../components/MachineBrandSelect";
 import { defaultBarWeight, defaultLoadInputMode, formatLoad, fromStoredLoad, loadHint, LoadInputMode, supportsBarWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../logic/load";
 
 const draftFromRecord = (sets: SetRecord[], mode: LoadInputMode = "total") =>
-  sets.map((set) => ({ weight: formatLoad(fromStoredLoad(set.weight, mode)), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}) }));
+  sets.map((set) => ({ weight: formatLoad(fromStoredLoad(set.weight, mode)), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }));
 
 export default function Workout() {
   const { t } = useLanguage();
@@ -86,7 +86,7 @@ export default function Workout() {
   const drafts = active.drafts ?? { [entry.id]: active.draft };
   const completed = new Set(active.records.map((record) => record.prescription.id));
   const isSkipped = skipped.includes(entry.id);
-  const loadMode = active.loadModes?.[entry.id] ?? defaultLoadInputMode(entry.exerciseId);
+  const loadMode = active.loadModes?.[entry.id] ?? state.preferences.loadModes?.[entry.exerciseId] ?? defaultLoadInputMode(entry.exerciseId);
   const barWeightText = active.barWeights?.[entry.exerciseId] ?? String(defaultBarWeight(entry.exerciseId));
   const apparatusWeightText = active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0);
   const machineBrand = active.machineBrands?.[entry.id] ?? entry.machineBrand ?? state.preferences.machineBrands?.[entry.exerciseId];
@@ -120,7 +120,7 @@ export default function Workout() {
 
   const changeSet = (
     index: number,
-    field: "weight" | "reps" | "leftWeight" | "rightWeight",
+    field: "weight" | "reps" | "leftWeight" | "rightWeight" | "leftReps" | "rightReps",
     value: string,
   ) => {
     setError("");
@@ -160,7 +160,7 @@ export default function Workout() {
       const toPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value * 2 : mode === "total-with-bar" ? Math.max(0, value - bar) : value;
       const fromPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value / 2 : mode === "total-with-bar" ? value + bar : value;
       const draft = s.active.draft.map(set => ({ ...set, weight: formatLoad(fromPlates(toPlates(number(set.weight), loadMode), nextMode)) }));
-      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } } };
+      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } }, preferences: { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
     });
   };
 
@@ -188,8 +188,8 @@ export default function Workout() {
     const saved = records.find((record) => record.prescription.id === targetEntry.id);
     const savedDraft =
       nextDrafts[targetEntry.id] ??
-      (saved ? draftFromRecord(saved.sets, active.loadModes?.[targetEntry.id] ?? defaultLoadInputMode(targetEntry.exerciseId)) : draftFor(targetEntry));
-    const draft = draftFor(targetEntry).map((blank, index) => savedDraft[index] ?? blank);
+      (saved ? draftFromRecord(saved.sets, active.loadModes?.[targetEntry.id] ?? state.preferences.loadModes?.[targetEntry.exerciseId] ?? defaultLoadInputMode(targetEntry.exerciseId)) : draftFor(targetEntry, active.loadModes?.[targetEntry.id] ?? state.preferences.loadModes?.[targetEntry.exerciseId] ?? defaultLoadInputMode(targetEntry.exerciseId)));
+    const draft = draftFor(targetEntry, active.loadModes?.[targetEntry.id] ?? state.preferences.loadModes?.[targetEntry.exerciseId] ?? defaultLoadInputMode(targetEntry.exerciseId)).map((blank, index) => savedDraft[index] ?? blank);
     update((s) =>
       s.active
         ? {
@@ -264,10 +264,14 @@ export default function Workout() {
       const leftWeight = sideSpecific ? number(set.leftWeight ?? "") : undefined;
       const rightWeight = sideSpecific ? number(set.rightWeight ?? "") : undefined;
       const enteredWeight = sideSpecific ? Math.min(leftWeight!, rightWeight!) : number(set.weight);
+      const sideReps = loadMode === "per-side" || sideSpecific;
+      const leftReps = sideReps ? number(set.leftReps ?? set.reps) : undefined;
+      const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
         weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, enteredWeight - (number(barWeightText) || 0)) : sideSpecific ? enteredWeight : toStoredLoad(enteredWeight, loadMode),
-        reps: number(set.reps),
+        reps: sideReps ? Math.min(leftReps!, rightReps!) : number(set.reps),
         ...(sideSpecific ? { leftWeight, rightWeight } : {}),
+        ...(sideReps ? { leftReps, rightReps } : {}),
       };
     });
     if (
@@ -275,6 +279,8 @@ export default function Workout() {
         (set) =>
           !validWeight(set.weight) ||
           (set.leftWeight !== undefined && (!validWeight(set.leftWeight) || !validWeight(set.rightWeight ?? NaN))) ||
+          (set.leftReps !== undefined && (!Number.isInteger(set.leftReps) || set.leftReps < 1 || set.leftReps > 100)) ||
+          (set.rightReps !== undefined && (!Number.isInteger(set.rightReps) || set.rightReps < 1 || set.rightReps > 100)) ||
           !Number.isInteger(set.reps) ||
           set.reps < 1 ||
           set.reps > 100,
@@ -440,7 +446,6 @@ export default function Workout() {
         multiline
         maxLength={300}
       />
-      <Txt size={12} muted>Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio.</Txt>
       {active.draft.map((set, index) => (
         <Card key={`${entry.id}-${index}`}>
           <Txt weight="600">
@@ -459,13 +464,16 @@ export default function Workout() {
               <Field label="Lado izquierdo" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "leftWeight", value)} numeric suffix={messages.Workout.kg} />
               <Field label="Lado derecho" value={set.rightWeight ?? set.weight} onChangeText={(value) => changeSet(index, "rightWeight", value)} numeric suffix={messages.Workout.kg} />
             </>}
-            <Field
+            {(loadMode === "per-side" || asymmetric[index]) ? <>
+              <Field label="Repeticiones lado izquierdo" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "leftReps", value)} numeric suffix={messages.Workout.rep} />
+              <Field label="Repeticiones lado derecho" value={set.rightReps ?? set.reps} onChangeText={(value) => changeSet(index, "rightReps", value)} numeric suffix={messages.Workout.rep} />
+            </> : <Field
               label={t("Repeticiones serie {value1}", { value1: index + 1 })}
               value={set.reps}
               onChangeText={(value) => changeSet(index, "reps", value)}
               numeric
               suffix={messages.Workout.rep}
-            />
+            />}
           </Row>
         </Card>
       ))}

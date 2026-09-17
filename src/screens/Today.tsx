@@ -227,6 +227,7 @@ export default function Today() {
                       stateBeforeStart.profile.sex,
                       stateBeforeStart.preferences.barWeights,
                       stateBeforeStart.preferences.apparatusWeights,
+                      stateBeforeStart.preferences.loadModes,
                     ),
                   }));
                 router.push("/workout");

@@ -3,16 +3,17 @@ import { progression } from "./progression";
 import { getExercise } from "./routine";
 import { localDateKey } from "./schedule";
 import { number } from "./validation";
-import { defaultBarWeight } from "./load";
+import { defaultBarWeight, fromStoredLoad, LoadInputMode, formatLoad } from "./load";
 import { syncPersonalAchievements } from "./personalAchievements";
-export const draftFor = (p: Prescription) =>
+export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
   Array.from({ length: p.sets }, () => ({
-    weight: String(p.weight),
+    weight: formatLoad(fromStoredLoad(p.weight, mode)),
     reps: "",
   }));
-export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>): ActiveWorkout {
+export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>): ActiveWorkout {
   if (!day.exercises.length) throw new Error("La sesión no tiene ejercicios.");
-  const draft = draftFor(day.exercises[0]);
+  const mode = loadModes?.[day.exercises[0].id] ?? "total";
+  const draft = draftFor(day.exercises[0], mode);
   return {
     sex,
     barWeights: Object.fromEntries(day.exercises.map(entry => [entry.exerciseId, String(barWeights?.[entry.exerciseId] ?? defaultBarWeight(entry.exerciseId))])),
@@ -31,6 +32,7 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
     records: [],
     draft,
     drafts: { [day.exercises[0].id]: draft },
+    loadModes: Object.fromEntries(day.exercises.map(entry => [entry.id, loadModes?.[entry.id] ?? "total"])),
     skipped: [],
   };
 }
