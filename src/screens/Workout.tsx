@@ -83,6 +83,10 @@ export default function Workout() {
   const entry = active.day.exercises[active.index];
   const historical = active.historical;
   const readOnly = !!historical?.readOnly;
+  const closeHistorical = () => {
+    update(s => ({ ...s, active: undefined }));
+    router.replace("/routine");
+  };
   const exercise = getExercise(entry.exerciseId, state.preferences);
   const skipped = active.skipped ?? [];
   const drafts = active.drafts ?? { [entry.id]: active.draft };
@@ -371,7 +375,7 @@ export default function Workout() {
           compact
           variant="ghost"
           icon="arrow-left"
-          onPress={() => router.replace(historical ? "/routine" : "/today")}
+          onPress={() => historical ? closeHistorical() : router.replace("/today")}
         />
         <Txt size={12} muted>
           {active.index + 1} / {active.day.exercises.length}
@@ -520,7 +524,7 @@ export default function Workout() {
         </Card>
       ))}
       {!!error && <Notice error>{error}</Notice>}
-      {readOnly ? <Button label="Volver al calendario" onPress={() => router.replace("/routine")} icon="arrow-left" /> : <Button
+      {readOnly ? <Button label="Volver al calendario" onPress={closeHistorical} icon="arrow-left" /> : <Button
         label={
           active.preparing
             ? (remainingAfterCurrent ? "Guardar preparación y siguiente" : "Guardar preparación")
