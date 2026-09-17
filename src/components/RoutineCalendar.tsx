@@ -133,14 +133,19 @@ export function RoutineCalendar() {
     skippedWorkoutDates: selectedBase ? Array.from(new Set([...(current.skippedWorkoutDates ?? []), selectedKey])) : current.skippedWorkoutDates,
   }));
   const restoreSession = () => update(current => ({ ...current, skippedWorkoutDates: (current.skippedWorkoutDates ?? []).filter(date => date !== selectedKey) }));
-  const moveHere = () => {
+  const moveHere = (targetKey = selectedKey) => {
     if (!moving) return;
+    const targetDate = new Date(`${targetKey}T12:00:00`);
+    const targetPlan = scheduledWorkout(state.profile, state.routine, state.plannedWorkouts, targetDate, state.skippedWorkoutDates, state.routineVersions);
+    if (targetKey === moving.sourceKey || selectedHistory.length || targetPlan || targetKey < localDateKey(moveFloor)) return;
     const item: PlannedWorkout = { date: dateAtNoon(selected), dayId: moving.day.id, day: cloneDay(moving.day) };
+    item.date = dateAtNoon(targetDate);
     update(current => ({
       ...current,
-      plannedWorkouts: [...(current.plannedWorkouts ?? []).filter(value => ![moving.sourceKey, selectedKey].includes(localDateKey(value.date))), item],
+      plannedWorkouts: [...(current.plannedWorkouts ?? []).filter(value => ![moving.sourceKey, targetKey].includes(localDateKey(value.date))), item],
       skippedWorkoutDates: moving.fromRecurring ? Array.from(new Set([...(current.skippedWorkoutDates ?? []), moving.sourceKey])) : current.skippedWorkoutDates,
     }));
+    setSelected(targetDate);
     setMoving(null);
   };
   const canMoveHere = !!moving && canUseAsMoveTarget && !selectedHistory.length && !selectedPlan && selectedKey !== moving.sourceKey;
@@ -198,7 +203,7 @@ export function RoutineCalendar() {
           if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
             setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
         };
-        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
+        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
           <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
             <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
           </Pressable>
