@@ -31,16 +31,18 @@ export const scoreReferences: Record<string, ScoreReference> = {
   "rear-cable": analogy(0.1, 0.085), "rear-free": analogy(0.12, 0.1),
   "cable-y-raise": analogy(0.08, 0.07), "cross-cable-lateral": analogy(0.11, 0.09),
   "rear-machine": analogy(0.25, 0.21), "low-high-face-pull": analogy(0.18, 0.15), "lateral-machine": analogy(0.2, 0.17),
-  // Arm loads use a dedicated calibration: cable stacks and dumbbells are
-  // not comparable to a barbell total, and 14 kg per dumbbell / 15 kg per
-  // cable side is already a strong intermediate-to-elite performance.
-  "bayesian-curl": analogy(0.035, 0.03), "cable-curl-unilateral": analogy(0.06, 0.05), "cable-curl-bar": analogy(0.04, 0.034), "dumbbell-curl": analogy(0.03, 0.026),
-  "preacher-curl": analogy(0.04, 0.034), "preacher-free": analogy(0.038, 0.032),
-  "unilateral-preacher": analogy(0.06, 0.05), "ez-bar-curl": analogy(0.045, 0.038),
-  "machine-curl": analogy(0.05, 0.042), "incline-curl": analogy(0.04, 0.034), "pronated-curl": analogy(0.05, 0.042),
-  "triceps-extension": analogy(0.032, 0.027), "triceps-single": analogy(0.06, 0.05),
-  "katana": analogy(0.04, 0.034), "katana-single": analogy(0.06, 0.05), "katana-bar": analogy(0.042, 0.035),
-  "triceps-machine": analogy(0.045, 0.038), "french-press": analogy(0.04, 0.034), "katana-dumbbell": analogy(0.055, 0.046),
+  // Arm loads use a dedicated calibration. Olimpian is anchored to a
+  // unilateral 30 kg dumbbell curl (60 kg total) for one strict rep at a
+  // representative male bodyweight. Cable references are modestly more
+  // generous because the constant tension makes the same stack number harder;
+  // they are no longer allowed to inflate the map by several tiers.
+  "bayesian-curl": analogy(0.13, 0.115), "cable-curl-unilateral": analogy(0.11, 0.095), "cable-curl-bar": analogy(0.15, 0.13), "dumbbell-curl": analogy(0.215, 0.19),
+  "preacher-curl": analogy(0.24, 0.21), "preacher-free": analogy(0.225, 0.2),
+  "unilateral-preacher": analogy(0.13, 0.115), "ez-bar-curl": analogy(0.225, 0.2),
+  "machine-curl": analogy(0.25, 0.22), "incline-curl": analogy(0.23, 0.2), "pronated-curl": analogy(0.24, 0.21),
+  "triceps-extension": analogy(0.16, 0.14), "triceps-single": analogy(0.11, 0.095),
+  "katana": analogy(0.16, 0.14), "katana-single": analogy(0.11, 0.095), "katana-bar": analogy(0.15, 0.13),
+  "triceps-machine": analogy(0.25, 0.22), "french-press": analogy(0.225, 0.2), "katana-dumbbell": analogy(0.215, 0.19),
   "bulgarian-quads": squat(0.4), "bulgarian-free": squat(0.4), "bulgarian-smith": squat(0.5),
   "hip-thrust": analogy(1.15, 1.2), "hip-thrust-free": analogy(1.1, 1.15), "hip-thrust-smith": analogy(1.1, 1.15),
   "abductor": analogy(0.4, 0.45), "adductor-machine": analogy(0.45, 0.5), "kickback": analogy(0.12, 0.14),

@@ -139,8 +139,17 @@ test("arm calibration recognises strong per-side dumbbell and cable work", () =>
   state.history = [session("dumbbell-curl", "2026-08-01", 28), session("triceps-extension", "2026-08-02", 30)];
   for (const workout of state.history) workout.records[0].sets[0].reps = 10;
   const result = scoreProgress(state);
-  assert.ok((result.categories.find(item => item.id === "biceps")?.value ?? 0) >= 500);
+  assert.ok((result.categories.find(item => item.id === "biceps")?.value ?? 0) >= 350);
   assert.ok((result.categories.find(item => item.id === "triceps")?.value ?? 0) >= 500);
+});
+
+test("arm calibration anchors 30 kg per dumbbell to the Olympian ceiling", () => {
+  const state = createDemoScenario(false); state.routineVersions = [];
+  state.history = [session("dumbbell-curl", "2026-08-01", 60), session("katana-dumbbell", "2026-08-02", 60)];
+  for (const workout of state.history) workout.records[0].sets[0].reps = 1;
+  const result = scoreProgress(state);
+  assert.ok(Math.abs((result.categories.find(item => item.id === "biceps")?.value ?? 0) - 1000) < 2);
+  assert.ok(Math.abs((result.categories.find(item => item.id === "triceps")?.value ?? 0) - 1000) < 2);
 });
 
 test("compound lower-body lifts provide discounted glute evidence", () => {
