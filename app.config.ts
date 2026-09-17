@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 26,
+      versionCode: 27,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
