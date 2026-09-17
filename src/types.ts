@@ -31,6 +31,7 @@ export interface Profile {
   height: string;
   weight: string;
   weightReminder?: boolean;
+  trainingReminder?: boolean;
   level: Level;
   days: number;
   trainingDays?: Weekday[];
@@ -61,6 +62,8 @@ export interface Prescription {
   sets: number;
   range: Range;
   weight: number;
+  /** Optional manufacturer for a machine/smith movement; never required to train. */
+  machineBrand?: string;
 }
 export interface Day {
   id: string;
@@ -71,6 +74,7 @@ export interface Preferences {
   barWeights?: Record<string, number>;
   /** Base carriage/frame mass for selectorized and plate-loaded apparatuses. */
   apparatusWeights?: Record<string, number>;
+  machineBrands?: Record<string, string>;
   unavailable: string[];
   /** Exercises the athlete wants the automatic generator to prefer when compatible. */
   favorites?: string[];
@@ -86,12 +90,16 @@ export interface Preferences {
 export interface SetRecord {
   weight: number;
   reps: number;
+  /** When a set is logged asymmetrically, weight remains the conservative lower-side reference. */
+  leftWeight?: number;
+  rightWeight?: number;
 }
 export interface ExerciseRecord {
   /** Extra bar mass used with the logged external/plate load, frozen per session. */
   barWeight?: number;
   /** Apparatus base mass, frozen when the workout is saved. */
   apparatusWeight?: number;
+  machineBrand?: string;
   prescription: Prescription;
   name: string;
   type: ExerciseType;
@@ -111,6 +119,24 @@ export interface Workout {
   records: ExerciseRecord[];
   skipped?: string[];
 }
+export interface LocalAchievement {
+  id: string;
+  title: string;
+  description: string;
+  unlockedAt: string;
+  category: "progress" | "consistency" | "strength";
+}
+/** A self-reported recent performance in a comparable core lift. */
+export type StrengthReferenceId = "bench" | "pullup" | "overhead_press" | "squat" | "deadlift";
+export interface StrengthReference {
+  id: StrengthReferenceId;
+  /** Total load for barbell lifts; added load only for pull-ups. */
+  weight: number;
+  reps: number;
+  bodyWeight: number;
+  sex: Exclude<Profile["sex"], "">;
+  date: string;
+}
 export interface PlannedWorkout {
   date: string;
   dayId: string;
@@ -125,6 +151,7 @@ export interface RoutineVersion {
 export interface ActiveWorkout {
   barWeights?: Record<string, string>;
   apparatusWeights?: Record<string, string>;
+  machineBrands?: Record<string, string>;
   sex?: Profile["sex"];
   level?: Level;
   bodyWeight?: number;
@@ -132,14 +159,17 @@ export interface ActiveWorkout {
   index: number;
   startedAt: string;
   records: ExerciseRecord[];
-  draft: { weight: string; reps: string }[];
-  drafts?: Record<string, { weight: string; reps: string }[]>;
+  draft: SetDraft[];
+  drafts?: Record<string, SetDraft[]>;
+  /** Per-series switch for asymmetric left/right loading. */
+  asymmetricSets?: Record<string, boolean[]>;
   /** Bodyweight movements only expose added load when the athlete enables it. */
   weighted?: Record<string, boolean>;
   /** Whether each exercise is currently entered as total plates or plates per side. */
   loadModes?: Record<string, import("./logic/load").LoadInputMode>;
   skipped?: string[];
 }
+export interface SetDraft { weight: string; reps: string; leftWeight?: string; rightWeight?: string; }
 export interface AppState {
   /** Device-only synchronization metadata; never included in uploaded progress. */
   cloud?: import("./logic/cloud").CloudMetadata;
@@ -147,6 +177,11 @@ export interface AppState {
   signedOut?: boolean;
   bodyWeights?: { date: string; weight: number }[];
   weightReminderNotificationId?: string;
+  trainingReminderNotificationIds?: string[];
+  /** Personal achievements are derived from the local history and survive without Community. */
+  achievements?: LocalAchievement[];
+  /** Optional declared core-lift performances, kept separately from workout history. */
+  strengthReferences?: StrengthReference[];
   version: 1;
   profile: Profile;
   onboardingStep: number;

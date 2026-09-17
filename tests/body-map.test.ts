@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { anatomicalGroups, muscleAppearance, strengthBands } from "../src/logic/bodyMap";
+import { pointsTierById } from "../src/logic/achievements";
 import { createDemoScenario, repairLegacyDemoScores } from "../src/data/demoScenarios";
 import { catalog } from "../src/data/catalog";
 import { scoreProgress } from "../src/logic/progress";
@@ -11,18 +12,24 @@ import { bodyFemaleBack } from "../src/components/anatomy/bodyFemaleBack";
 import { scoreGroups } from "../src/logic/scoreReferences";
 
 test("fixed strength colors do not depend on another muscle or missing values", () => {
-  assert.equal(muscleAppearance(200).color, strengthBands[1].color);
-  assert.equal(muscleAppearance(0).label, "Recluta");
-  assert.equal(muscleAppearance(100).label, "Iniciado");
-  assert.equal(muscleAppearance(1000).label, "Leyenda");
-  assert.equal(muscleAppearance(9000).label, "Leyenda");
+  assert.equal(muscleAppearance(200).color, strengthBands[2].color);
+  assert.equal(muscleAppearance(0).label, "Base");
+  assert.equal(muscleAppearance(100).label, "En progreso");
+  assert.equal(muscleAppearance(800).label, "Mítico");
+  assert.equal(muscleAppearance(900).label, "Greek God");
+  assert.equal(muscleAppearance(1000).label, "Olympian");
+  assert.equal(muscleAppearance(9000).label, "Olympian");
   for (const missing of [undefined, NaN, Infinity, -1]) assert.equal(muscleAppearance(missing).label, "Sin datos");
 });
 
-test("yellow is the lowest band, red precedes legend and purple is the highest on the map", () => {
-  assert.equal(muscleAppearance(0).color, "#E6C85C");
-  assert.equal(muscleAppearance(500).color, "#D8655D");
-  assert.equal(muscleAppearance(1000).color, "#A574CD");
+test("Community point milestones use the same body-map rank names", () => {
+  assert.equal(pointsTierById("points-900").name, "Greek God");
+});
+
+test("the map follows the visible spectrum from red at entry level to purple at the highest tier", () => {
+  assert.equal(muscleAppearance(0).color, "#D94A4A");
+  assert.equal(muscleAppearance(500).color, "#35AABD");
+  assert.equal(muscleAppearance(1000).color, "#A33BA7");
 });
 
 test("old demo sessions recover their known sex without changing any loads or real sessions", () => {

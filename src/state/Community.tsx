@@ -110,6 +110,14 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     if (!storeReady || state.signedOut || !token || !user?.routinePublic || !state.routine.length) return;
     return scheduleUpload(token, () => request("/routines/me", "PUT", exportRoutine(state.routine, state.preferences)));
   }, [storeReady, state.signedOut, state.routine, state.preferences, token, user?.routinePublic, scheduleUpload, request]);
+  // Personal achievements are always synchronized privately. Visibility is applied by
+  // the API when a profile or feed is read, so rarity can use real aggregate data
+  // without exposing achievements that the athlete chose not to share.
+  useEffect(() => {
+    if (!storeReady || state.signedOut || !token) return;
+    const achievements = exportProgress(state).achievements ?? [];
+    return scheduleUpload(token, () => request("/achievements/sync", "PUT", { achievements }));
+  }, [storeReady, state.signedOut, state.history, state.strengthReferences, token, scheduleUpload, request]);
   // Managed routines are separate from public Community sharing. A client only syncs a plan
   // after an explicitly accepted coaching relationship exists.
   useEffect(() => {

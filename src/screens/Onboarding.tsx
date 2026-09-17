@@ -17,6 +17,8 @@ import { profileErrors } from "../logic/validation";
 import { generateRoutine } from "../logic/routine";
 import { demoProfile } from "../data/options";
 import { LanguageSelector } from "../components/LanguageSelector";
+import { StrengthReferences } from "../components/StrengthReferences";
+import { number } from "../logic/validation";
 const steps = [
   [
     messages.Onboarding.empecemosPorTi,
@@ -115,7 +117,13 @@ export default function Onboarding() {
       {step === 1 && <LevelSelect profile={profile} change={change} />}
       {step === 2 && <DaysSelect profile={profile} change={change} />}
       {step === 2 && errors.trainingDays && <Notice error>{errors.trainingDays}</Notice>}
-      {step === 3 && <><PrioritySelect profile={profile} change={change} /><TrainingPreferences profile={profile} change={change} /></>}
+      {step === 3 && <><PrioritySelect profile={profile} change={change} /><TrainingPreferences profile={profile} change={change} />
+        {profile.level === "advanced" && <>
+          <Heading title="Haz tus estadísticas más precisas" subtitle="Como atleta avanzado, te recomendamos configurar tus referencias de fuerza. Así tus A-Points reflejarán también básicos que quizá no estén en tu rutina actual." />
+          <StrengthReferences value={state.strengthReferences ?? []} bodyWeight={number(profile.weight)} sex={profile.sex} onChange={strengthReferences => update(s => ({ ...s, strengthReferences }))} />
+          <Txt muted size={12}>Es opcional: puedes continuar sin añadirlas y configurarlas más tarde desde Perfil.</Txt>
+        </>}
+      </>}
       {!!Object.keys(errors).length && (
         <Notice error>
           {messages.Onboarding.revisaLosCamposIndicadosParaContinuar}

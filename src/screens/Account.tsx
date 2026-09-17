@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n";
 import { router, useLocalSearchParams } from "expo-router";
 import { Linking } from "react-native";
-import { useAccount } from "../state/Account";
+import { CloudRecovery, useAccount } from "../state/Account";
 import { useStore } from "../state/Store";
 import { accountRequest, accountUrl } from "../services/account";
-import { archivedStates } from "../storage/repository";
 import { AppState } from "../types";
 import { displayName } from "../logic/routine";
 import { AccountGoogle } from "../components/AccountGoogle";
 import { LanguageSelector } from "../components/LanguageSelector";
+import { NotificationSettings } from "../components/NotificationSettings";
 import { Button, Card, Field, Heading, Notice, Page, Txt } from "../components/ui";
 type Mode="login"|"register"|"verify"|"forgot"|"reset";
 const generatedDayNames = [
@@ -41,7 +41,7 @@ export default function Account(){
   const [password,setPassword]=useState(""),[code,setCode]=useState(""),[challengeId,setChallenge]=useState("");
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
   const [deleting,setDeleting]=useState(false),[confirmEmail,setConfirmEmail]=useState("");
-  const [archives,setArchives]=useState<{key:string;state:AppState}[]>([]),[selectedArchive,setSelectedArchive]=useState<string|null>(null);
+  const [archives,setArchives]=useState<CloudRecovery[]>([]),[selectedArchive,setSelectedArchive]=useState<string|null>(null);
   const run=async(fn:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError("");setMessage("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"No se ha podido completar la operación.");}finally{setBusy(false);}};
   const switchMode=(next:Mode)=>{setMode(next);setError("");setMessage("");setPassword("");setCode("");};
   const submit=async()=>{
@@ -59,6 +59,7 @@ export default function Account(){
     <Button label="Volver" compact variant="ghost" icon="arrow-left" onPress={()=>router.canGoBack()?router.back():router.replace("/")}/>
     <Heading title="Tu cuenta Akhyles" subtitle="Tu rutina, tus pesos y tu progreso, contigo."/>
     <LanguageSelector/>
+    <NotificationSettings/>
     {!accountUrl&&<Notice>El servicio de cuentas todavía no está activado en esta versión. Puedes seguir entrenando con guardado local.</Notice>}
     {account.user?<>
       <Card><Txt weight="600" translate={false}>{account.user.name}</Txt><Txt translate={false}>{account.user.email}</Txt>
@@ -74,8 +75,8 @@ export default function Account(){
         <Button label="Usar la copia de la nube" variant="secondary" disabled={busy||!account.conflict.remote.state} onPress={()=>void run(()=>account.resolve("cloud"))}/>
       </>}
       {!account.user.googleLinked&&<AccountGoogle link/>}
-      <Button label="Ver copias de recuperación locales" variant="secondary" onPress={()=>void run(async()=>{const list=await archivedStates(account.user!.id);setArchives(list);if(!list.length)setMessage("Todavía no hay copias archivadas para esta cuenta.");})}/>
-      {archives.map(a=><Card key={a.key}><Txt size={13}>{t("{date} · {workouts} entrenamientos",{date:new Date(Number(a.key.split(":").at(-2))).toLocaleString(locale),workouts:a.state.history.length})}</Txt>
+      <Button label="Ver copias de recuperación en la nube" variant="secondary" onPress={()=>void run(async()=>{const list=await account.listRecoveryCopies();setArchives(list);if(!list.length)setMessage("Todavía no hay copias de recuperación en la nube.");})}/>
+      {archives.map(a=><Card key={a.key}><Txt size={13}>{t("{date} · {workouts} entrenamientos",{date:new Date(a.updated).toLocaleString(locale),workouts:a.state.history.length})}</Txt>
         <Button label="Revisar esta copia" variant="ghost" compact onPress={()=>setSelectedArchive(a.key)}/>
         {selectedArchive===a.key&&<><Summary label="Copia seleccionada" state={a.state}/><Button label="Restaurar esta copia" disabled={busy} onPress={()=>void run(async()=>{await account.restoreArchive(a.key);setArchives([]);setSelectedArchive(null);})}/></>}
       </Card>)}

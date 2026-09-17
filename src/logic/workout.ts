@@ -4,6 +4,7 @@ import { getExercise } from "./routine";
 import { localDateKey } from "./schedule";
 import { number } from "./validation";
 import { defaultBarWeight } from "./load";
+import { syncPersonalAchievements } from "./personalAchievements";
 export const draftFor = (p: Prescription) =>
   Array.from({ length: p.sets }, () => ({
     weight: String(p.weight),
@@ -38,14 +39,20 @@ export const isActiveWorkoutOnDate = (active: ActiveWorkout | undefined, date = 
 export function finishWorkout(s: AppState, workout: Workout): AppState {
   if (s.history.some(w => w.id === workout.id || (workout.startedAt && w.startedAt === workout.startedAt))) return { ...s, active: undefined };
   let next: AppState = { ...s, active: undefined, history: [...s.history, workout] };
+  // An exercise may deliberately appear more than once in a week (or even in
+  // one session). Apply one recommendation per exercise, using its last
+  // performed slot, so an earlier occurrence cannot overwrite the latest
+  // evidence or leave a stale default for the next workout.
+  const recommendations = new Map<string, number>();
   for (const r of workout.records) {
     if (!r.sets.length) continue;
     const e = getExercise(r.prescription.exerciseId, s.preferences);
     const result = progression(r.type, r.prescription.range, r.sets, r.prescription.sets,
       s.preferences.loadSteps?.[e.id] ?? e.loadStep);
-    next = confirmWeight(next, e.id, result.increase ? result.suggested : r.sets.at(-1)!.weight);
+    recommendations.set(e.id, result.increase ? result.suggested : r.sets[0]!.weight);
   }
-  return next;
+  for (const [exerciseId, weight] of recommendations) next = confirmWeight(next, exerciseId, weight);
+  return syncPersonalAchievements(next);
 }
 // Refresh untouched exercises on resume while preserving all entered work.
 export function resumeWorkout(s: AppState): ActiveWorkout | undefined {

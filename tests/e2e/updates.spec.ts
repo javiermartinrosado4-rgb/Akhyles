@@ -53,7 +53,7 @@ test("Today uses the date's planned workout instead of yesterday's unfinished on
   await expect(page.getByRole("button", { name: "Continuar entrenamiento", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Iniciar entrenamiento", exact: true })).toBeVisible();
 });
-test("third heavy exercise is editable and profile avatar persists without regenerating", async ({ page }) => {
+test("third heavy exercise is editable and profile changes preserve the routine", async ({ page }) => {
   const state = seed();
   state.profile = { ...demoProfile, days: 4, trainingDays: [1, 2, 4, 5] };
   state.routine[0].exercises.push(prescribe(getExercise("seated-press", emptyPreferences), emptyPreferences));
@@ -66,12 +66,11 @@ test("third heavy exercise is editable and profile avatar persists without regen
   await expect(page.getByRole("button", { name: "Ver detalles de Tercer pesado libre", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Perfil", exact: true }).click();
   await page.getByRole("button", { name: "Editar perfil y gimnasio", exact: true }).click();
-  await page.getByRole("button", { name: "Elegir avatar Ola", exact: true }).click();
   await page.getByRole("button", { name: "Guardar perfil", exact: true }).click();
   await page.reload();
-  await expect(page.getByRole("img", { name: "Avatar Ola", exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Avatar Montaña", exact: true })).toBeVisible();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("gym60:state:v1")!));
-  expect(saved.profile.avatar).toBe("wave");
+  expect(saved.profile.avatar).toBe("mountain");
   expect(saved.routine[0].exercises).toHaveLength(3);
   await page.getByRole("button", { name: "Ejercicios recomendados y favoritos", exact: true }).click();
   await page.getByRole("button", { name: "Tier Espalda", exact: true }).click();

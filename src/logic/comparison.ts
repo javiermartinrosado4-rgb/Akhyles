@@ -6,6 +6,8 @@ export interface ComparisonRecord {
   exerciseId: string;
   date: string;
   strength: number;
+  /** A manufacturer is a cohort filter, never a made-up kg conversion. */
+  machineBrand?: string;
 }
 export interface ComparisonSample {
   level: Level;
@@ -32,7 +34,7 @@ export function comparisonSample(state: AppState, now = Date.now()): ComparisonS
       return workout.records.filter(r => comparableIds.has(r.prescription.exerciseId)).flatMap(r => {
         const strengths = r.sets.filter(s => s.weight > 0 && s.reps >= 1 && s.reps <= 12)
           .map(s => scoreLoad(r.prescription.exerciseId, s.weight, r.apparatusWeight ?? r.barWeight) * (1 + s.reps / 30));
-        return strengths.length ? [{ exerciseId: r.prescription.exerciseId, date: workout.date, strength: Math.max(...strengths) }] : [];
+        return strengths.length ? [{ exerciseId: r.prescription.exerciseId, date: workout.date, strength: Math.max(...strengths), ...(r.machineBrand ? { machineBrand: r.machineBrand } : {}) }] : [];
       });
     }),
   };
@@ -43,9 +45,10 @@ function rates(sample: ComparisonSample, now: number) {
   for (const r of sample.records) {
     const time = Date.parse(r.date);
     if (!comparableIds.has(r.exerciseId) || !Number.isFinite(time) || time < now - 28 * DAY || time > now || !Number.isFinite(r.strength) || r.strength <= 0) continue;
-    const group = groups.get(r.exerciseId) ?? new Map<number, number>();
+    const cohort = `${r.exerciseId}:${r.machineBrand?.trim().toLocaleLowerCase("es") || "unknown"}`;
+    const group = groups.get(cohort) ?? new Map<number, number>();
     group.set(time, Math.max(group.get(time) ?? 0, r.strength));
-    groups.set(r.exerciseId, group);
+    groups.set(cohort, group);
   }
   const output = new Map<string, number>();
   for (const [id, group] of groups) {

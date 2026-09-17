@@ -9,6 +9,7 @@ import { localDateKey } from "../logic/schedule";
 import { validBarWeight } from "../logic/load";
 import { validStoredCollections } from "../logic/storedState";
 import { defaultTrainingDays } from "../data/options";
+import { validStrengthReference } from "../logic/strengthReferences";
 export interface StateRepository {
   load(): Promise<AppState | null>;
   save(state: AppState): Promise<void>;
@@ -80,7 +81,9 @@ export function decodeState(raw: string): AppState {
   )
     throw new Error("Invalid training days");
   if (s.bodyWeights !== undefined && (!Array.isArray(s.bodyWeights) || s.bodyWeights.some(p => !Number.isFinite(p.weight) || p.weight < 30 || p.weight > 350 || !Number.isFinite(Date.parse(p.date))))) throw new Error("Invalid body weight history");
+  if (s.strengthReferences !== undefined && (!Array.isArray(s.strengthReferences) || s.strengthReferences.length > 5 || s.strengthReferences.some(item => !validStrengthReference(item)) || new Set(s.strengthReferences.map(item => item.id)).size !== s.strengthReferences.length)) throw new Error("Invalid strength references");
   if (s.weightReminderNotificationId !== undefined && typeof s.weightReminderNotificationId !== "string") throw new Error("Invalid weight reminder");
+  if (s.trainingReminderNotificationIds !== undefined && (!Array.isArray(s.trainingReminderNotificationIds) || s.trainingReminderNotificationIds.some(id => typeof id !== "string"))) throw new Error("Invalid training reminders");
   if (s.volumeTargets !== undefined && (
     typeof s.volumeTargets !== "object" ||
     Object.entries(s.volumeTargets).some(([muscle, value]) =>
@@ -105,7 +108,8 @@ export function decodeState(raw: string): AppState {
     !["male", "female", ""].includes(p.sex) ||
     ![p.age, p.height, p.weight].every((v) => typeof v === "string") ||
     (p.birthDate !== undefined && typeof p.birthDate !== "string") ||
-    (p.weightReminder !== undefined && typeof p.weightReminder !== "boolean")
+    (p.weightReminder !== undefined && typeof p.weightReminder !== "boolean") ||
+    (p.trainingReminder !== undefined && typeof p.trainingReminder !== "boolean")
   )
     throw new Error("Invalid profile");
   const prefs = s.preferences;
@@ -184,16 +188,24 @@ export const localRepository: StateRepository = {
   },
 };
 
-/** Archive before account switching or conflict resolution, outside the active profile key. */
+/**
+ * Recovery copies now live in the encrypted cloud revision history. Older
+ * releases stored complete AppState rows in AsyncStorage; those rows could
+ * exceed Android's CursorWindow even when the database itself had space.
+ * Remove only the legacy archive keys. The primary state and workout history
+ * use a different key and are never touched here.
+ */
 export async function archiveState(state: AppState): Promise<string> {
-  const owner = state.cloud?.owner ?? "guest";
-  const key = `akhyles:archive:${owner}:${Date.now()}:${Math.random().toString(36).slice(2,10)}`;
-  await AsyncStorage.setItem(key, JSON.stringify(state));
-  return key;
+  void state;
+  await purgeArchivedStates();
+  return "";
+}
+export async function purgeArchivedStates(): Promise<void> {
+  const keys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith("akhyles:archive:"));
+  if (keys.length) await AsyncStorage.multiRemove(keys);
 }
 export async function archivedStates(owner: string): Promise<{ key: string; state: AppState }[]> {
-  const prefix = `akhyles:archive:${owner}:`;
-  const keys = (await AsyncStorage.getAllKeys()).filter(k => k.startsWith(prefix)).sort().reverse();
-  const rows = await AsyncStorage.multiGet(keys);
-  return rows.flatMap(([key, raw]) => { try { return raw ? [{ key, state: decodeState(raw) }] : []; } catch { return []; } });
+  void owner;
+  await purgeArchivedStates();
+  return [];
 }

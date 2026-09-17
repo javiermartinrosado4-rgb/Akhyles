@@ -4,8 +4,8 @@ param(
     [ValidateSet('Web', 'Api')]
     [string]$Target,
     [string]$Config,
-    [string]$WebSource = 'artifacts\web-1.0.11',
-    [string[]]$ApiFiles = @('schema.sql', 'src/Community.php'),
+    [string]$WebSource = 'dist',
+    [string[]]$ApiFiles = @('schema.sql', 'src/Accounts.php', 'src/Community.php'),
     [switch]$Deploy,
     [switch]$TestConnection,
     [switch]$Diagnostics
@@ -80,11 +80,12 @@ if ($Target -eq 'Web') {
     $files = Get-ChildItem -LiteralPath $source -File -Force -Recurse | ForEach-Object {
         [PSCustomObject]@{ Source = $_.FullName; Relative = $_.FullName.Substring($source.Length + 1).Replace('\', '/') }
     }
-    $late = @('index.html', 'metadata.json')
-    $files = @($files | Where-Object { $late -notcontains $_.Relative } | Sort-Object Relative) + @($files | Where-Object { $late -contains $_.Relative } | Sort-Object Relative)
+    # index.html switches the active Expo bundle; transfer it strictly last.
+    $late = @('metadata.json', 'index.html')
+    $files = @($files | Where-Object { $late -notcontains $_.Relative } | Sort-Object Relative) + @($files | Where-Object { $late -contains $_.Relative } | Sort-Object { [array]::IndexOf($late, $_.Relative) })
     foreach ($file in $files) { $transfers.Add([PSCustomObject]@{ Source = $file.Source; Remote = Join-RemotePath $settings.remoteRoot $file.Relative }) }
 } else {
-    $allowed = @('schema.sql', 'src/Community.php')
+    $allowed = @('schema.sql', 'src/Accounts.php', 'src/Community.php')
     foreach ($relative in $ApiFiles) {
         if ($allowed -notcontains $relative) { throw "Archivo de API no permitido: $relative" }
         $source = Join-Path $project ('server-php\' + $relative)

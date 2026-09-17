@@ -87,6 +87,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
       {(["summary", "charts", "sessions"] as const).map(value => <Button key={value} compact label={value === "summary" ? "Resumen" : value === "charts" ? "Gráficas" : "Entrenamientos"} variant={section === value ? "primary" : "secondary"} onPress={() => setSection(value)} />)}
     </Row>
     {section === "summary" && <>
+      {!!progress.strengthReferences?.length && <Card style={{ gap: 7 }}><Txt weight="600">Referencias de fuerza</Txt><Txt muted size={12}>Marcas declaradas por esta persona.</Txt>{progress.strengthReferences.map(item => <Row key={item.id} style={{ justifyContent: "space-between" }}><Txt>{item.name}</Txt><Txt weight="600">{item.weight > 0 ? `${item.weight} kg × ${item.reps}` : `${item.reps} rep`} <Txt muted size={11}>· ≈{item.maximum.toLocaleString(locale, { maximumFractionDigits: 1 })} kg</Txt></Txt></Row>)}</Card>}
       {!progress.categories && <Txt muted size={13}>El mapa estará disponible cuando esta persona actualice su progreso compartido.</Txt>}
       <BodyMap categories={categories} />
     </>}

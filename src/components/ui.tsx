@@ -2,6 +2,7 @@ import { messages } from "../content/es";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -407,15 +408,17 @@ export function Page({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const desktop = Platform.OS === "web" && width >= 840;
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: desktop ? 36 : space.lg, paddingBottom: 36 }}
+      contentContainerStyle={{ padding: desktop ? 36 : space.lg, paddingBottom: 180 }}
       keyboardShouldPersistTaps="handled"
     >
       <View style={{ width: "100%", maxWidth: desktop ? 1060 : undefined, alignSelf: "center", gap: 20 }}>
         {children}
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 export function Heading({

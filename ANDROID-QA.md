@@ -1,6 +1,30 @@
 # Verificación Android — 11 de septiembre de 2026
 
-## Entrega actual: 1.0.6 / versionCode 8
+## Entrega preparada: 1.0.16 / versionCode 18
+
+La nueva entrega queda enviada a revisión en Prueba cerrada Alpha; queda pendiente la revisión de Google Play.
+
+## Entrega anterior: 1.0.15 / versionCode 17
+
+Enviada a revisión en Prueba cerrada Alpha el 16 de septiembre de 2026. AAB
+`artifacts/android/akhyles-release.aab`, 64.285.027 bytes, SHA-256
+`734dfaec86b9eb23d76486436bc32e8cea5c354d81fc2cc7ed9e740ff7b3052c`.
+Paquete `com.javiermartinrosado.akhyles`, firma SHA-1
+`040ea0afd797f22730198cdb4295c4763ab86ab7`, `versionName` 1.0.15 y
+`versionCode` 17. `verify-android.mjs` confirmó la firma original, manifest,
+permisos y validez del AAB. Play muestra el envío 8 como «En revisión».
+Advertencia no bloqueante: no hay archivo de desofuscación porque la release
+no usa R8/ProGuard.
+
+Build conectada regenerada con Comunidad `https://api.akhyles.com/community` y
+Cuentas `https://api.akhyles.com`. Gradle `assembleRelease` y `bundleRelease`
+correctos; firma original conservada. APK: 77.673.895 bytes, SHA-256
+`44790cb5a1696985908ed00f6bc5f3018e04878c5a18499ad92e746d3e45f4e7`. AAB:
+56.445.047 bytes, SHA-256
+`78d7cc3496e576d5a32900ada2c705d5349345d920bb945b53215efd7355afbc`.
+`verify-android.mjs` confirma paquete, firma y `versionCode` 16. El AAB se ha
+subido al borrador de la prueba cerrada Alpha de Play Console; queda pendiente
+el envío final a revisión.
 
 Código actualizado con calendario histórico, Akhyles Points relativos y barra
 personalizable por ejercicio (0–100 kg, decimales incluidos). Cada sesión conserva
@@ -175,3 +199,45 @@ Capturas locales: `artifacts/android/qa/`. `scripts/android-ui.mjs` permite repe
 - Los datos del navegador no se migran automáticamente a Android. No desinstalar para actualizar y conservar una copia privada de la firma.
 
 Esta entrega valida el funcionamiento local descrito, no garantiza ausencia absoluta de errores ni activa servicios externos sin sus credenciales.
+
+## Entrega Android preparada en Google Play — 1.0.16 / versionCode 18
+
+Preparada el 17 de septiembre de 2026. El AAB `artifacts/android/akhyles-release.aab` se compiló con la firma existente y se subió a **Prueba cerrada Alpha** como borrador de la versión 9. Play lo reconoce como `18 (1.0.16)` para `com.javiermartinrosado.akhyles`.
+
+- AAB: 64.286.883 bytes.
+- SHA-256: `DCC7C70AFE0F9A42B0046B1F09BDB379A447FB518BE84DAF04C46952DF4651C4`.
+- SHA-1 del certificado: `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Producción incluida: `https://api.akhyles.com` y `https://api.akhyles.com/community`.
+- Validación Play: sin errores bloqueantes; 8.786 teléfonos y 4.692 tablets compatibles.
+- Advertencia no bloqueante: no hay archivo de desofuscación asociado; esta build no usa R8/ProGuard.
+- Estado: enviada a revisión el 17 de septiembre de 2026 a las 12:09 CEST. No se ha publicado Producción.
+
+## Corrección de almacenamiento local preparada — 1.0.17 / versionCode 19
+
+Se generó un nuevo AAB con la corrección de `SQLITE_FULL`: AsyncStorage pasa de su límite de 6 MB a 50 MB y las copias de recuperación antiguas se podan antes de guardar otra. El AAB se subió como borrador a **Prueba cerrada Alpha** y Play lo reconoce como `19 (1.0.17)`.
+
+- AAB: 64.287.147 bytes.
+- SHA-256: `09AE440F10A3AA6784688BC9790A747C56D55ED97A307368936C4A81B6992B67`.
+- SHA-1 del certificado sin cambios: `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Validación Play: 8.786 teléfonos y 4.692 tablets compatibles; sin errores bloqueantes.
+- Advertencia no bloqueante: no hay archivo de desofuscación asociado; no se usa R8/ProGuard.
+- Estado: borrador guardado, pendiente de confirmación explícita para enviarlo a revisión. Producción no iniciada.
+
+### Estado posterior al envío — 1.0.17 / versionCode 19
+
+El 17 de septiembre de 2026 a las 12:33 CEST se confirmó el envío a **Prueba cerrada Alpha**. Play registró el **envío 10** como **En revisión**; el envío 9 (1.0.16) quedó cancelado al reiniciar la revisión. Producción no iniciada.
+
+## Recuperación cloud y limpieza de migración — 1.0.18 / versionCode 20
+
+Se generó y validó el AAB con recuperación desde el historial cifrado de la nube y limpieza segura de las antiguas claves locales `akhyles:archive:*`. Play reconoce `20 (1.0.18)` en **Prueba cerrada Alpha**, guardado como borrador de la versión 11.
+
+- AAB: 64.287.894 bytes.
+- SHA-256 AAB: `7702ADF256E4C1405C9035C8AE5431BFD89F7D46F8DD6910EA5B6C70AD34C50C`.
+- SHA-1 del certificado sin cambios: `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Verificación: paquete correcto, `versionCode 20`, manifest seguro y permisos esperados.
+- Play: 8.786 teléfonos, 4.692 tablets y sin exclusiones nuevas; solo advertencia no bloqueante de desofuscación.
+- Estado: borrador guardado para revisión. No enviado a revisión; Producción no iniciada.
+
+### Estado posterior al envío — 1.0.18 / versionCode 20
+
+El 17 de septiembre de 2026 a las 12:51 CEST se confirmó el envío 11 a **Prueba cerrada Alpha**. Play muestra `20 (1.0.18)` como **En revisión**. Producción no iniciada.

@@ -19,8 +19,8 @@ const DUAL_CABLE_LOADS = new Set(["chest-cable", "standing-cable-pec-dec"]);
 export const defaultLoadInputMode = (exerciseId: string): LoadInputMode =>
   DUAL_CABLE_LOADS.has(exerciseId) ? "per-side" : "total";
 
-export const supportsPerSideInput = (exerciseId: string) =>
-  BARBELL_BASICS.has(exerciseId) || DUAL_CABLE_LOADS.has(exerciseId);
+/** Available for every entered load, including plate-loaded and Smith machines. */
+export const supportsPerSideInput = (_exerciseId: string) => true;
 export const supportsBarWeight = (exerciseId: string) => BARBELL_BASICS.has(exerciseId);
 
 export const toStoredLoad = (entered: number, mode: LoadInputMode) =>
@@ -43,5 +43,5 @@ export function loadHint(exerciseId: string): string {
   if (exerciseId === "assisted-pullup") return "Introduce kilos de ayuda, no kilos levantados. Menos asistencia representa más fuerza. Usa Total para el bloque de la máquina.";
   if (["pronated-pullup", "neutral-pullup", "weighted-dips", "push-up", "handstand-push-up"].includes(exerciseId)) return "Sin lastre solo registra las repeticiones. Si activas Con lastre, introduce únicamente el peso añadido: Akhyles suma el peso corporal de esta sesión para los cálculos.";
   if (BARBELL_BASICS.has(exerciseId)) return "Puedes registrar discos (total o por lado) y su barra, o introducir directamente el peso total levantado. Si no especificas barra, se asumen 0 kg.";
-  return "Total externo: suma ambas mancuernas; en un unilateral usa la carga del lado trabajado. Si has incluido la barra en la carga, deja Peso de la barra en 0 para no sumarla dos veces. Por lado equivale a la mitad del total.";
+  return "Introduce la carga total o la carga por lado. Akhyles duplica el valor por lado para guardar y comparar siempre el total. En un unilateral, usa la carga del lado trabajado.";
 }

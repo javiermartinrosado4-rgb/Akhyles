@@ -8,6 +8,7 @@ import { useTheme } from "../theme";
 import { ProgressExplorer } from "../components/ProgressExplorer";
 import { scoreProgress } from "../logic/progress";
 import { BodyMap } from "../components/BodyMap";
+import { WeeklyProgressInsight } from "../components/WeeklyProgressInsight";
 import { nextPointsGoal, nextPointsTier, pointsTier } from "../logic/achievements";
 
 export default function Progress() {
@@ -48,6 +49,7 @@ export default function Progress() {
       <Txt muted size={12}>Guardamos todas las repeticiones, pero solo las diez primeras cuentan en la estimación. Se necesitan sexo y peso corporal históricos; no los inventamos. Intervalo admitido: hombres 40–200 kg; mujeres 40–150 kg. Ranking voluntario, beta y basado en marcas declaradas, no verificadas.</Txt>
       </>}
     </Card>}
+    <WeeklyProgressInsight state={state} />
     <ProgressExplorer />
     {!state.history.length && <Card style={{ alignItems: "center", paddingVertical: 32 }}><View style={{ padding: 22, backgroundColor: colors.accentSoft, borderRadius: 50 }}><Icon name="bar-chart-2" size={34} /></View><Txt size={20} weight="600">{messages.Progress.tuHistoriaEmpiezaAqui}</Txt><Txt muted size={14} style={{ textAlign: "center" }}>{messages.Progress.alTerminarTuPrimerEntrenamientoVerasAqui}</Txt></Card>}
     <BodyMap categories={score.categories} sex={state.profile.sex} />

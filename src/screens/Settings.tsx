@@ -1,11 +1,20 @@
 import { messages } from "../content/es";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Button, Card, Choice, Heading, Page, Txt } from "../components/ui";
 import { useStore } from "../state/Store";
 import { copy } from "../config";
 import { LanguageSelector } from "../components/LanguageSelector";
+import { NotificationSettings } from "../components/NotificationSettings";
 export default function Settings() {
   const { state, update } = useStore();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const goBack = () => {
+    // Settings is opened from Perfil as a nested option. Returning explicitly
+    // avoids Expo restoring the root route (Entrenamiento) on a shallow stack.
+    if (from === "profile") return router.replace("/profile");
+    if (from === "account") return router.replace("/account");
+    return router.canGoBack() ? router.back() : router.replace("/profile");
+  };
   return (
     <Page>
       <Button
@@ -13,14 +22,12 @@ export default function Settings() {
         icon="arrow-left"
         compact
         variant="ghost"
-        onPress={() =>
-          router.canGoBack() ? router.back() : router.replace("/")
-        }
+        onPress={goBack}
       />
       <Heading
         eyebrow={messages.Settings.configuracion}
         title={messages.Settings.aTuManera}
-        subtitle="Personaliza el idioma y la apariencia de tu app."
+        subtitle="Personaliza idioma, apariencia y avisos de la app."
       />
       <LanguageSelector />
       {(
@@ -42,6 +49,7 @@ export default function Settings() {
           onPress={() => update((s) => ({ ...s, theme: t.id }))}
         />
       ))}
+      <NotificationSettings />
       <Card>
         <Txt weight="600">{messages.Settings.unEspacioPrivado}</Txt>
         <Txt muted size={13}>

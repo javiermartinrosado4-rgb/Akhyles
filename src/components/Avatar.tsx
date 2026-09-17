@@ -1,9 +1,8 @@
-import { Image, Pressable, View } from "react-native";
+import { Image, View } from "react-native";
 import { useState } from "react";
 import Svg, { Circle, Text as SvgText } from "react-native-svg";
 import { avatars, validAvatarPhoto } from "../data/avatars";
-import { useTheme } from "../theme";
-import { Notice, Txt } from "./ui";
+import { Notice } from "./ui";
 import { CommunityPhoto } from "./CommunityPhoto";
 import { useLanguage } from '../i18n';
 
@@ -17,26 +16,6 @@ export function Avatar({ id, size = 68 }: { id?: string; size?: number }) {
     <SvgText x={40} y={53} fontSize={39} fill="#FFFFFF" textAnchor="middle">{avatar.symbol}</SvgText>
   </Svg>;
 }
-export function AvatarSelect({ value, onChange }: { value?: string; onChange: (id: string) => void }) {
-  const { t } = useLanguage();
-  const { colors } = useTheme();
-  const [error, setError] = useState("");
-  return <View style={{ gap: 12 }}>
-    <Txt weight="600">Imagen de perfil</Txt>
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-      {avatars.map(a => <Pressable key={a.id} accessibilityRole="button" accessibilityLabel={t('Elegir avatar {name}', {name: t(a.name)})} accessibilityState={{ selected: (value ?? avatars[0].id) === a.id }} onPress={() => onChange(a.id)} style={{ padding: 5, borderWidth: 2, borderRadius: 40, borderColor: (value ?? avatars[0].id) === a.id ? colors.accent : "transparent" }}>
-        <Avatar id={a.id} size={52} />
-      </Pressable>)}
-    </View>
-    <CommunityPhoto label="Seleccionar foto de perfil" onError={setError} onSelect={photo => {
-      if (!validAvatarPhoto(photo)) { setError("La foto de perfil debe ocupar menos de 2 MB tras optimizarla."); return; }
-      setError(""); onChange(photo);
-    }} />
-    {validAvatarPhoto(value) && <Avatar id={value} />}
-    {!!error && <Notice error>{error}</Notice>}
-  </View>;
-}
-
 export function AvatarPhotoPicker({ onChange, children }: { onChange: (id: string) => void; children: React.ReactNode }) {
   const [error, setError] = useState("");
   return <View style={{ gap: 6 }}>

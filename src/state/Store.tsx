@@ -2,9 +2,10 @@ import { messages } from "../content/es";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "../types";
 import { emptyPreferences, emptyProfile } from "../data/options";
-import { archiveState, localRepository } from "../storage/repository";
+import { archiveState, localRepository, purgeArchivedStates } from "../storage/repository";
 import { repairLegacyDemoScores } from "../data/demoScenarios";
 import { resumeWorkout } from "../logic/workout";
+import { syncPersonalAchievements } from "../logic/personalAchievements";
 import { ensureProgramHistory, preserveProgramHistory } from "../logic/programHistory";
 export const initialState: AppState = {
   version: 1, profile: emptyProfile, preferences: emptyPreferences,
@@ -29,13 +30,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const getState = useCallback(() => stateRef.current, []);
   const hydrate = useCallback(async () => {
     try {
+      // Migrate legacy full-state recovery rows before any screen can query
+      // them; reading an oversized Android row can itself throw CursorWindow.
+      await purgeArchivedStates();
       const saved = await localRepository.load();
       if (saved) {
         const repaired = __DEV__ ? repairLegacyDemoScores(saved) : saved;
         if (repaired !== saved) await archiveState(saved);
         const migrated = ensureProgramHistory(repaired);
-        if (migrated !== saved) await localRepository.save(migrated);
-        stateRef.current = migrated; setState(migrated);
+        // Achievements are derived data. Rebuild them on hydration so users
+        // with an existing history receive milestones retroactively, even when
+        // an older state already contains an empty achievements array.
+        const hydrated = syncPersonalAchievements(migrated);
+        if (hydrated !== saved) await localRepository.save(hydrated);
+        stateRef.current = hydrated; setState(hydrated);
       }
       blocked.current = false; setStorageBlocked(false); setError("");
     } catch { setError(messages.Store.noHemosPodidoRecuperarTusDatosPuedes); }
@@ -44,7 +52,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { void Promise.resolve().then(hydrate); }, [hydrate]);
   const persist = useCallback((fn: (s: AppState) => AppState): Promise<AppState> => {
     if (blocked.current) return Promise.reject(new Error("El almacenamiento local aún no está disponible."));
-    const changed = preserveProgramHistory(stateRef.current, fn(stateRef.current));
+    const changed = syncPersonalAchievements(preserveProgramHistory(stateRef.current, fn(stateRef.current)));
     const next = changed.active ? { ...changed, active: resumeWorkout(changed) } : changed;
     stateRef.current = next; setState(next);
     const write = queue.current.then(() => localRepository.save(next)).then(() => { setError(""); return next; });

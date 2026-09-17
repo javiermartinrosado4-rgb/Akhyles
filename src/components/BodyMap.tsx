@@ -31,8 +31,8 @@ function Anatomy({ side, female, categories, selected, excluded, onSelect }: {
         const color = muscleAppearance(value, dark).color;
         return <RadialGradient key={part.slug} id={`${prefix}-${part.slug}`} cx="38%" cy="28%" rx="80%" ry="85%">
           <Stop offset="0" stopColor={color} />
-          <Stop offset="0.55" stopColor={color} />
-          <Stop offset="1" stopColor={color} stopOpacity={dark ? 0.55 : 0.7} />
+          <Stop offset="0.7" stopColor={color} />
+          <Stop offset="1" stopColor={color} stopOpacity={dark ? 0.82 : 0.9} />
         </RadialGradient>;
       })}
     </Defs>
@@ -41,8 +41,8 @@ function Anatomy({ side, female, categories, selected, excluded, onSelect }: {
       const isSelected = !!group && !excluded.has(group) && selected === group;
       return <G key={part.slug} opacity={group && excluded.has(group) ? 0.16 : 1}>
         {Object.values(part.path).flat().map((d, i) => <MusclePath key={i} d={d!}
-          fill={`url(#${prefix}-${part.slug})`} stroke={isSelected ? colors.text : dark ? "#192A22" : "#F6F8F3"}
-          strokeWidth={isSelected ? 3.5 : 1.8}
+          fill={`url(#${prefix}-${part.slug})`} stroke={isSelected ? colors.text : dark ? "#142219" : "#E7EDE6"}
+          strokeWidth={isSelected ? 3.5 : 1.2}
           onSelect={group ? () => onSelect(group) : undefined}
         />)}
       </G>;
@@ -63,7 +63,8 @@ export function BodyMap({ categories, sex }: { categories: MuscleScore[]; sex?: 
   const current = categories.find(item => item.id === selected);
   const appearance = muscleAppearance(current?.value, dark);
   const wide = width >= 740;
-  const compact = width > 0 && width < 340;
+  // Two anatomical figures need substantially more than a narrow phone card.
+  const singleBody = width > 0 && width < 620;
   const stage = dark ? "#111D18" : "#F4F6F1";
   const bands = strengthBands;
   const activeCount = categories.filter(category => !excluded.has(category.id)).length;
@@ -85,7 +86,7 @@ export function BodyMap({ categories, sex }: { categories: MuscleScore[]; sex?: 
         </View>
       </Row>
       <Txt size={24} weight="600" style={{ letterSpacing: -0.8, marginTop: -12 }}>Tu mapa de fuerza</Txt>
-      <Txt size={13} muted>Tus mejores marcas, convertidas en un nivel de fuerza. Amarillo: menor nivel; morado: mayor nivel.</Txt>
+      <Txt size={13} muted>Tus mejores marcas, convertidas en un nivel de fuerza. Rojo: menor nivel; morado: mayor nivel.</Txt>
       <Row style={{ flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
         <Txt size={12} muted accessibilityLiveRegion="polite">{t("{n}/{total} grupos seleccionados", { n: activeCount, total: categories.length })}</Txt>
         <Row style={{ gap: 8 }}>
@@ -95,29 +96,24 @@ export function BodyMap({ categories, sex }: { categories: MuscleScore[]; sex?: 
       <Txt size={12} muted>Toca el cuerpo o las casillas para activar o desactivar varios grupos. El nivel no cambia al filtrar.</Txt>
       <View style={{ flexDirection: wide ? "row" : "column", gap: 24 }}>
         <View style={{ flex: wide ? 1 : undefined, backgroundColor: stage, borderRadius: 18, padding: 12, gap: 8 }}>
-          {compact && <Row style={{ justifyContent: "center", gap: 8 }}>
+          {singleBody && <Row style={{ justifyContent: "center", gap: 8 }}>
             {(["front", "back"] as const).map(side => <Pressable key={side} accessibilityRole="button" accessibilityLabel={t(side === "front" ? "Ver cuerpo frontal" : "Ver cuerpo posterior")} accessibilityState={{ selected: bodySide === side }} onPress={() => setBodySide(side)} style={{ minHeight: 44, paddingHorizontal: 10, justifyContent: "center", borderBottomWidth: 2, borderBottomColor: bodySide === side ? colors.accent : "transparent" }}>
               <Txt size={11} weight="600" muted={bodySide !== side}>{side === "front" ? "Frontal" : "Posterior"}</Txt>
             </Pressable>)}
           </Row>}
           <Row style={{ gap: 4, justifyContent: "center" }}>
-            {(compact ? [bodySide] : ["front", "back"] as const).map(side => <View key={side} style={{ flex: 1, alignItems: "center", gap: 8 }}>
-              {!compact && <Txt size={10} muted weight="600" style={{ letterSpacing: 1.8 }}>{side === "front" ? "FRONTAL" : "POSTERIOR"}</Txt>}
-              <View style={{ width: "100%", height: compact ? 340 : wide ? 400 : Math.min(410, Math.max(250, (width - 66) * 0.98)) }}>
+            {(singleBody ? [bodySide] : ["front", "back"] as const).map(side => <View key={side} style={{ flex: 1, alignItems: "center", gap: 8 }}>
+              {!singleBody && <Txt size={10} muted weight="600" style={{ letterSpacing: 1.8 }}>{side === "front" ? "FRONTAL" : "POSTERIOR"}</Txt>}
+              <View style={{ width: "100%", height: singleBody ? Math.min(480, Math.max(380, (width - 40) * 1.14)) : wide ? 400 : Math.min(410, Math.max(250, (width - 66) * 0.98)) }}>
                 <Anatomy side={side} female={sex === "female"} categories={categories} selected={selected} excluded={excluded} onSelect={select} />
               </View>
             </View>)}
           </Row>
           <Row style={{ justifyContent: "center", gap: 6, paddingVertical: 4 }}><Icon name="mouse-pointer" size={12} color={colors.muted} /><Txt size={11} muted>{current ? `${t(current.name)} · ${hasMuscleScore(current.value) ? number(current.value) + " pts" : t("Sin datos")} · ${t(appearance.label)}` : "Toca un músculo para explorarlo"}</Txt></Row>
-          {!wide && <View style={{ gap: 8, paddingTop: 8 }}>
-            <Row style={{ gap: 4, alignItems: "flex-start", flexWrap: "wrap" }}>
-              {bands.map(band => <View key={band.label} style={{ flex: width < 270 ? undefined : 1, width: width < 270 ? "30%" : undefined, gap: 5, alignItems: "center" }}>
-                <View style={{ height: 5, borderRadius: 3, backgroundColor: band.color, width: "100%" }} />
-                <Txt size={9} muted>{band.label}</Txt>
-                <Txt size={9} muted>{band.min === 1000 ? `${band.min.toLocaleString(locale)}+` : band.range}</Txt>
-              </View>)}
-            </Row>
-            <Txt size={10} muted style={{ textAlign: "center" }}>A-Points · Gris: sin valoración</Txt>
+          {!wide && <View style={{ gap: 7, paddingTop: 8 }}>
+            <View accessibilityLabel="Escala de fuerza de rojo a morado" style={{ height: 8, borderRadius: 5, overflow: "hidden", flexDirection: "row" }}>{bands.map(band => <View key={`rail-${band.label}`} style={{ flex: 1, backgroundColor: band.color }} />)}</View>
+            <Row style={{ justifyContent: "space-between" }}><Txt size={10} muted>{bands[0].label}</Txt><Txt size={10} muted>{bands.at(-1)?.label}</Txt></Row>
+            <Txt size={10} muted style={{ textAlign: "center" }}>Toca un músculo para ver su nivel exacto · Gris: sin valoración</Txt>
           </View>}
         </View>
         <View style={{ width: wide ? 280 : undefined, gap: 16 }}>

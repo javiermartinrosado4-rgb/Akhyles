@@ -14,13 +14,14 @@ import { nextPointsGoal, nextPointsTier, pointsTier } from "../logic/achievement
 
 
 const scopes: { value: RankingScope; label: string }[] = [
-  { value: "friends", label: "Amigos" }, { value: "global", label: "Global" },
-  { value: "gym", label: "Mi gym" },
+  { value: "friends", label: "Amigos" }, { value: "gym", label: "Mi gym" },
+  { value: "global", label: "Global" },
 ];
 const reliabilityLabel = (value: number) => value < 35 ? "Inicial" : value < 65 ? "En desarrollo" : value < 85 ? "Sólida" : "Amplia";
-export function CommunityRanking({ openProfile, findPeople, editLocation, scope, onScopeChange }: {
+export function CommunityRanking({ openProfile, findPeople, editLocation, scope, onScopeChange, city, onCityChange }: {
   openProfile: (id: string) => void; findPeople: () => void; editLocation: () => void;
   scope: RankingScope; onScopeChange: (scope: RankingScope) => void;
+  city: string; onCityChange: (city: string) => void;
 }) {
   const { t, locale } = useLanguage();
   const points = (value: number) => value.toLocaleString(locale, { maximumFractionDigits: 1 });
@@ -33,6 +34,8 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [rules, setRules] = useState(false);
+  const [globalMenu, setGlobalMenu] = useState(false);
+  const [cities, setCities] = useState<{ name: string; participants: number }[]>([]);
   const [reliabilityInfo, setReliabilityInfo] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
@@ -41,13 +44,18 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
       if (generation.current !== version) return;
       setLoading(true); setError(""); setBoard(null);
       try {
-        const result = await request<RankingBoard>(`/ranking?format=board&scope=${scope}`);
+        const cityQuery = scope === "city" && city ? `&city=${encodeURIComponent(city)}` : "";
+        const result = await request<RankingBoard>(`/ranking?format=board&scope=${scope}${cityQuery}`);
         if (generation.current === version) setBoard(result);
       } catch (error) { if (generation.current === version) setError((error as Error).message); }
       finally { if (generation.current === version) setLoading(false); }
     });
     return () => { generation.current = version + 1; };
-  }, [request, scope, revision, user?.rankingPublic, user?.trainingPlace, user?.city]);
+  }, [city, request, scope, revision, user?.rankingPublic, user?.trainingPlace, user?.city]);
+  const loadCities = () => {
+    void request<{ cities: { name: string; participants: number }[] }>("/ranking/cities")
+      .then(result => setCities(result.cities)).catch(() => setCities([]));
+  };
   const join = async () => {
     if (!user || busy) return;
     setBusy(true); setError("");
@@ -63,14 +71,25 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
     const version = generation.current;
     setBusy(true); setError("");
     try {
-      const result = await request<RankingBoard>(`/ranking?format=board&scope=${scope}&offset=${board.next}`);
+      const cityQuery = scope === "city" && city ? `&city=${encodeURIComponent(city)}` : "";
+      const result = await request<RankingBoard>(`/ranking?format=board&scope=${scope}&offset=${board.next}${cityQuery}`);
       if (version === generation.current) setBoard(previous => previous && ({ ...result,
         entries: [...previous.entries, ...result.entries.filter(row => !previous.entries.some(old => old.id === row.id))] }));
     } catch (error) { if (version === generation.current) setError((error as Error).message); }
     finally { setBusy(false); }
   };
   return <>
-    <CommunityTabs value={scope} options={scopes} onChange={onScopeChange} />
+    <CommunityTabs value={scope === "city" ? "global" : scope} options={scopes} onChange={value => { setGlobalMenu(false); onScopeChange(value); }} />
+    {(scope === "global" || scope === "city") && <View style={{ gap: 7 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Cambiar ciudad del ranking global" accessibilityState={{ expanded: globalMenu }} onPress={() => { setGlobalMenu(value => !value); if (!globalMenu) loadCities(); }} style={({ pressed }) => ({ minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: globalMenu ? colors.accent : colors.border, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, opacity: pressed ? 0.72 : 1 })}>
+        <Txt weight="600" style={{ flex: 1 }}>{scope === "city" ? (city || board?.location || "Elige una ciudad") : "Toda la comunidad"}</Txt><Icon name={globalMenu ? "chevron-up" : "chevron-down"} size={18} />
+      </Pressable>
+      {globalMenu && <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: "hidden" }}>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: scope === "global" }} onPress={() => { setGlobalMenu(false); onScopeChange("global"); }} style={({ pressed }) => ({ padding: 13, backgroundColor: scope === "global" ? colors.accentSoft : pressed ? colors.soft : colors.surface })}><Txt weight="600">Toda la comunidad</Txt><Txt muted size={12}>Clasificación de todas las personas participantes.</Txt></Pressable>
+        {!!cities.length && <Txt muted size={12} style={{ paddingHorizontal: 13, paddingTop: 12 }}>Ciudades con participantes</Txt>}
+        {cities.map(option => <Pressable key={option.name} accessibilityRole="button" accessibilityState={{ selected: scope === "city" && city === option.name }} onPress={() => { setGlobalMenu(false); onCityChange(option.name); }} style={({ pressed }) => ({ padding: 13, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: scope === "city" && city === option.name ? colors.accentSoft : pressed ? colors.soft : colors.surface })}><Txt weight="600" translate={false}>{option.name}</Txt><Txt muted size={12}>{option.participants} {option.participants === 1 ? "participante" : "participantes"}</Txt></Pressable>)}
+      </View>}
+    </View>}
     {!!error && <Notice error>{error}</Notice>}
     {loading ? <Card><Txt muted accessibilityLiveRegion="polite">Cargando clasificación…</Txt></Card> : board && <>
       <Card style={{ backgroundColor: colors.accentSoft, borderColor: colors.accent, gap: 16 }}>
@@ -80,6 +99,7 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
             <View><Txt muted size={12}>TU POSICIÓN</Txt><Txt size={44} weight="700">#{board.me.rank}</Txt></View>
             <View style={{ alignItems: "flex-end" }}><Txt weight="700" size={30}>{points(board.me.points)}</Txt><Txt muted size={12}>A-POINTS · {board.me.coverage}/11 grupos</Txt></View>
           </Row>
+          {board.me.projected && <Txt muted size={12}>Posición estimada con tus A-Points actuales. Solo compites oficialmente en la ciudad de tu perfil.</Txt>}
           <View style={{ gap: 4 }}><Row style={{ justifyContent: "space-between" }}><Txt weight="600">{pointsTier(board.me.points).name}</Txt><Txt muted size={12}>Meta: {nextPointsGoal(board.me.points)} A-Points</Txt></Row><Txt muted size={12}>Te faltan {points(nextPointsGoal(board.me.points) - board.me.points)} puntos.{nextPointsTier(board.me.points) ? ` Próximo tier: ${nextPointsTier(board.me.points)!.name}.` : ""}</Txt></View>
           {board.nextRival ? <View style={{ gap: 8 }}><Txt>{t("Te separan {points} pts de @{name}. Iguala su marca para compartir puesto.", { points: points(board.gap!), name: board.nextRival.handle })}</Txt>
             <Button label="Ver al siguiente rival" variant="secondary" compact onPress={() => openProfile(board.nextRival!.id)} /></View>

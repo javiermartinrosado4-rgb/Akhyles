@@ -1,7 +1,7 @@
 export type RankingScope = "friends" | "global" | "gym" | "city";
 export interface RankingEntry {
   id: string; handle: string; name: string; avatar?: string;
-  points: number; coverage: number; reliability: number; rank: number;
+  points: number; coverage: number; reliability: number; rank: number; projected?: boolean;
 }
 export interface RankingBoard {
   scope: RankingScope; location: string; needsLocation: boolean;

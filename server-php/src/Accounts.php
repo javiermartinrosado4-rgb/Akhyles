@@ -330,12 +330,23 @@ final class Accounts {
             || !is_array($s['routine'] ?? null) || !array_is_list($s['routine']) || !is_array($s['history'] ?? null) || !array_is_list($s['history'])
             || !is_bool($s['completed'] ?? null) || !in_array($s['theme'] ?? null,['system','light','dark'],true))
             $this->fail(400,'La copia no tiene un formato válido.');
-        $allowed = ['version','programRevision','profile','preferences','onboardingStep','completed','theme','volumeTargets','routine','routineVersions','history','plannedWorkouts','skippedWorkoutDates','active','bodyWeights'];
+        $allowed = ['version','programRevision','profile','preferences','onboardingStep','completed','theme','volumeTargets','routine','routineVersions','history','plannedWorkouts','skippedWorkoutDates','active','bodyWeights','achievements'];
         if (array_diff(array_keys($s),$allowed)) $this->fail(400,'La copia contiene campos de dispositivo o sesión.');
         if (strlen(json_encode($s,JSON_THROW_ON_ERROR)) > 4_000_000 || count($s['history']) > 20000 || count($s['routine']) > 30)
             $this->fail(413,'La copia supera el tamaño permitido. Tus datos permanecen guardados en el dispositivo.');
         if (!is_int($s['onboardingStep'] ?? null) || $s['onboardingStep'] < 0 || $s['onboardingStep'] > 3)
             $this->fail(400,'El estado inicial de la copia no es válido.');
+        if (isset($s['achievements'])) {
+            if (!is_array($s['achievements']) || !array_is_list($s['achievements']) || count($s['achievements']) > 500)
+                $this->fail(400,'Los logros de la copia no tienen un formato válido.');
+            foreach ($s['achievements'] as $achievement)
+                if (!is_array($achievement) || !is_string($achievement['id'] ?? null) || strlen($achievement['id']) > 120 ||
+                    !is_string($achievement['title'] ?? null) || strlen($achievement['title']) > 160 ||
+                    !is_string($achievement['description'] ?? null) || strlen($achievement['description']) > 300 ||
+                    !is_string($achievement['unlockedAt'] ?? null) || strtotime($achievement['unlockedAt']) === false ||
+                    !in_array($achievement['category'] ?? null, ['progress','consistency','strength'], true))
+                    $this->fail(400,'Los logros de la copia no tienen un formato válido.');
+        }
         foreach ($s['routine'] as $day) {
             if (!is_array($day) || !is_string($day['id'] ?? null) || strlen($day['id']) > 160 ||
                 !is_string($day['name'] ?? null) || strlen($day['name']) > 120 ||

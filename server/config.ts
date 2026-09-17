@@ -22,5 +22,6 @@ export function serverConfig(env: NodeJS.ProcessEnv = process.env) {
     const decoded = Buffer.from(accountFederationSecret, "base64");
     if (decoded.length < 32) throw new Error("GYM_ACCOUNT_FEDERATION_SECRET debe contener al menos 32 bytes en base64.");
   }
-  return { database, origins, port, googleClientId, accountFederationSecret, host: env.GYM_API_HOST ?? "127.0.0.1", trustProxy: env.GYM_TRUST_PROXY === "1" };
+  return { database, origins, port, googleClientId, accountFederationSecret, host: env.GYM_API_HOST ?? "127.0.0.1", trustProxy: env.GYM_TRUST_PROXY === "1",
+    suggestionEmail: env.GYM_SUGGESTIONS_EMAIL?.trim() || "javi@akhyles.com", resendApiKey: env.GYM_RESEND_API_KEY?.trim() || "", suggestionFrom: env.GYM_SUGGESTIONS_FROM?.trim() || "Akhyles <avisos@akhyles.com>" };
 }

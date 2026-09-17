@@ -17,6 +17,7 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 function fail(status: number, message: string): never { throw new ApiError(status, message); }
 const str = (value: unknown, max: number) => typeof value === "string" && value.length <= max ? value.trim() : fail(400, "Revisa los campos del formulario.");
+const validExerciseId = (value: string) => /^[\w-]{1,80}$/.test(value) && !["__proto__", "constructor", "prototype"].includes(value);
 const validLevel = (level: unknown) => ["beginner", "intermediate", "advanced"].includes(String(level));
 interface User { id: string; account_id?: string | null; handle: string; name: string; bio: string; level: string; salt: string; password: string; training_place?: string; city?: string; gym_id?: string | null; trainer_enabled?: number }
 interface Gym { id: string; provider: string; provider_place_id?: string | null; name: string; normalized_name: string; address: string; city: string; normalized_city: string; status: string }
@@ -43,7 +44,7 @@ async function body(req: IncomingMessage) {
   } catch { return fail(400, "No se han podido leer los datos."); }
 }
 
-export function createGymServer({ database = ":memory:", origins = ["http://localhost:8081", "http://127.0.0.1:8081"], authLimit = 20, trustProxy = false, googleClientId = process.env.GYM_GOOGLE_CLIENT_ID ?? "", accountFederationSecret = process.env.GYM_ACCOUNT_FEDERATION_SECRET ?? "", adminAccountIds = (process.env.GYM_ADMIN_ACCOUNT_IDS ?? "").split(",").map(value => value.trim()).filter(Boolean), verifyGoogle = googleVerifier(googleClientId) } = {}) {
+export function createGymServer({ database = ":memory:", origins = ["http://localhost:8081", "http://127.0.0.1:8081"], authLimit = 20, trustProxy = false, googleClientId = process.env.GYM_GOOGLE_CLIENT_ID ?? "", accountFederationSecret = process.env.GYM_ACCOUNT_FEDERATION_SECRET ?? "", adminAccountIds = (process.env.GYM_ADMIN_ACCOUNT_IDS ?? "").split(",").map(value => value.trim()).filter(Boolean), suggestionEmail = process.env.GYM_SUGGESTIONS_EMAIL ?? "javi@akhyles.com", resendApiKey = process.env.GYM_RESEND_API_KEY ?? "", suggestionFrom = process.env.GYM_SUGGESTIONS_FROM ?? "Akhyles <avisos@akhyles.com>", verifyGoogle = googleVerifier(googleClientId) } = {}) {
   const db = new DatabaseSync(database);
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -76,6 +77,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     );
     CREATE UNIQUE INDEX IF NOT EXISTS gyms_provider_place_id ON gyms(provider, provider_place_id) WHERE provider_place_id IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS gyms_normalized_location ON gyms(normalized_name, normalized_city);
+    CREATE TABLE IF NOT EXISTS gym_machine_brands (gym_id TEXT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE, exercise_id TEXT NOT NULL, brand TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY(gym_id, exercise_id, brand));
     CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, caption TEXT NOT NULL, photo BLOB NOT NULL, created TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS posts_created ON posts(created DESC);
@@ -83,6 +85,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     CREATE TABLE IF NOT EXISTS follows (user_id TEXT REFERENCES users(id) ON DELETE CASCADE, followed_id TEXT REFERENCES users(id) ON DELETE CASCADE, PRIMARY KEY(user_id, followed_id));
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, type TEXT NOT NULL, created INTEGER NOT NULL, read_at INTEGER, UNIQUE(recipient_id, actor_id, type));
     CREATE INDEX IF NOT EXISTS notifications_recipient ON notifications(recipient_id, read_at, created DESC);
+    CREATE TABLE IF NOT EXISTS community_notification_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, achievement_likes INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS samples (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, updated INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS reports (user_id TEXT REFERENCES users(id) ON DELETE CASCADE, post_id TEXT REFERENCES posts(id) ON DELETE CASCADE, reason TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(user_id, post_id));
     CREATE TABLE IF NOT EXISTS shared_routines (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, updated TEXT NOT NULL);
@@ -149,6 +152,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       review_note TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS exercise_proposals_status ON exercise_proposals(status, submitted DESC);
+    CREATE TABLE IF NOT EXISTS implementation_suggestions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, category TEXT NOT NULL, title TEXT NOT NULL, details TEXT NOT NULL, created TEXT NOT NULL, delivered_at TEXT, delivery_attempts INTEGER NOT NULL DEFAULT 0);
   `);
   const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
   if (!userColumns.some(column => column.name === "account_id")) db.exec("ALTER TABLE users ADD COLUMN account_id TEXT");
@@ -179,6 +183,19 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     return (db.prepare("SELECT details, body_weight, ranking, achievements FROM sharing_options WHERE user_id = ?").get(userId) as
       { details: number; body_weight: number; ranking: number; achievements: number } | undefined) ?? { details: 0, body_weight: 0, ranking: 0, achievements: 0 };
   }
+  function achievementLikeNotificationsEnabled(userId: string) {
+    return (db.prepare("SELECT achievement_likes FROM community_notification_preferences WHERE user_id = ?").get(userId) as { achievement_likes: number } | undefined)?.achievement_likes !== 0;
+  }
+  async function notifyImplementationSuggestion(user: User, category: string, title: string, details: Record<string, unknown>) {
+    const id = randomUUID(), created = new Date().toISOString();
+    db.prepare("INSERT INTO implementation_suggestions (id, user_id, category, title, details, created) VALUES (?, ?, ?, ?, ?, ?)").run(id, user.id, category, title, JSON.stringify(details), created);
+    if (!resendApiKey || !suggestionEmail) return;
+    try {
+      const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: suggestionFrom, to: [suggestionEmail], subject: `[Akhyles] Sugerencia: ${title}`, text: `Nueva sugerencia de ${user.name} (@${user.handle})\n\nTipo: ${category}\nFecha: ${created}\n\n${JSON.stringify(details, null, 2)}` }) });
+      if (response.ok) db.prepare("UPDATE implementation_suggestions SET delivered_at = ?, delivery_attempts = 1 WHERE id = ?").run(new Date().toISOString(), id);
+      else db.prepare("UPDATE implementation_suggestions SET delivery_attempts = 1 WHERE id = ?").run(id);
+    } catch { db.prepare("UPDATE implementation_suggestions SET delivery_attempts = 1 WHERE id = ?").run(id); }
+  }
   function blocked(first: string, second: string) {
     return !!db.prepare("SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)").get(first, second, second, first);
   }
@@ -186,6 +203,12 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     return first === second || !!db.prepare(`SELECT 1 FROM follows a JOIN follows b
       ON a.user_id = b.followed_id AND a.followed_id = b.user_id
       WHERE a.user_id = ? AND a.followed_id = ?`).get(first, second);
+  }
+  function canViewAchievements(owner: string, viewer: string) {
+    if (owner === viewer) return true;
+    const sharing = options(owner);
+    const visibility = privacy(owner).progress_visibility;
+    return sharing.achievements === 1 && (visibility === "public" || (visibility === "friends" && mutual(owner, viewer))) && !blocked(owner, viewer);
   }
   function coaching(id: string) {
     return db.prepare("SELECT * FROM coaching_relationships WHERE id = ?").get(id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; updated: string } | undefined;
@@ -212,6 +235,11 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
   if (!userColumns.some(column => column.name === "city")) db.exec("ALTER TABLE users ADD COLUMN city TEXT NOT NULL DEFAULT ''");
   const sharingColumns = db.prepare("PRAGMA table_info(sharing_options)").all() as { name: string }[];
   if (!sharingColumns.some(column => column.name === "achievements")) db.exec("ALTER TABLE sharing_options ADD COLUMN achievements INTEGER NOT NULL DEFAULT 0");
+  const achievementColumns = db.prepare("PRAGMA table_info(achievements)").all() as { name: string }[];
+  if (!achievementColumns.some(column => column.name === "kind")) db.exec("ALTER TABLE achievements ADD COLUMN kind TEXT");
+  if (!achievementColumns.some(column => column.name === "details")) db.exec("ALTER TABLE achievements ADD COLUMN details TEXT NOT NULL DEFAULT '{}'");
+  if (!achievementColumns.some(column => column.name === "dedupe_key")) db.exec("ALTER TABLE achievements ADD COLUMN dedupe_key TEXT");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS achievements_dedupe_key ON achievements(user_id, dedupe_key) WHERE dedupe_key IS NOT NULL");
 
   function publicProfile(user: User, viewer: string) {
     const count = (sql: string) => (db.prepare(sql).get(user.id) as { total: number }).total;
@@ -219,12 +247,15 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     const settings = privacy(user.id);
     const sharing = options(user.id);
     const connected = mutual(viewer, user.id);
-    const routineVisible = own || (connected && settings.routine_public === 1);
+    // A single audience now governs every training artifact: routine, progress,
+    // body-map data, detailed sessions, body weight and achievements.
+    const trainingVisibility = settings.progress_visibility;
+    const routineVisible = own || trainingVisibility === "public" || (connected && trainingVisibility === "friends");
     const progressVisible = own || settings.progress_visibility === "public" || (connected && settings.progress_visibility === "friends");
     return { id: user.id, handle: user.handle, name: user.name, bio: user.bio, level: user.level,
       avatar: (db.prepare("SELECT avatar FROM user_avatars WHERE user_id = ?").get(user.id) as { avatar: string } | undefined)?.avatar ?? "mountain",
       trainingPlace: user.training_place ?? "", gymId: user.gym_id ?? null, city: user.city ?? "",
-      posts: count("SELECT count(*) total FROM achievements WHERE user_id = ?"),
+      posts: own || sharing.achievements === 1 ? count("SELECT count(*) total FROM achievements WHERE user_id = ?") : 0,
       followers: count("SELECT count(*) total FROM follows WHERE followed_id = ?"),
       following: count("SELECT count(*) total FROM follows WHERE user_id = ?"),
       followed: !!db.prepare("SELECT 1 FROM follows WHERE user_id = ? AND followed_id = ?").get(viewer, user.id),
@@ -232,30 +263,49 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       connected, trainerEnabled: user.trainer_enabled === 1,
       routineId: routineVisible ? (db.prepare("SELECT id FROM shared_routines WHERE user_id = ?").get(user.id) as { id: string } | undefined)?.id ?? null : null,
       progressVisible,
-      ...(own ? { routinePublic: settings.routine_public === 1, progressPublic: settings.progress_visibility !== "private", progressVisibility: settings.progress_visibility,
+      ...(own ? { routinePublic: settings.routine_public === 1, progressPublic: settings.progress_visibility !== "private", progressVisibility: settings.progress_visibility, trainingVisibility,
         detailsPublic: sharing.details === 1, bodyWeightPublic: sharing.body_weight === 1, rankingPublic: sharing.ranking === 1, achievementsPublic: sharing.achievements === 1 } : {}),
     };
   }
-  type ProgressSnapshot = { points?: number; exercises?: { id: string; name: string; maximum?: number; weight: number; reps: number; date: string }[] };
+  type ProgressSnapshot = {
+    points?: number; pointsCoverage?: number; pointsReliability?: number; sessions?: number;
+    exercises?: { id: string; name: string; maximum?: number; weight: number; load?: number; reps: number; date: string }[];
+    weekly?: { weekStart: string; complete: boolean; completed: number; scheduled: number; adherence: number; strengthPercent?: number; strengthCompared: number; personalBests: number; improvingWeeks: number };
+  };
+  const createAchievement = (userId: string, type: "tier" | "personal_best", kind: string, details: Record<string, unknown>, dedupeKey: string, fields: { tierId?: string; exerciseId?: string; exerciseName?: string } = {}) => {
+    db.prepare(`INSERT OR IGNORE INTO achievements (id, user_id, type, tier_id, exercise_id, exercise_name, kind, details, dedupe_key, created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(randomUUID(), userId, type, fields.tierId ?? null, fields.exerciseId ?? null, fields.exerciseName?.slice(0, 160) ?? null, kind, JSON.stringify(details), dedupeKey, new Date().toISOString());
+  };
   function recordAchievements(userId: string, previous: ProgressSnapshot | undefined, current: ProgressSnapshot) {
     if (!previous || options(userId).achievements !== 1) return;
     const before = Number.isFinite(previous.points) ? previous.points! : 0;
     const after = Number.isFinite(current.points) ? current.points! : 0;
-    const created = new Date().toISOString();
-    for (const tier of pointsTiers.slice(1)) if (before < tier.minimum && after >= tier.minimum) {
-      db.prepare("INSERT OR IGNORE INTO achievements (id, user_id, type, tier_id, created) VALUES (?, ?, 'tier', ?, ?)")
-        .run(randomUUID(), userId, tier.id, created);
-    }
+    const reached = pointsTiers.slice(1).filter(tier => before < tier.minimum && after >= tier.minimum).at(-1);
+    if (reached) createAchievement(userId, "tier", "tier", { beforePoints: before, afterPoints: after, gainedPoints: Math.round((after - before) * 10) / 10, coverage: current.pointsCoverage, reliability: current.pointsReliability }, `tier:${reached.id}`, { tierId: reached.id });
     const prior = new Map((previous.exercises ?? []).map(exercise => [exercise.id, exercise]));
     for (const exercise of current.exercises ?? []) {
       const old = prior.get(exercise.id);
       const beforeMaximum = old?.maximum ?? 0;
       const maximum = exercise.maximum ?? 0;
       if (old && maximum > beforeMaximum + 0.05) {
-        db.prepare("INSERT OR IGNORE INTO achievements (id, user_id, type, exercise_id, exercise_name, created) VALUES (?, ?, 'personal_best', ?, ?, ?)")
-          .run(randomUUID(), userId, exercise.id, exercise.name.slice(0, 160), created);
+        createAchievement(userId, "personal_best", "personal_best", {
+          beforeMaximum, maximum, percent: Math.round((maximum / beforeMaximum - 1) * 1000) / 10,
+          weight: exercise.weight, load: exercise.load, reps: exercise.reps, date: exercise.date,
+        }, `pr:${exercise.id}:${exercise.date}`, { exerciseId: exercise.id, exerciseName: exercise.name });
       }
     }
+    for (const milestone of [10, 25, 50, 100, 250, 500]) if ((previous.sessions ?? 0) < milestone && (current.sessions ?? 0) >= milestone)
+      createAchievement(userId, "tier", "sessions", { sessions: current.sessions }, `sessions:${milestone}`);
+    for (const milestone of [5, 8, 11]) if ((previous.pointsCoverage ?? 0) < milestone && (current.pointsCoverage ?? 0) >= milestone)
+      createAchievement(userId, "tier", "coverage", { coverage: current.pointsCoverage }, `coverage:${milestone}`);
+    for (const milestone of [50, 75, 100]) if ((previous.pointsReliability ?? 0) < milestone && (current.pointsReliability ?? 0) >= milestone)
+      createAchievement(userId, "tier", "reliability", { reliability: current.pointsReliability }, `reliability:${milestone}`);
+    const weekly = current.weekly;
+    if (weekly?.complete && weekly.scheduled > 0 && weekly.completed === weekly.scheduled)
+      createAchievement(userId, "tier", "perfect_week", { weekStart: weekly.weekStart, completed: weekly.completed, scheduled: weekly.scheduled }, `perfect-week:${weekly.weekStart}`);
+    for (const milestone of [3, 6, 12]) if ((previous.weekly?.improvingWeeks ?? 0) < milestone && (weekly?.improvingWeeks ?? 0) >= milestone)
+      createAchievement(userId, "tier", "consistency", { weeks: weekly!.improvingWeeks, strengthPercent: weekly!.strengthPercent, compared: weekly!.strengthCompared }, `improving-weeks:${milestone}`);
   }
   function getUser(id: string) { return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as unknown as User | undefined; }
   function accountIdentity(assertion: string) {
@@ -453,6 +503,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         const proposal = { id: randomUUID(), name, muscle, secondary, type, variant, range, status: "pending", submitted: new Date().toISOString(), reviewNote: "" };
         db.prepare("INSERT INTO exercise_proposals (id, user_id, name, muscle, secondary_muscles, type, variant, rep_min, rep_max, status, submitted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
           .run(proposal.id, user.id, name, muscle, JSON.stringify(secondary), type, variant, range[0], range[1], proposal.status, proposal.submitted);
+        await notifyImplementationSuggestion(user, "ejercicio", name, { muscle, secondary, type, variant, range, proposalId: proposal.id });
         json(201, proposal); return;
       }
       if (path === "/exercise-proposals/me" && method === "GET") {
@@ -543,7 +594,8 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
           { id: string; user_id: string; data: string; updated: string; handle: string; name: string } | undefined;
         if (!routine) fail(404, "Rutina compartida no encontrada.");
         if (blocked(user.id, routine.user_id)) fail(404, "Rutina no disponible.");
-        if (routine.user_id !== user.id && (!mutual(user.id, routine.user_id) || privacy(routine.user_id).routine_public !== 1))
+        const visibility = privacy(routine.user_id).progress_visibility;
+        if (routine.user_id !== user.id && visibility !== "public" && (visibility !== "friends" || !mutual(user.id, routine.user_id)))
           fail(403, "Esta rutina es privada o solo estÃ¡ disponible entre seguidores mutuos.");
         json(200, { id: routine.id, owner: { handle: routine.handle, name: routine.name }, routine: JSON.parse(routine.data), updated: routine.updated }); return;
       }
@@ -588,6 +640,25 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
           WHERE normalized_name LIKE ? AND (? = '' OR normalized_city = ?) ORDER BY name LIMIT 12`).all(`%${query}%`, city, city) as unknown as Gym[];
         json(200, gyms.map(gym => ({ id: gym.id, provider: gym.provider, name: gym.name, address: gym.address, city: gym.city, status: gym.status }))); return;
       }
+      if (path === "/machine-brands" && method === "GET") {
+        const exerciseId = url.searchParams.get("exercise") ?? "";
+        if (!validExerciseId(exerciseId)) fail(400, "Revisa el ejercicio.");
+        const mine = getUser(user.id)!;
+        const gym = mine.gym_id ? (db.prepare("SELECT brand FROM gym_machine_brands WHERE gym_id = ? AND exercise_id = ? ORDER BY uses DESC, brand COLLATE NOCASE").all(mine.gym_id, exerciseId) as { brand: string }[]).map(row => row.brand) : [];
+        const global = (db.prepare("SELECT brand, sum(uses) total FROM gym_machine_brands WHERE exercise_id = ? GROUP BY brand ORDER BY total DESC, brand COLLATE NOCASE LIMIT 100").all(exerciseId) as { brand: string }[]).map(row => row.brand);
+        json(200, { gym, global }); return;
+      }
+      if (path === "/machine-brands" && method === "POST") {
+        const data = await body(req);
+        const exerciseId = typeof data.exerciseId === "string" ? data.exerciseId : "";
+        const brand = typeof data.brand === "string" ? data.brand.trim().replace(/\s+/g, " ") : "";
+        const suggested = data.suggested === true;
+        if (!validExerciseId(exerciseId) || brand.length < 2 || brand.length > 60) fail(400, "Revisa la marca de la máquina.");
+        const mine = getUser(user.id)!;
+        if (mine.gym_id) db.prepare("INSERT INTO gym_machine_brands (gym_id, exercise_id, brand, uses, updated) VALUES (?, ?, ?, 1, ?) ON CONFLICT(gym_id, exercise_id, brand) DO UPDATE SET uses=uses+1, updated=excluded.updated").run(mine.gym_id, exerciseId, brand, new Date().toISOString());
+        if (suggested) await notifyImplementationSuggestion(user, "marca de máquina", brand, { exerciseId, gymId: mine.gym_id ?? null });
+        json(200, { brand }); return;
+      }
       if (path === "/gyms" && method === "POST") {
         const data = await body(req);
         const name = str(data.name, 80), city = str(data.city, 80), address = data.address === undefined ? "" : str(data.address, 160);
@@ -602,18 +673,21 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       }
       if (path === "/me/privacy" && method === "PATCH") {
         const data = await body(req);
-        if (typeof data.routinePublic !== "boolean" || typeof data.progressPublic !== "boolean")
+        const unified = data.trainingVisibility;
+        if (unified !== undefined && !["private", "friends", "public"].includes(String(unified))) fail(400, "Revisa quién puede ver tus entrenamientos.");
+        if (unified === undefined && (typeof data.routinePublic !== "boolean" || typeof data.progressPublic !== "boolean"))
           fail(400, "Elige la privacidad de rutina y progreso.");
         if (data.progressVisibility !== undefined && !["private", "friends", "public"].includes(String(data.progressVisibility))) fail(400, "Revisa la visibilidad del progreso.");
         for (const key of ["detailsPublic", "bodyWeightPublic", "rankingPublic", "achievementsPublic"]) if (data[key] !== undefined && typeof data[key] !== "boolean") fail(400, "Revisa las opciones para compartir.");
         const old = options(user.id);
+        const visibility = unified !== undefined ? String(unified) : data.progressPublic ? String(data.progressVisibility ?? "friends") : "private";
+        const sharingEverything = unified !== undefined ? visibility !== "private" : undefined;
         db.prepare(`INSERT INTO sharing_options (user_id, details, body_weight, ranking, achievements) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET
           details=excluded.details, body_weight=excluded.body_weight, ranking=excluded.ranking, achievements=excluded.achievements`).run(user.id,
-          Number(data.detailsPublic ?? old.details), Number(data.bodyWeightPublic ?? old.body_weight), Number(data.rankingPublic ?? old.ranking), Number(data.achievementsPublic ?? old.achievements));
-        const visibility = data.progressPublic ? String(data.progressVisibility ?? "friends") : "private";
+          Number(data.detailsPublic ?? sharingEverything ?? old.details), Number(data.bodyWeightPublic ?? sharingEverything ?? old.body_weight), Number(data.rankingPublic ?? old.ranking), Number(data.achievementsPublic ?? sharingEverything ?? old.achievements));
         db.prepare(`INSERT INTO community_privacy (user_id, routine_public, progress_public, progress_visibility) VALUES (?, ?, ?, ?)
           ON CONFLICT(user_id) DO UPDATE SET routine_public = excluded.routine_public, progress_public = excluded.progress_public, progress_visibility = excluded.progress_visibility`)
-          .run(user.id, Number(data.routinePublic), Number(visibility !== "private"), visibility);
+          .run(user.id, Number(unified !== undefined ? visibility !== "private" : data.routinePublic), Number(visibility !== "private"), visibility);
         json(200, publicProfile(user, user.id)); return;
       }
       if (path === "/routines/me" && method === "PUT") {
@@ -649,7 +723,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       }
       if (path === "/profiles" && method === "GET") {
         const query = (url.searchParams.get("q") ?? "").replace(/^@/, "").toLowerCase();
-        const users = db.prepare("SELECT * FROM users WHERE instr(handle, ?) > 0 ORDER BY handle LIMIT 30").all(query) as unknown as User[];
+        const users = db.prepare("SELECT * FROM users WHERE instr(handle, ?) > 0 OR instr(lower(name), ?) > 0 ORDER BY handle LIMIT 30").all(query, query) as unknown as User[];
         json(200, users.filter(u => !blocked(user.id, u.id)).map(u => publicProfile(u, user.id))); return;
       }
       if (/^\/profiles\/[\w-]+$/.test(path) && method === "GET") {
@@ -800,26 +874,45 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         db.prepare("UPDATE notifications SET read_at = ? WHERE recipient_id = ? AND read_at IS NULL").run(Date.now(), user.id);
         json(200, { ok: true }); return;
       }
+      if (path === "/me/notification-preferences") {
+        if (method === "GET") { json(200, { achievementLikes: achievementLikeNotificationsEnabled(user.id) }); return; }
+        if (method === "PATCH") {
+          const data = await body(req);
+          if (typeof data.achievementLikes !== "boolean") fail(400, "Revisa las notificaciones de felicitaciones.");
+          db.prepare("INSERT INTO community_notification_preferences (user_id, achievement_likes) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET achievement_likes=excluded.achievement_likes").run(user.id, Number(data.achievementLikes));
+          json(200, { achievementLikes: data.achievementLikes }); return;
+        }
+      }
       if (path === "/achievements" && method === "GET") {
         const offset = Number(url.searchParams.get("offset") ?? 0);
         if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1_000_000) fail(400, "Revisa la página de logros.");
         const owner = url.searchParams.get("user") ?? "";
         const following = url.searchParams.get("following") === "1" ? 1 : 0;
-        const rows = db.prepare(`SELECT a.id, a.user_id userId, a.type, a.tier_id tierId, a.exercise_id exerciseId, a.exercise_name exerciseName, a.created, u.handle, u.name,
+        const rows = db.prepare(`SELECT a.id, a.user_id userId, a.type, a.tier_id tierId, a.exercise_id exerciseId, a.exercise_name exerciseName, a.kind, a.details, a.created, u.handle, u.name,
           (SELECT count(*) FROM achievement_likes l WHERE l.achievement_id = a.id) likes,
           EXISTS(SELECT 1 FROM achievement_likes l WHERE l.achievement_id = a.id AND l.user_id = ?) liked
-          FROM achievements a JOIN users u ON u.id=a.user_id JOIN sharing_options o ON o.user_id=a.user_id
+          FROM achievements a JOIN users u ON u.id=a.user_id JOIN sharing_options o ON o.user_id=a.user_id JOIN community_privacy c ON c.user_id=a.user_id
           WHERE (? = '' OR a.user_id = ?) AND (? = 0 OR a.user_id IN (SELECT followed_id FROM follows WHERE user_id = ?))
-          AND (a.user_id = ? OR o.achievements = 1)
+          AND (a.user_id = ? OR (o.achievements = 1 AND (c.progress_visibility = 'public' OR (c.progress_visibility = 'friends' AND EXISTS(SELECT 1 FROM follows first JOIN follows second ON first.followed_id=second.user_id AND first.user_id=second.followed_id WHERE first.user_id=? AND first.followed_id=a.user_id)))))
           AND NOT EXISTS(SELECT 1 FROM blocks WHERE (user_id=? AND blocked_id=a.user_id) OR (user_id=a.user_id AND blocked_id=?))
-          ORDER BY a.created DESC, a.id DESC LIMIT 21 OFFSET ?`).all(user.id, owner, owner, following, user.id, user.id, user.id, user.id, offset);
-        json(200, { achievements: rows.slice(0, 20), next: rows.length > 20 ? offset + 20 : null }); return;
+          ORDER BY a.created DESC, a.id DESC LIMIT 21 OFFSET ?`).all(user.id, owner, owner, following, user.id, user.id, user.id, user.id, user.id, offset);
+        json(200, { achievements: rows.slice(0, 20).map(row => {
+          const item = row as Record<string, unknown>;
+          let details: unknown = {};
+          try { details = JSON.parse(String(item.details ?? "{}")); } catch { details = {}; }
+          delete item.details;
+          return { ...item, details };
+        }), next: rows.length > 20 ? offset + 20 : null }); return;
       }
       if (/^\/achievements\/[\w-]+\/like$/.test(path) && ["PUT", "DELETE"].includes(method!)) {
         const id = path.split("/")[2];
         const achievement = db.prepare("SELECT user_id FROM achievements WHERE id = ?").get(id) as { user_id: string } | undefined;
-        if (!achievement || blocked(user.id, achievement.user_id)) fail(404, "Logro no encontrado.");
-        if (method === "PUT") db.prepare("INSERT OR IGNORE INTO achievement_likes VALUES (?, ?)").run(user.id, id);
+        if (!achievement || !canViewAchievements(achievement.user_id, user.id)) fail(404, "Logro no encontrado.");
+        if (method === "PUT") {
+          const result = db.prepare("INSERT OR IGNORE INTO achievement_likes VALUES (?, ?)").run(user.id, id);
+          if (result.changes > 0 && achievement.user_id !== user.id && achievementLikeNotificationsEnabled(achievement.user_id))
+            db.prepare("INSERT OR IGNORE INTO notifications VALUES (?, ?, ?, ?, ?, NULL)").run(randomUUID(), achievement.user_id, user.id, `achievement_like:${id}`, Date.now());
+        }
         else db.prepare("DELETE FROM achievement_likes WHERE user_id = ? AND achievement_id = ?").run(user.id, id);
         json(200, { ok: true }); return;
       }
@@ -884,7 +977,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         const data = await body(req);
         if (!validLevel(data.level) || !Array.isArray(data.records) || data.records.length > 3000) fail(400, "Datos de progreso no válidos.");
         for (const r of data.records) {
-          if (!r || !comparableIds.has(r.exerciseId) || !Number.isFinite(Date.parse(r.date)) || !Number.isFinite(r.strength) || r.strength <= 0 || r.strength > 2000) fail(400, "Registro de ejercicio no válido.");
+          if (!r || !comparableIds.has(r.exerciseId) || !Number.isFinite(Date.parse(r.date)) || !Number.isFinite(r.strength) || r.strength <= 0 || r.strength > 2000 || (r.machineBrand !== undefined && (typeof r.machineBrand !== "string" || r.machineBrand.length > 60))) fail(400, "Registro de ejercicio no válido.");
         }
         const sample = data as unknown as ComparisonSample;
         db.prepare("INSERT OR REPLACE INTO samples VALUES (?, ?, ?)").run(user.id, JSON.stringify(sample), Date.now());

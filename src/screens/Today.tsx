@@ -27,12 +27,13 @@ import {
 import {
   overallStats,
   workoutStats,
-  workoutTrend,
 } from "../logic/performance";
 import { useTheme } from "../theme";
 import { Calories } from "../components/Calories";
 import { motivationalQuoteForDate } from "../content/motivation";
 import { RoutineOverview } from "./Routine";
+import { sessionProgressInsight } from "../logic/insights";
+import { WeeklyProgressInsight } from "../components/WeeklyProgressInsight";
 
 
 
@@ -65,7 +66,7 @@ export default function Today() {
     ? state.routine.find((day) => day.id === completed.dayId) ?? planned
     : planned);
   const latestStats = completed ? workoutStats(completed) : undefined;
-  const trend = completed ? workoutTrend(completed, state.history) : undefined;
+  const trend = completed ? sessionProgressInsight(completed, state.history) : undefined;
   const overall = overallStats(state.history);
   const schedule = routineSchedule(state.profile, state.routine);
   // Opening the training tab should immediately show today's prescribed work,
@@ -255,6 +256,8 @@ export default function Today() {
           />
         </Card>
       )}
+
+      <WeeklyProgressInsight state={state} />
 
       {completed && latestStats && trend && (
         <>

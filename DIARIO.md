@@ -948,3 +948,356 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
   capturas reales y pruebas en iPhone.
 - La referencia anterior a conservar el AAB Android 14 queda superada: se
   retiró del borrador y el AAB 15 (1.0.13) es el enviado a revisión de Google Play.
+
+### Auditoría integral y actualización — 16 de septiembre de 2026 — 1.0.13
+
+- Código y documentación: corregido el error bloqueante de ESLint en
+  `MachineBrandSelect`; el despliegue Web ahora usa `dist` por defecto para no
+  transferir un export antiguo. Sin credenciales ni artefactos privados en Git.
+- Verificaciones locales: `npm.cmd run check` correcto; tipos correctos, lint
+  con 0 errores y 4 avisos no bloqueantes heredados, 134 pruebas correctas y 2
+  omitidas. `npx.cmd expo export --platform web` correcto.
+- Android: build conectada `assembleRelease` + `bundleRelease` correcta con
+  Comunidad `https://api.akhyles.com/community` y Cuentas
+  `https://api.akhyles.com`; firma original, paquete correcto y `versionCode`
+  15 confirmados por `verify-android.mjs`. No se publicó un binario porque Play
+  Console ya tiene la versión 1.0.13 en revisión.
+- Web: SFTP de solo lectura correcto; se publicó el export `dist` y la
+  verificación posterior confirmó HTTP 200 y que `app.akhyles.com` sirve el
+  bundle `entry-fa1456babc5517cbee3fad26a1bde87e.js` recién generado.
+- API: SFTP de solo lectura correcto; `/health` de Cuentas y
+  `/community/health` responden 200, HTTPS y Google configurado. No se publicó
+  la API nueva: la pública es PHP y las rutas nuevas de marcas/notificaciones
+  están en el servidor Node experimental; transferir solo PHP no las activaría.
+  Pendiente unificar backend y migraciones antes de publicar esas funciones.
+- Play Console: estado comprobado en sesión autenticada; la ficha muestra
+  “Cambios en revisión” y el lanzamiento `Perfil y comunidad 1.0.13` en prueba
+  cerrada Alpha. No se inició otro lanzamiento ni se forzó publicación.
+- E2E: el runner local quedó bloqueado esperando una instancia Expo/demo previa
+  en 8081 y se detuvo sin marcar la suite como aprobada. La API local sí
+  respondió en 8082; no se tocó ni se reinició la demo existente. PHP/Composer
+  no están instalados localmente, por lo que no se pudo ejecutar la suite PHP.
+- Estado final: solo Web actualizado. Android, Play y API quedan sin publicar
+  por los bloqueos indicados; repetir E2E aislado, instalar el APK en un
+  dispositivo físico y unificar Node/PHP antes de la siguiente publicación.
+
+### Verificación directa en pestañas autenticadas — 16 de septiembre de 2026
+
+- Play Console: la pestaña autenticada confirma que `Perfil y comunidad 1.0.13`
+  está dentro de “Cambios en revisión”, junto con la prueba cerrada Alpha. No
+  se ha iniciado lanzamiento completo ni se han eliminado cambios.
+- IONOS: la sesión autenticada está disponible y el hosting muestra el panel
+  operativo. El acceso SFTP ya había superado la prueba de lectura y la web
+  pública sirve el export actual; no fue necesario repetir una transferencia.
+- Decisión: no manipular Play mientras Google revisa la versión enviada y no
+  publicar API hasta resolver la diferencia entre el backend Node con rutas
+  nuevas y el backend PHP que atiende producción.
+
+### Corrección de acceso Google en Web — 16 de septiembre de 2026
+
+- Causa: el export web publicado se había generado heredando `.env.local`, que
+  no definía `EXPO_PUBLIC_ACCOUNT_URL`; la web arrancaba en “MODO LOCAL” y no
+  inicializaba Google Identity Services.
+- Solución: regenerar el export en producción con Cuentas
+  `https://api.akhyles.com` y Comunidad
+  `https://api.akhyles.com/community`, y publicarlo mediante SFTP con preflight
+  de lectura correcto.
+- Verificaciones: el bundle público cambió a
+  `entry-5f4290cc54c7cfd252e901163ff6b744.js`; la web muestra “Gestionar
+  cuenta”, la sesión sincronizada y el endpoint `/auth/google/config` responde
+  200 con CORS para `https://app.akhyles.com`.
+
+### Comprobación Play Console posterior — 16 de septiembre de 2026
+
+- Panel de control autenticado: Producción está “Inactivo”; Prueba cerrada está
+  “Activa” con 1 canal; Prueba interna está “Inactiva”. La versión 1.0.13 se
+  encuentra en el canal de prueba cerrada y no está disponible todavía para
+  producción general.
+
+### Preparación de nueva entrega Android en Play — 16 de septiembre de 2026 — 1.0.14
+
+- Se incrementó la versión Android a `1.0.14` / `versionCode` 16 y se generó
+  el AAB firmado `artifacts/android/akhyles-release.aab` con las URLs públicas
+  de Cuentas y Comunidad.
+- Verificación local: `bundleRelease` correcta; certificado SHA-1
+  `040ea0afd797f22730198cdb4295c4763ab86ab7`; SHA-256 del AAB
+  `366bd5fcf851b1fa8526800e5fec71a6d5640e9369c8a6d6285d0ee7ddce0499`.
+- Play Console reconoció correctamente el app bundle `16 (1.0.14)` en el
+  borrador de la prueba cerrada Alpha, con 8.786 teléfonos y 4.692 tablets
+  compatibles y sin dispositivos perdidos frente a la versión anterior.
+- Se guardó y envió a revisión la versión `Perfil y comunidad 1.0.14`, con
+  notas en español. Play Console muestra ahora “Cambios en revisión”.
+- Play muestra una advertencia no bloqueante sobre la ausencia de archivo de
+  desofuscación; el build no usa R8/ProGuard. No hay errores de validación.
+- El envío final quedó aceptado por Play Console; sus comprobaciones automáticas
+  siguen en curso, con un tiempo estimado de hasta 14 minutos. Producción sigue
+  sin publicarse.
+
+### Reexport y despliegue Web — 16 de septiembre de 2026
+
+- Se regeneró el export Web con las URLs públicas de Cuentas y Comunidad y se
+  publicó por SFTP en IONOS.
+- La verificación posterior confirma HTTP 200 en `https://app.akhyles.com/` y
+  `/community`, con el bundle nuevo `entry-2594c217d9b71e40d3fdf061d9994c41.js`.
+- La pestaña Comunidad carga correctamente Ranking, Logros, Amigos, Mi gym y
+  Global tras recargar la web pública.
+
+### Corrección de API pública de Comunidad — 16 de septiembre de 2026
+
+- Causa confirmada del aviso “Ruta de Comunidad no disponible”: la Web ya
+  solicitaba `/community/achievements`, pero el backend PHP público no tenía
+  las tablas ni las rutas de logros.
+- Solución: se añadieron migraciones y endpoints PHP para listar logros,
+  reaccionar a ellos y gestionar la preferencia de avisos de felicitaciones,
+  además de registrar hitos de puntos y PR al sincronizar progreso.
+- Publicación IONOS: preflight SFTP correcto; transferidos `schema.sql` y
+  `src/Community.php`; health posterior `200`.
+- Verificaciones: CORS preflight desde `https://app.akhyles.com` devuelve
+  `204`; una pestaña nueva de la Web carga Comunidad > Logros sin el error.
+- Nota: PHP no está instalado en el entorno local, por lo que la validación de
+  sintaxis se hizo mediante el arranque y health de la API pública en IONOS.
+
+### Procedimientos de publicación reproducibles — 16 de septiembre de 2026
+
+- Se prepararon dos prompts operativos para futuras actualizaciones: uno para
+  publicar Web + API como una unidad verificable y otro para generar, validar y
+  enviar nuevas versiones Android a Google Play Console.
+- Regla incorporada: ninguna función Web que dependa de una ruta nueva se da por
+  publicada hasta comprobar que la ruta equivalente existe en el backend
+  público, que la migración se ejecuta y que una prueba autenticada la valida.
+- Regla incorporada para Play: no reutilizar `versionCode`, verificar firma,
+  AAB, compatibilidad, advertencias y estado de revisión antes de enviar.
+- Estado actual registrado: Web y API pública actualizadas; Android `1.0.14`
+  / `versionCode 16` enviado a revisión en prueba cerrada Alpha.
+
+### Corrección de logros retroactivos — 16 de septiembre de 2026
+
+- Causa: los estados antiguos podían conservar `achievements: []`; la pantalla
+  lo trataba como una lista definitiva y no reconstruía los logros desde el
+  historial de entrenamientos.
+- Solución local: `StoreProvider` reconstruye los logros derivados durante la
+  hidratación, sin duplicarlos. Un historial anterior con una sesión recibe
+  ahora `first-workout` / «Primer paso» automáticamente.
+- Solución API: se añadió compatibilidad con `/me/notification-preferences`,
+  que era la ruta que utilizaba el perfil para cargar y guardar los avisos de
+  felicitaciones.
+- Pruebas: typecheck correcto; pruebas de logros personales correctas (incluida
+  reconstrucción de historial antiguo); `git diff --check` sin errores.
+- Publicación: API PHP y migraciones transferidas por SFTP a IONOS con
+  preflight correcto; health API `200`. Web reexportada y publicada con el
+  bundle `entry-f68a6887b23b4d64177c3d5df8ff0214.js`; Web y API responden `200`.
+- Android: la corrección queda preparada en el código, pero no se ha generado
+  otra subida porque `1.0.14` / `versionCode 16` ya está en revisión en Play;
+  requerirá una nueva versión y `versionCode` superior.
+
+### Perfil personal de logros y rareza comunitaria — 16 de septiembre de 2026
+
+- Se separó definitivamente la colección personal de los logros sociales. El
+  perfil dispone de «Ver todos mis logros» y muestra toda la colección local,
+  incluso sin Comunidad ni conexión; la Comunidad solo publica actividad si la
+  persona decide compartirla.
+- La sincronización de logros es idempotente y retroactiva: reconstruye los
+  logros desde el historial local y los identifica por una definición estable,
+  evitando que se dupliquen al volver a abrir o sincronizar la app.
+- Se implementaron tiers dinámicos en API: común (verde), poco común (turquesa),
+  raro (azul), épico (morado) y legendario (dorado). Hasta alcanzar una muestra
+  de 100 cuentas, se presentan como provisionales; los cálculos se almacenan y
+  se actualizan como máximo una vez al día. En los perfiles, los más exclusivos
+  aparecen primero.
+- La privacidad de logros ya no depende de la de entrenamientos: «Nadie», «Mis
+  amigos» o «Todos». El feed respeta esa regla, incluidos los logros de amigos
+  mutuos, y las felicitaciones solo funcionan cuando el logro es visible.
+- Migración compatible aplicada en IONOS: añade `achievements_visibility`,
+  conserva las preferencias públicas existentes y añade índices/tabla de
+  rarezas. No se modificaron ni eliminaron datos de usuarios.
+- Verificaciones antes de publicar: sintaxis PHP correcta con el runtime local;
+  `npm run typecheck`, pruebas (135 correctas, 2 omitidas), comprobación de
+  secretos y `git diff --check` correctos. Lint sin errores; mantiene avisos
+  previos no bloqueantes de dependencias de hooks y estilo de arrays.
+- Publicación: API y Web transferidas por SFTP tras preflight correcto. Health
+  de `https://api.akhyles.com/community/health` devuelve `200`; Web pública
+  devuelve `200` y carga `entry-7b4861a0c11ab0f7dc64e360431cc892.js`.
+- Android: el código queda listo para la siguiente entrega, pero no se crea una
+  revisión competidora de `1.0.14` / `versionCode 16`, que permanece en revisión
+  en la prueba cerrada de Play. La siguiente subida deberá usar un versionCode
+  superior.
+
+### Ajuste de tiers del mapa corporal — 16 de septiembre de 2026
+
+- Se sustituyó «Semidiós» por `Greek God` en el rango de 900 A-Points. El
+  rango anterior de 800 pasa a «Mítico», evitando dos tiers con el mismo nombre.
+- Los hitos sociales guardados como `points-900` se traducen ahora al mismo
+  nombre que el mapa corporal, por lo que Comunidad, Perfil y Progreso mantienen
+  una única escala.
+- Verificado con typecheck y 7 pruebas del mapa corporal; Web publicada por
+  SFTP tras preflight correcto y comprobada con HTTP `200`.
+
+### Ranking global por ciudades — 16 de septiembre de 2026
+
+- El selector de la pestaña Global sustituye «Mi ciudad» por una lista
+  alfabética de ciudades que tienen participantes válidos en el ranking. Mantiene
+  también la opción «Toda la comunidad».
+- Cada ciudad abre su clasificación propia. Si se consulta una ciudad distinta a
+  la del perfil, la app calcula y muestra la posición estimada con los A-Points
+  actuales, pero no incorpora a la persona al ranking real: la participación
+  oficial continúa siendo exclusivamente en la ciudad configurada en su perfil.
+- API PHP: nuevo endpoint autenticado `/ranking/cities`; `/ranking` acepta el
+  parámetro `city`, agrupa ciudades sin distinguir mayúsculas ni acentos, y
+  conserva los bloqueos y los requisitos de participación.
+- Verificaciones: sintaxis PHP, typecheck y 18 pruebas correctas (2 omitidas),
+  `git diff --check` sin errores, health API `200` y Web `200`.
+- Publicación: API y Web desplegadas por SFTP con preflight. Se detectó que el
+  script SFTP no regenera el export Web por sí solo; se ejecutó explícitamente
+  `expo export --platform web --output-dir dist` antes de la transferencia final.
+  La Web pública carga el bundle `entry-b508ebc8cfaea03884188be43587d690.js`.
+
+### Integridad al cambiar gimnasio o ciudad — 16 de septiembre de 2026
+
+- Corrección aplicada: la API pública ahora persiste `gym_id` junto al nombre y
+  ciudad del perfil. Antes el cliente lo enviaba, pero el backend lo descartaba,
+  por lo que un cambio de gimnasio podía terminar agrupándose solo por texto.
+- Al escoger un gimnasio registrado, API toma como canónicos su nombre y ciudad;
+  no permite combinar un `gymId` con una ciudad o nombre manipulados. Al editar
+  manualmente el gimnasio o la ciudad, se borra esa asociación y no queda un
+  gimnasio antiguo vinculado por error.
+- El ranking «Mi gym» prioriza ahora el identificador estable del gimnasio; para
+  perfiles antiguos sin identificador conserva el agrupamiento normalizado por
+  nombre. Las ciudades mantienen agrupación sin diferencias de mayúsculas o
+  acentos.
+- La interfaz actualiza siempre la ciudad al elegir un gimnasio de los
+  resultados, evitando conservar la ciudad anterior por accidente.
+- Migración segura de `gym_id` publicada en API. Verificaciones: sintaxis PHP,
+  typecheck, 18 pruebas correctas (2 omitidas), comprobación de diff, health API
+  `200` y Web `200`. Bundle público: `entry-0169a79978ec83afa77f1dfd9dfd4c54.js`.
+
+### Rareza inicial de logros — 16 de septiembre de 2026
+
+- Se retiró el tier y el texto «Provisional · Muestra en crecimiento». Mientras
+  la base estadística no alcanza 100 cuentas elegibles, cada logro recibe una
+  rareza inicial razonada por su dificultad: primeros hitos comunes, constancia
+  y PR acumulados poco comunes/raros, y grandes hitos épicos o legendarios.
+- La regla es idéntica en cliente y API, incluidos los logros locales sin
+  conexión. Cuando haya muestra sólida, el porcentaje real vuelve a gobernar el
+  tier y se muestra junto a su etiqueta.
+- Verificación: sintaxis PHP, typecheck y 9 pruebas correctas. API `200` y Web
+  `200` tras el despliegue; bundle `entry-37f54f3eecb4c6729217d3d791510bda.js`.
+
+### Recurso visual de portada — 16 de septiembre de 2026
+
+- Se añadió `assets/web/akhyles-hero-statue-v1.png` como recurso de portada:
+  estatua clásica en gris, con fondo oscuro de verde bosque y salvia y espacio
+  seguro para el titular en el lado izquierdo.
+- La imagen original de Descargas no se ha modificado. La versión de Akhyles se
+  mantiene como archivo independiente y se documenta como hero principal para
+  la siguiente actualización de la Web; la imagen previa de maquinaria queda
+  disponible como alternativa.
+
+### Emblemas de logros — 16 de septiembre de 2026
+
+- Se crea `assets/achievements/` con emblemas transparentes de oro, azul marino y acento turquesa: Primer paso, marca personal, constancia, ascenso de tier y progreso equilibrado.
+- Atlas queda reservado al PR de press vertical; no se fuerza la referencia en ejercicios donde no encaja.
+- Un resolvedor central asigna el mismo emblema a los logros locales y a los de Comunidad. Los hitos repetibles reciben una placa de cifra legible, sin duplicar imágenes ni incrustar texto.
+- La colección personal y el feed de Comunidad muestran ya estos emblemas.
+
+### Mapa corporal adaptable — 16 de septiembre de 2026
+
+- En anchos inferiores a 620 px el mapa muestra una anatomía cada vez con el selector Frontal/Posterior. Antes mantenía dos figuras hasta 340 px y las comprimía en la mayoría de móviles.
+- La escala móvil deja de intentar encajar los once tiers, sus nombres y rangos en una sola fila: ahora es una franja limpia de rojo a morado, con Base y Greek God como extremos. Al seleccionar un músculo se mantiene el tier y la puntuación exactos.
+- Se suavizaron los degradados y contornos de los músculos para eliminar el aspecto de zonas cortadas o manchadas, sin alterar el espectro, las puntuaciones ni los tiers.
+- Verificación: `npm.cmd run typecheck` y 136 pruebas activas correctas (2 omitidas).
+
+### Buscar y añadir amistades desde Comunidad — 16 de septiembre de 2026
+
+- Se expone la pestaña `Personas` directamente en Comunidad. Las llamadas “Encontrar personas” del ranking abren esa pestaña en vez de desviar al perfil local.
+- La búsqueda mantiene el @ como vía principal y los resultados incluyen `Seguir` o `Conectar` en la propia lista; ya no hace falta abrir cada perfil para completar la acción. El perfil sigue disponible al tocar la fila.
+- Se corrigió la API PHP de producción: ahora incluye `/profiles?q=` y `/connections`, rutas que el cliente ya usaba y que antes respondían “Ruta de Comunidad no disponible”. También se corrigió la consulta de “siguiendo” para devolver realmente los perfiles seguidos.
+- La API Node acepta búsqueda por @ o nombre como mejora equivalente. Verificación local: typecheck y 136 pruebas activas correctas; la sintaxis PHP queda pendiente de validación en el servidor porque PHP no está instalado en este equipo.
+
+### Auditoría de entrega Web + API IONOS — 16 de septiembre de 2026 — 1.0.14
+
+- No se publicó ningún destino. La regla de entrega atómica bloqueó correctamente la Web antes de generar o transferir un export: la Web actual consume rutas que no están implementadas en `server-php/src/Community.php`.
+- Rutas detectadas sin paridad PHP completa: catálogo y sugerencias de marcas de máquina (`/machine-brands`), propuestas de ejercicios (`/exercise-proposals`), perfiles/reseñas profesionales (`/profiles/{id}/trainer`, `/profiles/{id}/reviews`, `/me/trainer-profile`) y parte de la gestión avanzada de colaboración (`/coaching/progress/me`, consentimiento y rutina por relación). Publicar la Web con esas llamadas habría dejado funciones en error o “Ruta de Comunidad no disponible”.
+- Sí se verificó que la corrección de amistades tiene su base PHP: `/profiles?q=`, `/connections` y la consulta de `following` fueron añadidas localmente, con filtros de bloqueo y perfil público. No se transfirieron por la paridad global incompleta.
+- Verificaciones locales: `npm.cmd run check` correcto (typecheck, 136 pruebas activas correctas, secreto limpio); lint sin errores y 5 avisos heredados. `git diff --check` correcto. PHP no está instalado en este equipo, por lo que no fue posible ejecutar `php -l`.
+- Preflight SFTP de solo lectura correcto para API y Web, con credencial y host key verificadas por el script. API pública `https://api.akhyles.com/community/health`: HTTP 200, `{"service":"akhyles-community","ok":true,"identity":"akhyles-account"}`. Web pública: HTTP 200. Preflight CORS `OPTIONS /community/profiles?q=test` desde `https://app.akhyles.com`: HTTP 204 y `Access-Control-Allow-Origin: https://app.akhyles.com`.
+- Pendiente antes de una publicación conjunta: completar o retirar las llamadas Web sin backend PHP, añadir sus migraciones a `schema.sql`, validar sintaxis PHP y repetir export de producción, transferencia API, health/CORS/rutas autenticadas y transferencia Web con `index.html` al final.
+
+### Paridad PHP ampliada antes de publicación — 16 de septiembre de 2026
+
+- Se añadieron migraciones automáticas y equivalentes en `schema.sql` para catálogo de marcas por gimnasio, propuestas de ejercicios, perfiles profesionales y reseñas verificadas.
+- Se implementaron sus rutas PHP: `GET/POST /machine-brands`, `POST /exercise-proposals`, `PUT /me/trainer-profile`, `GET /profiles/{id}/trainer` y `GET/PUT /profiles/{id}/reviews`, con límites de datos, visibilidad de perfil profesional y escritura restringida al usuario autenticado.
+- Verificación posterior: typecheck y 136 pruebas activas correctas; `git diff --check` correcto. PHP sigue sin estar instalado localmente, por lo que `php -l` y la prueba de estas rutas con un servidor local quedan pendientes. No se realizó despliegue mientras persistan rutas avanzadas de colaboración sin paridad PHP completa.
+
+### Entrega conjunta Web + API IONOS — 16 de septiembre de 2026, 17:37 CEST — 1.0.14
+
+- Se completó la paridad de las funciones de Comunidad usadas por la Web antes de publicar: marcas de máquina, propuestas de ejercicios, perfil profesional, reseñas, consentimiento explícito de estadísticas de progreso y actualización agregada de progreso para colaboraciones activas.
+- Se añadieron a `schema.sql` las tablas `community_machine_brands`, `community_exercise_proposals`, `community_trainer_profiles`, `community_trainer_reviews`, `community_coaching_stats_consent` y `community_coaching_progress`. Las rutas también crean las tablas de colaboración de forma segura al primer uso para instalaciones existentes. Las marcas sin gimnasio usan una clave vacía estable, evitando claves primarias nulas.
+- Se endureció la privacidad: una reseña profesional solo la puede publicar un cliente con una colaboración activa con ese entrenador; las estadísticas solo se distribuyen a entrenadores activos con consentimiento explícito.
+- Verificaciones locales correctas: `npm.cmd run typecheck`, 136 pruebas activas correctas (2 omitidas) y `git diff --check`. PHP no está instalado en este equipo, por lo que no fue posible ejecutar `php -l`; la carga de producción y el healthcheck posterior confirmaron que el archivo PHP publicado arranca sin error.
+- API publicada primero por el procedimiento SFTP autorizado, tras preflight correcto de credencial, host key, usuario y destino. Se transfirieron exclusivamente `schema.sql` y `src/Community.php`. `https://api.akhyles.com/community/health` devolvió HTTP 200; `OPTIONS /community/machine-brands` desde `https://app.akhyles.com` devolvió 204 con CORS correcto; las rutas autenticadas probadas sin token devolvieron 401 controlado.
+- Web exportada con `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com` y `EXPO_PUBLIC_COMMUNITY_URL=https://api.akhyles.com/community`. El preflight SFTP de Web fue correcto y se transfirió `dist`, dejando `index.html` para el final. Web pública HTTP 200 y bundle servido verificado contra el export: `entry-da007568ae41206e1759c0fd17fe9b15.js` (1.920.120 bytes).
+- Prueba en navegador real: Entrenamiento y Comunidad cargan; Ranking de Amigos muestra la clasificación y no aparece «Ruta de Comunidad no disponible». No se detectaron errores de consola. El resto de secciones se mantiene bajo las mismas rutas y el bundle verificado.
+- Estado final: API y Web publicadas conjuntamente y operativas. No se modificó Android ni Google Play en esta entrega.
+- Actualización posterior: Android 1.0.15 / versionCode 17 fue enviada a Prueba cerrada Alpha. Envío 8, registrado el 16 de septiembre de 2026 a las 17:50 CEST, aparece en Play como «En revisión». AAB SHA-256 `734dfaec86b9eb23d76486436bc32e8cea5c354d81fc2cc7ed9e740ff7b3052c`; firma SHA-1 `040ea0afd797f22730198cdb4295c4763ab86ab7`. Advertencia pendiente no bloqueante: falta desofuscación R8/ProGuard, no aplicable a esta build.
+- Corrección de procedimiento: el script de SFTP ordenaba por nombre los dos archivos finales y podía transferir `metadata.json` después de `index.html`. Se corrigió para dejar `metadata.json` penúltimo e `index.html` estrictamente último; se repitió el despliegue Web con preflight correcto y verificación HTTP 200.
+
+### Entrega conjunta Web + API IONOS — 17 de septiembre de 2026, 11:52 CEST — 1.0.15
+
+- Alcance publicado: ajustes de entrenamiento y calendario, progreso semanal, sustitución de ejercicio limitada a la sesión activa, progresión por primera serie (objetivo 3 %, tope 5 %), peso por lado, incremento de carga editable y los recursos de Comunidad, logros, notificaciones y marcas de máquina usados por la Web.
+- API: se publicaron exclusivamente `schema.sql` y `src/Community.php`, tras comprobar la paridad de los endpoints de la Web. `schema.sql` incluye las tablas de logros, preferencias de notificaciones, marcas, propuestas, perfiles/reseñas profesionales y colaboración; la migración de avatar ejecutada por el servicio amplía `community_profiles.avatar` a `MEDIUMTEXT` de forma compatible con datos existentes.
+- Verificaciones locales: `npm.cmd run check` ejecutado sin errores (typecheck, tests y comprobación de secretos; lint con 5 avisos heredados), `git diff --check` correcto y `php -l` correcto para `server-php/src/Community.php` y `server-php/bootstrap.php` mediante `artifacts/tools/php/php.exe`.
+- SFTP: preflight de lectura correcto en API y Web, con host `home508084090.1and1-data.host`, clave de host verificada, usuarios y destinos privados esperados. La API se publicó antes de la Web. El export Web se generó con `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com` y `EXPO_PUBLIC_COMMUNITY_URL=https://api.akhyles.com/community`; SFTP transfirió recursos y JavaScript, después `metadata.json` y finalmente `index.html`.
+- Bundle publicado: `_expo/static/js/web/entry-39b255e1b725f447390d93a950d119bb.js`, SHA-256 local `E34AF5A9B5DC007EF8856385C26AA6C4FBA3A1A4329318FC82CCFB49D45483D8`. El bundle servido por `https://app.akhyles.com/` coincide exactamente con el export local.
+- Producción: `GET https://api.akhyles.com/community/health` devolvió 200; CORS desde `https://app.akhyles.com` correcto; OPTIONS de logros, preferencias de notificaciones, marcas y rarezas devolvieron 204; GET no autenticado de rutas protegidas devolvió 401 controlado, sin 404/503. No apareció «Ruta de Comunidad no disponible».
+- Navegador: Web abierta en una pestaña nueva. Entrenamiento, Comunidad/Ranking, Logros, Perfil, Cuenta y Notificaciones cargaron correctamente; Ranking y feed de Logros obtuvieron datos reales de la API. Estado final: Web y API publicadas y verificadas conjuntamente.
+
+### Preparación Android en Google Play — 17 de septiembre de 2026, 12:05 CEST — 1.0.16 / versionCode 18
+
+- Se incrementaron coordinadamente `app.config.ts`, `package.json`, `package-lock.json` y la documentación desde 1.0.15 / 17 a 1.0.16 / 18. El versionCode 18 no estaba usado.
+- Verificaciones previas correctas: `npm.cmd run typecheck`, `npm.cmd run check`, `git diff --check`, salud pública de API, CORS/rutas autenticadas controladas y comprobación de secretos. Lint mantiene 5 avisos heredados, sin errores.
+- Build: `scripts/build-android.ps1` con AAB, firma existente y URLs `https://api.akhyles.com` y `https://api.akhyles.com/community`. `scripts/verify-android.mjs` correcto; paquete, versión, versionCode, certificado y permisos validados.
+- Artefacto: `artifacts/android/akhyles-release.aab`, 64.286.883 bytes, SHA-256 `DCC7C70AFE0F9A42B0046B1F09BDB379A447FB518BE84DAF04C46952DF4651C4`; certificado SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Inspección del AAB: configuración pública correcta, sin localhost/secretos, cleartext desactivado, backup desactivado y sin permisos sensibles no requeridos.
+- Play Console: aplicación Akhyles y pista Prueba cerrada Alpha confirmadas. Se creó la versión 9, se subió únicamente el AAB nuevo y Play reconoce `18 (1.0.16)`. Nombre: `Perfil y comunidad 1.0.16`; notas en es-ES solo de cambios incluidos.
+- Revisión Play: 0 errores bloqueantes; advertencia no bloqueante por falta de archivo de desofuscación (no aplicable al no usar R8/ProGuard). Compatibilidad: 8.786 teléfonos y 4.692 tablets; descarga nueva estimada 41,2 MB.
+- Resultado: tras la confirmación explícita del usuario, se pulsó “Enviar cambios a revisión”. Play registró el envío 9 el 17 de septiembre de 2026 a las 12:09 CEST y muestra **En revisión** en Prueba cerrada Alpha. Producción no iniciada; queda pendiente la revisión de Google.
+
+### Corrección de sincronización Web/API — 17 de septiembre de 2026, 12:17 CEST
+
+- Diagnóstico reproducido en la Web: el estado mostraba “Guardado local; sincronización pendiente” y el error oculto “La copia contiene campos de dispositivo o sesión”.
+- Causa: el cliente ya enviaba `achievements` dentro de `cloudState`, pero `server-php/src/Accounts.php` no lo contemplaba en la lista de campos permitidos de `/sync`; cada PUT devolvía HTTP 400.
+- Solución: se añadió `achievements` a la allowlist y se incorporó validación de formato, límites y categorías. Se actualizó `scripts/deploy-ionos.ps1` para permitir y transferir `src/Accounts.php` junto con `schema.sql` y `src/Community.php`.
+- Verificaciones: PHP sin errores de sintaxis, `npm.cmd run check` correcto (136 pruebas, 2 omitidas, 5 avisos lint heredados, secretos limpios), preflight SFTP correcto y health API HTTP 200.
+- Despliegue: API publicada mediante el procedimiento autorizado; `Accounts.php` transferido correctamente.
+- Prueba real: “Sincronizar ahora” en `https://app.akhyles.com/account` aceptó la copia y mostró “Guardado en el dispositivo y en la nube”, última copia confirmada 17/09/2026 12:16:10. Los pesos por lado quedan incluidos en el historial sincronizado.
+
+### Corrección Android de SQLITE_FULL — 17 de septiembre de 2026, 12:29 CEST — 1.0.17 / versionCode 19
+
+- Causa confirmada: AsyncStorage Android usa SQLite con límite compilado de 6 MB; la aplicación guarda el historial completo y copias de recuperación de conflictos, por lo que podía devolver `database or disk is full (code 13 SQLITE_FULL)`.
+- Solución: `android/gradle.properties` fija `AsyncStorage_db_size_in_MB=50`; `src/storage/repository.ts` conserva solo las cuatro copias de recuperación más recientes antes de crear otra, sin borrar la copia principal ni el historial.
+- Verificaciones: typecheck correcto, 50 pruebas de lógica correctas, PHP sin errores de sintaxis y `git diff --check` correcto. Build Android correcta con firma existente y URLs públicas de producción.
+- AAB: `artifacts/android/akhyles-release.aab`, 64.287.147 bytes, SHA-256 `09AE440F10A3AA6784688BC9790A747C56D55ED97A307368936C4A81B6992B67`; SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Play Console: se creó la versión 10 en Prueba cerrada Alpha y se subió únicamente el AAB nuevo. Play reconoce `19 (1.0.17)`, con 0 errores bloqueantes y una advertencia no bloqueante de desofuscación.
+- Estado final: borrador guardado en revisión, **no enviado todavía**. Pendiente confirmación explícita del usuario para “Enviar cambios a revisión”. Producción no iniciada.
+
+### Envío Android corregido a revisión — 17 de septiembre de 2026, 12:33 CEST
+
+- Play Console registró el **envío 10** de `1.0.17` / `versionCode 19` en **Prueba cerrada Alpha** con estado **En revisión**.
+- El envío 9 (`1.0.16`) quedó **Cancelado** porque el usuario confirmó reiniciar la revisión para incluir la corrección de `SQLITE_FULL`.
+- AAB enviado: `artifacts/android/akhyles-release.aab`; SHA-256 `09AE440F10A3AA6784688BC9790A747C56D55ED97A307368936C4A81B6992B67`; SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Advertencia no bloqueante: no se adjuntó archivo de desofuscación; la build no usa R8/ProGuard. Producción no iniciada; queda pendiente la revisión de Google.
+
+### Recuperación cloud y limpieza de `CursorWindow` — 17 de septiembre de 2026, 12:50 CEST — 1.0.18 / versionCode 20
+
+- Solución: las recuperaciones se leen y restauran desde el historial cifrado de `/sync/versions`, que conserva hasta 20 revisiones en la nube; ya no se guardan estados completos en AsyncStorage.
+- Migración: al iniciar la app se eliminan únicamente las claves legacy `akhyles:archive:*`, sin leer sus valores y sin tocar el estado principal, entrenamientos, pesos ni logros. Esto evita que `CursorWindow` falle al intentar leer una fila antigua demasiado grande.
+- Verificaciones: `npm.cmd run check` correcto (136 pruebas activas, 2 omitidas, 5 avisos lint heredados), `git diff --check` correcto y `verify-android.mjs` correcto con APK y AAB. PHP no está instalado localmente.
+- AAB: `artifacts/android/akhyles-release.aab`, 64.287.894 bytes, SHA-256 `7702ADF256E4C1405C9035C8AE5431BFD89F7D46F8DD6910EA5B6C70AD34C50C`; SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Play Console: borrador de versión 11 en **Prueba cerrada Alpha**, reconocido como `20 (1.0.18)`. Revisión técnica con 0 errores bloqueantes; advertencia no bloqueante de desofuscación. Aún no enviado a revisión y Producción no iniciada.
+
+### Envío de recuperación cloud a revisión — 17 de septiembre de 2026, 12:51 CEST
+
+- Play Console registró el **envío 11** de `1.0.18` / `versionCode 20` en **Prueba cerrada Alpha** con estado **En revisión**.
+- El envío 10 (`1.0.17`) quedó **Cancelado** al reiniciar la revisión para incluir esta corrección. Producción no iniciada.
+- La advertencia no bloqueante sigue siendo la ausencia de archivo de desofuscación; la build no usa R8/ProGuard.
+- Tarea futura, no incluida en esta entrega: valorar la generación y subida del archivo de desofuscación R8/ProGuard para facilitar el análisis de errores y ANR en próximas versiones.

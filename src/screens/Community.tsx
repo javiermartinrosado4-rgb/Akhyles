@@ -6,22 +6,26 @@ import { Button, Card, Field, Heading, Icon, Notice, Page, Pill, Row, Txt } from
 import { useStore } from "../state/Store";
 import { useCommunity } from "../state/Community";
 import { useAccount } from "../state/Account";
-import { AchievementPage, CoachingRelationship, CommunityAchievement, CommunityGym, CommunityUser, PublishedProgress } from "../services/community";
+import { AchievementPage, CoachingRelationship, CommunityAchievement, CommunityGym, CommunityUser, PublishedProgress, TrainingVisibility } from "../services/community";
 import { levelName } from "../data/options";
 import { useTheme } from "../theme";
 import { GoogleSignIn } from "../components/GoogleSignIn";
-import { Avatar, AvatarSelect } from "../components/Avatar";
+import { Avatar, AvatarPhotoPicker } from "../components/Avatar";
 import { exportProgress, exportRoutine } from "../logic/sharing";
 import { SharedProgressView } from "../components/SharedProgressView";
 import { CommunityPrivacyToggle } from "../components/CommunityPrivacyToggle";
+import { TrainingSharingSelect } from "../components/TrainingSharingSelect";
 import { RankingScope } from "../logic/leaderboard";
 import { CommunityRanking } from "../components/CommunityRanking";
 import { CommunityTabs } from "../components/CommunityTabs";
 import { ComparisonCard } from "../components/ComparisonCard";
 import { TrainerProfileCard } from "../components/TrainerProfileCard";
 import { GoogleGymPicker } from "../components/GoogleGymPicker";
-import { pointsTier } from "../logic/achievements";
+import { achievementPresentation } from "../logic/achievementCatalog";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AchievementRarity, rarityOrder } from "../components/AchievementRarity";
+import { AchievementBadge } from "../components/AchievementBadge";
+import { CommunityPeople } from "../components/CommunityPeople";
 
 export default function Community() {
   const { user } = useCommunity();
@@ -48,6 +52,7 @@ function CommunityScreen() {
   const [city, setCity] = useState("");
   const [settings, setSettings] = useState(false);
   const [rankingScope, setRankingScope] = useState<RankingScope>("friends");
+  const [rankingCity, setRankingCity] = useState("");
   const [tab, setTab] = useState<"ranking" | "people" | "profile" | "all" | "following">("ranking");
   const [profileOrigin, setProfileOrigin] = useState<"ranking" | "people" | "all" | "following">("people");
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -57,6 +62,7 @@ function CommunityScreen() {
   const [coaching, setCoaching] = useState<CoachingRelationship[]>([]);
   const [sharedProgress, setSharedProgress] = useState<PublishedProgress | null>(null);
   const [achievements, setAchievements] = useState<CommunityAchievement[]>([]);
+  const [achievementFilter, setAchievementFilter] = useState<"all" | "strength" | "consistency" | "balance">("all");
   const [next, setNext] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -75,8 +81,12 @@ function CommunityScreen() {
   const generation = useRef(0);
   const owner = profileId ?? user?.id;
   const mine = owner === user?.id;
-  const queryPath = `/achievements?${tab === "profile" ? `user=${owner}` : tab === "following" ? "following=1" : ""}`;
+  const queryPath = tab === "profile" ? `/profiles/${owner}/achievements` : `/achievement-feed?scope=${tab === "following" ? "following" : "public"}`;
   const activePost = achievements.find(item => item.id === selected);
+  const visibleAchievements = achievements.filter(achievement => {
+    const kind = achievement.kind ?? achievement.type;
+    return achievementFilter === "all" || achievementFilter === "strength" ? achievementFilter === "all" || ["tier", "personal_best"].includes(kind) : achievementFilter === "consistency" ? ["sessions", "perfect_week", "consistency"].includes(kind) : ["coverage", "reliability"].includes(kind);
+  }).sort((a, b) => tab === "profile" ? rarityOrder(a.rarity, a.definitionId) - rarityOrder(b.rarity, b.definitionId) || b.created.localeCompare(a.created) : b.created.localeCompare(a.created));
 
   useEffect(() => {
     const query = trainingPlace.trim();
@@ -139,25 +149,43 @@ function CommunityScreen() {
     await request(`/achievements/${achievement.id}/like`, achievement.liked ? "DELETE" : "PUT");
     setAchievements(list => list.map(item => item.id === achievement.id ? { ...item, liked: !item.liked, likes: item.likes + (item.liked ? -1 : 1) } : item));
   });
-  const updatePrivacy = (routinePublic: boolean, progressPublic: boolean, change: Partial<Pick<CommunityUser, "detailsPublic" | "bodyWeightPublic" | "rankingPublic" | "achievementsPublic" | "progressVisibility">> = {}) => run(async () => {
-    const sharing = { detailsPublic: !!profile?.detailsPublic, bodyWeightPublic: !!profile?.bodyWeightPublic, rankingPublic: !!profile?.rankingPublic, achievementsPublic: !!profile?.achievementsPublic, ...change };
-    if (routinePublic) await request("/routines/me", "PUT", exportRoutine(state.routine, state.preferences));
-    if (progressPublic || sharing.rankingPublic) await request("/progress/me", "PUT", exportProgress(state, progressPublic && sharing.detailsPublic, progressPublic && sharing.bodyWeightPublic));
-    setProfile(await request<CommunityUser>("/me/privacy", "PATCH", { routinePublic, progressPublic, progressVisibility: progressPublic ? change.progressVisibility ?? profile?.progressVisibility ?? "friends" : "private", ...sharing }));
+  const updateTrainingVisibility = (visibility: TrainingVisibility) => run(async () => {
+    const updated = await request<CommunityUser>("/me/privacy", "PATCH", { trainingVisibility: visibility });
+    if (visibility !== "private") {
+      await request("/routines/me", "PUT", exportRoutine(state.routine, state.preferences));
+      await request("/progress/me", "PUT", exportProgress(state, true, true));
+    }
+    setProfile(updated);
     setSharedProgress(null);
     await refresh();
     setMessage("Privacidad de Comunidad actualizada.");
+  });
+  const updateAchievementsVisibility = (visibility: TrainingVisibility) => run(async () => {
+    const updated = await request<CommunityUser>("/me/achievement-privacy", "PATCH", { visibility });
+    setProfile(updated); await refresh();
+    setMessage(visibility === "private" ? "Tus logros siguen siendo tuyos y ya no se mostrarán a otras personas." : "Tus logros podrán aparecer en perfiles y Comunidad según tu privacidad.");
   });
   const loadSharedProgress = () => run(async () => {
     if (!profile) return;
     setSharedProgress(await request<PublishedProgress>(`/profiles/${profile.id}/progress`));
   });
-  const postDetails = (post: CommunityAchievement) => <>
-    <Button label={`@${post.handle}`} variant="ghost" compact onPress={() => openProfile(post.userId)} />
-    <Txt weight="600">{post.type === "tier" ? `Nuevo tier · ${pointsTier({ base: 0, progress: 100, athlete: 200, advanced: 350, elite: 500, titan: 650, "greek-god": 800, olympian: 1000 }[post.tierId ?? "base"] ?? 0).name}` : `Nueva marca personal · ${post.exerciseName}`}</Txt>
-    <Txt muted size={12}>{new Date(post.created).toLocaleString(locale)}</Txt>
-    <Button label={post.liked ? `Quitar felicitación · ${post.likes}` : `Felicitar · ${post.likes}`} icon="heart" variant="secondary" disabled={busy} onPress={() => void congratulate(post)} />
-  </>;
+  const postDetails = (post: CommunityAchievement) => {
+    const presentation = achievementPresentation(post);
+    const details = post.details;
+    const number = (value: number) => value.toLocaleString(locale, { maximumFractionDigits: 1 });
+    return <>
+      <Row style={{ alignItems: "flex-start" }}><AchievementBadge achievement={post} size={54} /><View style={{ flex: 1, gap: 5 }}><Txt weight="600">{presentation.title}</Txt><AchievementRarity rarity={post.rarity} definition={post.definitionId} /><Txt muted size={12}>{presentation.explanation}</Txt></View></Row>
+      {post.kind === "personal_best" && details && <Card style={{ padding: 12 }}>
+        <Txt weight="600">{number(details.load ?? details.weight ?? 0)} kg × {details.reps} repeticiones</Txt>
+        <Txt muted size={12}>1RM estimado: {number(details.maximum ?? 0)} kg · antes: {number(details.beforeMaximum ?? 0)} kg{details.percent !== undefined ? ` · +${number(details.percent)}%` : ""}</Txt>
+      </Card>}
+      {post.kind === "tier" && details && <Txt size={13}>A-Points: {number(details.beforePoints ?? 0)} → {number(details.afterPoints ?? 0)}{details.gainedPoints !== undefined ? ` · +${number(details.gainedPoints)}` : ""}</Txt>}
+      {post.kind === "perfect_week" && details && <Txt size={13}>Semana completa: {details.completed}/{details.scheduled} sesiones.</Txt>}
+      {post.kind === "consistency" && details && <Txt size={13}>Fuerza comparable: {details.strengthPercent !== undefined ? `${details.strengthPercent >= 0 ? "+" : ""}${number(details.strengthPercent)}%` : "en progreso"}{details.compared ? ` · ${details.compared} ejercicios` : ""}</Txt>}
+      <Row style={{ justifyContent: "space-between", alignItems: "center" }}><Button label={`@${post.handle}`} variant="ghost" compact onPress={() => openProfile(post.userId)} /><Txt muted size={12}>{new Date(post.created).toLocaleString(locale)}</Txt></Row>
+      <Button label={post.liked ? `Quitar felicitación · ${post.likes}` : `Felicitar · ${post.likes}`} icon="heart" variant="secondary" disabled={busy} onPress={() => void congratulate(post)} />
+    </>;
+  };
 
   return <Page>
     <Heading eyebrow="Comunidad" title="Crecer juntos" subtitle="Tu gente. Tus marcas. El próximo puesto." />
@@ -193,12 +221,14 @@ function CommunityScreen() {
     </> : <>
       {tab !== "profile" && <CommunityTabs value={tab === "all" ? "following" : tab} options={[
         { value: "ranking", label: "Ranking", icon: "award" },
+        { value: "people", label: "Personas", icon: "users" },
         { value: "following", label: "Logros", icon: "star" },
       ]} onChange={value => { setError(""); setMessage(""); setTab(value); }} />}
-      {tab === "ranking" && <CommunityRanking scope={rankingScope} onScopeChange={setRankingScope} openProfile={openProfile} findPeople={() => router.replace("/profile")} editLocation={() => router.replace("/profile")} />}
+      {tab === "ranking" && <CommunityRanking scope={rankingScope} onScopeChange={scope => { setRankingScope(scope); if (scope !== "city") setRankingCity(""); }} city={rankingCity} onCityChange={city => { setRankingCity(city); setRankingScope("city"); }} openProfile={openProfile} findPeople={() => setTab("people")} editLocation={() => router.replace("/profile")} />}
+      {tab === "people" && <CommunityPeople openProfile={openProfile} />}
       {(tab === "all" || tab === "following") && <CommunityTabs value={tab} options={[{ value: "following", label: "Siguiendo" }, { value: "all", label: "Descubrir" }]} onChange={setTab} />}
       {(tab === "profile" || tab === "all" || tab === "following") && <>
-      {tab === "profile" && !mine && <Button label={profileOrigin === "ranking" ? "Volver al ranking" : "Volver a logros"} icon="arrow-left" variant="ghost" compact onPress={() => setTab(profileOrigin === "ranking" ? "ranking" : "following")} />}
+      {tab === "profile" && !mine && <Button label={profileOrigin === "ranking" ? "Volver al ranking" : profileOrigin === "people" ? "Volver a personas" : "Volver a logros"} icon="arrow-left" variant="ghost" compact onPress={() => setTab(profileOrigin === "ranking" ? "ranking" : profileOrigin === "people" ? "people" : "following")} />}
       {tab === "profile" && profile && <Card>
         <Row>
           <Avatar id={profile.avatar} />
@@ -232,13 +262,13 @@ function CommunityScreen() {
           <Field label="Gimnasio" value={trainingPlace} onChangeText={setTrainingPlace} placeholder="Busca tu gimnasio" maxLength={80} />
           <GoogleGymPicker value={trainingPlace} language={locale.startsWith("en") ? "en" : "es"} onPick={gym => { setTrainingPlace(gym.name); setCity(gym.city); setGymMatches([]); setMessage(gym.address ? `Gimnasio seleccionado: ${gym.address}` : "Gimnasio seleccionado desde Google Maps."); }} />
           {!!gymMatches.length && <Card style={{ padding: 0, gap: 0 }}>
-            {gymMatches.map(gym => <Pressable key={gym.id} accessibilityRole="button" accessibilityLabel={t("Elegir {name}", { name: `${gym.name}${gym.city ? `, ${gym.city}` : ""}` })} onPress={() => { setTrainingPlace(gym.name); if (!city && gym.city) setCity(gym.city); setGymMatches([]); }} style={({ pressed }) => ({ padding: 12, backgroundColor: pressed ? colors.soft : colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border })}>
+            {gymMatches.map(gym => <Pressable key={gym.id} accessibilityRole="button" accessibilityLabel={t("Elegir {name}", { name: `${gym.name}${gym.city ? `, ${gym.city}` : ""}` })} onPress={() => { setTrainingPlace(gym.name); if (gym.city) setCity(gym.city); setGymMatches([]); }} style={({ pressed }) => ({ padding: 12, backgroundColor: pressed ? colors.soft : colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border })}>
               <Txt weight="600" translate={false}>{gym.name}</Txt>{!!gym.city && <Txt muted size={12} translate={false}>{gym.city}{gym.address ? ` · ${gym.address}` : ""}</Txt>}
             </Pressable>)}
           </Card>}
           <Field label="Ciudad" value={city} onChangeText={setCity} placeholder="Ej. Madrid" maxLength={80} />
           <Txt muted size={12}>Busca y elige tu gimnasio. Si no existe, al guardarlo lo añadiremos una sola vez para que el resto pueda encontrarlo.</Txt>
-          <AvatarSelect value={avatar} onChange={setAvatar} />
+          <Row style={{ alignItems: "center", gap: 12 }}><AvatarPhotoPicker onChange={setAvatar}><Avatar id={avatar} size={60} /></AvatarPhotoPicker><Txt muted size={13}>Toca tu foto para cambiarla.</Txt></Row>
           <CommunityPrivacyToggle label="Ofrezco entrenamiento" description="Las personas podrán solicitar una colaboración contigo" value={trainerEnabled} disabled={busy} onChange={() => setTrainerEnabled(value => !value)} />
           <Txt muted size={12}>{t("Nivel actual del entrenamiento: {value1}.", { value1: t(levelName(state.profile.level)) })}</Txt>
           <Button label="Guardar perfil social" disabled={busy} onPress={() => void run(async () => {
@@ -288,13 +318,9 @@ function CommunityScreen() {
         {mine && <Button label={settings ? "Cerrar privacidad y cuenta" : "Privacidad y cuenta"} icon="settings" compact variant="ghost" onPress={() => setSettings(value => !value)} />}
         {mine && settings && <Card style={{ padding: 14 }}>
           <Txt weight="600">Tú decides qué compartes</Txt>
-          <CommunityPrivacyToggle label="Rutina" description="Visible solo para amigos mutuos" value={!!profile.routinePublic} disabled={busy} onChange={() => void updatePrivacy(!profile.routinePublic, !!profile.progressPublic)} />
-          <CommunityPrivacyToggle label="Resumen de progreso" description="Comparte tus gráficas y marcas según la visibilidad elegida abajo" value={!!profile.progressPublic} disabled={busy} onChange={() => void updatePrivacy(!!profile.routinePublic, !profile.progressPublic)} />
-          {!!profile.progressPublic && <><Txt weight="600" size={14}>Quién puede ver tu progreso</Txt><CommunityTabs value={profile.progressVisibility ?? "friends"} options={[{ value: "private", label: "Privado" }, { value: "friends", label: "Amigos" }, { value: "public", label: "Público" }]} onChange={value => void updatePrivacy(!!profile.routinePublic, true, { progressVisibility: value as "private" | "friends" | "public" })} /></>}
-          <CommunityPrivacyToggle label="Entrenamientos y gráficas" description="Fechas, ejercicios, series y cargas de hasta 180 sesiones" value={!!profile.progressPublic && !!profile.detailsPublic} disabled={busy} onChange={() => void updatePrivacy(!!profile.routinePublic, true, { detailsPublic: !(profile.progressPublic && profile.detailsPublic) })} />
-          <CommunityPrivacyToggle label="Peso corporal" description="Solo para amigos; no es necesario para participar en el ranking" value={!!profile.progressPublic && !!profile.bodyWeightPublic} disabled={busy} onChange={() => void updatePrivacy(!!profile.routinePublic, true, { bodyWeightPublic: !(profile.progressPublic && profile.bodyWeightPublic) })} />
-          <CommunityPrivacyToggle label="Participar en rankings" description="Perfil, A-Points y cobertura visibles para la comunidad" value={!!profile.rankingPublic} disabled={busy} onChange={() => void updatePrivacy(!!profile.routinePublic, !!profile.progressPublic, { rankingPublic: !profile.rankingPublic })} />
-          <CommunityPrivacyToggle label="Compartir logros" description="Publica tus nuevos tiers y marcas personales en Logros" value={!!profile.achievementsPublic} disabled={busy} onChange={() => void updatePrivacy(!!profile.routinePublic, !!profile.progressPublic, { achievementsPublic: !profile.achievementsPublic })} />
+          <TrainingSharingSelect value={profile.trainingVisibility ?? profile.progressVisibility ?? "private"} disabled={busy} onChange={value => void updateTrainingVisibility(value)} />
+          <Txt muted size={12}>Incluye rutina, mapa corporal, progreso, entrenamientos y peso corporal. Los logros y rankings se gestionan por separado.</Txt>
+          <TrainingSharingSelect kind="achievements" value={profile.achievementsVisibility ?? (profile.achievementsPublic ? "public" : "private")} disabled={busy} onChange={value => void updateAchievementsVisibility(value)} />
         </Card>}
         {mine && settings && <ComparisonCard />}
 
@@ -311,15 +337,16 @@ function CommunityScreen() {
         <Button label="Cancelar publicación" disabled={busy} compact variant="ghost" onPress={() => { setComposer(false); setCaption(""); }} />
       </Card>}
       {!sharedProgress && <><Row style={{ justifyContent: "space-between", flexWrap: "wrap" }}><Txt weight="600" size={18}>{tab === "profile" ? "Logros" : tab === "all" ? "Logros de la comunidad" : "Logros de tu gente"}</Txt><Button label="Actualizar logros" compact variant="ghost" disabled={loading} onPress={() => setRevision(r => r + 1)} /></Row>
-      {loading ? <Txt muted>Cargando logros…</Txt> : achievements.length === 0 ? <Card><Icon name="award" size={28} /><Txt weight="600">Todavía no hay logros aquí</Txt><Txt muted>{tab === "following" ? "Sigue a personas para celebrar sus avances." : "Los ascensos de tier y las marcas personales aparecerán aquí."}</Txt></Card> : achievements.map(achievement => <Card key={achievement.id}>{postDetails(achievement)}</Card>)}
+      <CommunityTabs value={achievementFilter} options={[{ value: "all", label: "Todos" }, { value: "strength", label: "Fuerza" }, { value: "consistency", label: "Constancia" }, { value: "balance", label: "Equilibrio" }]} onChange={setAchievementFilter} />
+      {loading ? <Txt muted>Cargando logros…</Txt> : achievements.length === 0 ? <Card><Icon name="award" size={28} /><Txt weight="600">Todavía no hay logros aquí</Txt><Txt muted>{tab === "following" ? "Sigue a personas para celebrar sus avances." : "Los ascensos de tier y las marcas personales aparecerán aquí."}</Txt></Card> : visibleAchievements.length === 0 ? <Card><Txt weight="600">No hay logros en esta categoría</Txt><Txt muted>Prueba otro filtro para ver el resto de avances.</Txt></Card> : visibleAchievements.map(achievement => <Card key={achievement.id}>{postDetails(achievement)}</Card>)}
       {next !== null && <Button label="Cargar más logros" disabled={busy} variant="secondary" onPress={() => void run(async () => {
         const version = generation.current;
         const page = await request<AchievementPage>(`${queryPath}&offset=${next}`);
         if (version === generation.current) { setAchievements(previous => [...previous, ...page.achievements.filter(item => !previous.some(old => old.id === item.id))]); setNext(page.next); }
       })} />}</>}
-      {tab === "profile" && mine && settings && <>
+      {tab === "profile" && mine && <>
       <Button label="Cerrar sesión de Comunidad" compact variant="ghost" disabled={busy} onPress={() => void run(logout)} />
-      <Button label="Eliminar cuenta de Comunidad" compact variant="ghost" disabled={busy} onPress={() => setConfirmAccountDeletion(true)} />
+      <Button label="Eliminar cuenta de Comunidad" compact variant="ghost" disabled={busy} onPress={() => setConfirmAccountDeletion(value => !value)} />
       {confirmAccountDeletion && <Card>
         <Txt weight="600">¿Eliminar tu cuenta de Comunidad?</Txt>
         <Txt muted>Se borrarán tu perfil social, logros, seguidores, reacciones, datos compartidos y sesión. Tu rutina e historial locales no se borran.</Txt>

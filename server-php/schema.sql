@@ -62,8 +62,9 @@ CREATE TABLE IF NOT EXISTS community_profiles (
  name VARCHAR(80) NOT NULL,
  bio VARCHAR(500) NOT NULL DEFAULT '',
  level VARCHAR(16) NOT NULL DEFAULT 'beginner',
- avatar VARCHAR(64) NOT NULL DEFAULT 'mountain',
+ avatar MEDIUMTEXT NOT NULL,
  training_place VARCHAR(120) NOT NULL DEFAULT '',
+ gym_id CHAR(32) NULL,
  city VARCHAR(120) NOT NULL DEFAULT '',
  routine_public TINYINT NOT NULL DEFAULT 0,
  progress_visibility VARCHAR(16) NOT NULL DEFAULT 'private',
@@ -71,6 +72,8 @@ CREATE TABLE IF NOT EXISTS community_profiles (
  body_weight_public TINYINT NOT NULL DEFAULT 0,
  ranking_public TINYINT NOT NULL DEFAULT 0,
  trainer_enabled TINYINT NOT NULL DEFAULT 0,
+ achievements_public TINYINT NOT NULL DEFAULT 0,
+ achievements_visibility VARCHAR(16) NOT NULL DEFAULT 'private',
  created BIGINT NOT NULL,
  FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -85,6 +88,27 @@ CREATE TABLE IF NOT EXISTS community_progress (
  payload MEDIUMTEXT NOT NULL,
  updated VARCHAR(32) NOT NULL,
  FOREIGN KEY(user_id) REFERENCES community_profiles(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_achievements (
+ id CHAR(32) PRIMARY KEY, user_id VARCHAR(64) NOT NULL, type VARCHAR(32) NOT NULL,
+ kind VARCHAR(32) NOT NULL, definition_id VARCHAR(160) NULL, tier_id VARCHAR(32) NULL, exercise_id VARCHAR(80) NULL,
+ exercise_name VARCHAR(160) NULL, details MEDIUMTEXT NOT NULL, created BIGINT NOT NULL,
+ dedupe_key VARCHAR(160) NULL, INDEX achievement_user(user_id,created), INDEX achievement_definition(definition_id),
+ UNIQUE KEY achievement_dedupe(user_id,dedupe_key), FOREIGN KEY(user_id) REFERENCES community_profiles(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_achievement_likes (
+ achievement_id CHAR(32) NOT NULL, user_id VARCHAR(64) NOT NULL, created BIGINT NOT NULL,
+ PRIMARY KEY(achievement_id,user_id), FOREIGN KEY(achievement_id) REFERENCES community_achievements(id) ON DELETE CASCADE,
+ FOREIGN KEY(user_id) REFERENCES community_profiles(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_notification_preferences (
+ user_id VARCHAR(64) PRIMARY KEY, achievement_likes TINYINT NOT NULL DEFAULT 1,
+ FOREIGN KEY(user_id) REFERENCES community_profiles(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_achievement_rarities (
+ definition_id VARCHAR(160) PRIMARY KEY, tier VARCHAR(16) NOT NULL,
+ holders INT NOT NULL, eligible INT NOT NULL, percentage DECIMAL(7,2) NULL,
+ calculated_at BIGINT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS community_samples (
  user_id VARCHAR(64) PRIMARY KEY,
@@ -170,4 +194,31 @@ CREATE TABLE IF NOT EXISTS community_coaching_routines (
  updated BIGINT NOT NULL,
  author_id VARCHAR(64) NOT NULL,
  FOREIGN KEY(coaching_id) REFERENCES community_coaching(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_machine_brands (
+ gym_id CHAR(32) NOT NULL DEFAULT '', exercise_id VARCHAR(80) NOT NULL, brand VARCHAR(60) NOT NULL,
+ uses INT NOT NULL DEFAULT 1, updated BIGINT NOT NULL, PRIMARY KEY(gym_id, exercise_id, brand)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_exercise_proposals (
+ id CHAR(32) PRIMARY KEY, user_id VARCHAR(64) NOT NULL, name VARCHAR(120) NOT NULL,
+ payload MEDIUMTEXT NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'pending', created BIGINT NOT NULL,
+ INDEX(status, created)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_trainer_profiles (
+ user_id VARCHAR(64) PRIMARY KEY, public TINYINT NOT NULL DEFAULT 0, specialties MEDIUMTEXT NOT NULL,
+ modalities MEDIUMTEXT NOT NULL, experience_years INT NOT NULL DEFAULT 0, credentials VARCHAR(500) NOT NULL DEFAULT '',
+ availability VARCHAR(160) NOT NULL DEFAULT '', pricing VARCHAR(160) NOT NULL DEFAULT '', stats_public TINYINT NOT NULL DEFAULT 0, updated BIGINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_trainer_reviews (
+ id CHAR(32) PRIMARY KEY, client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL,
+ rating INT NOT NULL, body VARCHAR(800) NOT NULL, created BIGINT NOT NULL, updated BIGINT NOT NULL,
+ UNIQUE KEY review_once(client_id, trainer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_coaching_stats_consent (
+ client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL, enabled TINYINT NOT NULL, updated BIGINT NOT NULL,
+ PRIMARY KEY(client_id, trainer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_coaching_progress (
+ client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL, payload MEDIUMTEXT NOT NULL, updated BIGINT NOT NULL,
+ PRIMARY KEY(client_id, trainer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

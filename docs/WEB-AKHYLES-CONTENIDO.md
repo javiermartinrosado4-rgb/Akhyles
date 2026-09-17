@@ -20,8 +20,9 @@ progreso sin ruido.
 **Nota bajo el botón:** Akhyles no sustituye el consejo médico ni el de un profesional
 del ejercicio.
 
-**Imagen:** `assets/web/akhyles-hero-machines-v1.png`, como fondo horizontal, con
-superposición oscura suave. El texto se coloca en el lado izquierdo libre.
+**Imagen:** `assets/web/akhyles-hero-statue-v1.png`, como fondo horizontal,
+anclado a la derecha y con superposición oscura suave. El texto se coloca en el
+lado izquierdo libre.
 
 ### Bloque de valor
 

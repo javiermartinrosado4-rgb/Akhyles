@@ -4,6 +4,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { Button, Card, Choice, Field, Notice, Row, Txt } from "./ui";
 import { EquipmentPhoto } from "./EquipmentPhoto";
+import { MachineBrandSelect } from "./MachineBrandSelect";
 import { useStore } from "../state/Store";
 import {
   candidates,
@@ -90,11 +91,13 @@ export function ExerciseEditor({
   prescription,
   close,
   report,
+  sessionOnly = false,
 }: {
   dayId: string;
   prescription?: Prescription;
   close: () => void;
   report: (text: string) => void;
+  sessionOnly?: boolean;
 }) {
   const { t, locale } = useLanguage();
   const { state, update } = useStore();
@@ -104,7 +107,7 @@ export function ExerciseEditor({
     ? getExercise(prescription.exerciseId, prefs)
     : undefined;
   const [mode, setMode] = useState<"edit" | "pick" | "custom">(
-    original ? "edit" : "pick",
+    original && !sessionOnly ? "edit" : "pick",
   );
   const [initialName] = useState(
     original ? displayName(original.id, prefs) : "",
@@ -125,6 +128,14 @@ export function ExerciseEditor({
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [loadStep, setLoadStep] = useState(String(original ? prefs.loadSteps?.[original.id] ?? original.loadStep ?? 1.25 : 1.25));
+  const changeMachineBrand = (brand?: string) => {
+    if (sessionOnly) return;
+    if (!prescription) return;
+    update(s => {
+      const routine = s.routine.map(item => item.id === dayId ? { ...item, exercises: item.exercises.map(entry => entry.id === prescription.id ? { ...entry, ...(brand ? { machineBrand: brand } : { machineBrand: undefined }) } : entry) } : item);
+      return { ...s, preferences: { ...s.preferences, machineBrands: { ...s.preferences.machineBrands, ...(brand ? { [prescription.exerciseId]: brand } : {}) } }, routine, ...syncRoutineReferences(s, routine) };
+    });
+  };
   const day = state.routine.find((d) => d.id === dayId)!;
   const options = original && muscle === original.muscle
     ? [...new Map([...replacementCandidates(original, state.profile, prefs), ...candidates(muscle, state.profile, prefs)].map(candidate => [candidate.id, candidate])).values()]
@@ -141,6 +152,22 @@ export function ExerciseEditor({
     }
   };
   const apply = (exercise: Exercise, unavailable = false) => {
+    if (sessionOnly && prescription) {
+      update(s => {
+        if (!s.active || s.active.day.id !== dayId) return s;
+        const preferences = mode === "custom" && !s.preferences.custom.some(item => item.id === exercise.id)
+          ? { ...s.preferences, custom: [...s.preferences.custom, exercise] }
+          : s.preferences;
+        const replacement = { ...prescribe(exercise, preferences, prescription.id), sets: prescription.sets, range: prescription.range, weight: preferences.weights[exercise.id] ?? prescription.weight };
+        const day = { ...s.active.day, exercises: s.active.day.exercises.map(item => item.id === prescription.id ? replacement : item) };
+        const previous = s.active.drafts?.[prescription.id] ?? s.active.draft;
+        const draft = Array.from({ length: replacement.sets }, (_, index) => ({ weight: String(replacement.weight), reps: previous[index]?.reps ?? "" }));
+        return { ...s, preferences, active: { ...s.active, day, draft, drafts: { ...(s.active.drafts ?? {}), [prescription.id]: draft } } };
+      });
+      report("Sustitución aplicada solo a este entrenamiento. Tu rutina no ha cambiado.");
+      close();
+      return;
+    }
     const appliesAfterRecordedWork = !!prescription && state.active?.day.id === dayId &&
       state.active.records.some(record => record.prescription.id === prescription.id);
     update((s) => {
@@ -254,7 +281,7 @@ export function ExerciseEditor({
     close();
   };
   const save = () => {
-    if (![1.25, 2.5, 5, 10, 20].includes(number(loadStep))) return setError("Selecciona un incremento disponible.");
+    if (!Number.isFinite(number(loadStep)) || number(loadStep) <= 0 || number(loadStep) > 100) return setError("Introduce un incremento válido entre 0,01 y 100 kg.");
     const range: Range = [number(min), number(max)];
     const count = number(sets);
     const kg = number(weight);
@@ -295,6 +322,7 @@ export function ExerciseEditor({
       return setError(
         messages.ExerciseEditor.eligeUnEquipamientoDisponibleEnTuGimnasio,
       );
+    if (sessionOnly) return apply(exercise);
     const preferences = {
       ...prefs,
       loadSteps: { ...prefs.loadSteps, [exercise.id]: number(loadStep) },
@@ -355,7 +383,7 @@ export function ExerciseEditor({
           onPress={close}
         />
       </Row>
-      {mode === "edit" && (
+      {mode === "edit" && !sessionOnly && (
         <>
           {original && <EquipmentPhoto exerciseId={original.id} exerciseName={displayName(original.id, prefs)} />}
           <Field
@@ -363,6 +391,7 @@ export function ExerciseEditor({
             value={name}
             onChangeText={setName}
           />
+          {original && ["machine", "smith"].includes(original.variant) && <MachineBrandSelect exerciseId={original.id} value={prescription?.machineBrand ?? prefs.machineBrands?.[original.id]} onChange={changeMachineBrand} />}
           <Row style={{ alignItems: "flex-start" }}>
             <Field
               label={messages.ExerciseEditor.pesoInicial}
@@ -560,11 +589,9 @@ export function ExerciseEditor({
         </>
       )}
       {!!error && <Notice error>{error}</Notice>}
-      <Txt weight="600">Incremento disponible de carga</Txt>
-      <Txt size={12} muted>Para barras, indica el incremento total de ambos lados (dos discos de 1,25 = 2,5 kg). En mancuernas, registra el peso de una mancuerna. Se guarda con «Guardar cambios».</Txt>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {[1.25, 2.5, 5, 10, 20].map(step => <Button key={step} compact label={`${step} kg`} variant={number(loadStep) === step ? "primary" : "secondary"} onPress={() => setLoadStep(String(step))} />)}
-      </View>
+      {!sessionOnly && <Txt weight="600">Incremento disponible de carga</Txt>}
+      {!sessionOnly && <Txt size={12} muted>Para barras, indica el incremento total de ambos lados (dos discos de 1,25 = 2,5 kg). En mancuernas, registra el peso de una mancuerna. Se guarda con «Guardar cambios».</Txt>}
+      {!sessionOnly && <Field label="Incremento disponible de carga" value={loadStep} onChangeText={setLoadStep} numeric suffix="kg" />}
     </Card>
   );
 }

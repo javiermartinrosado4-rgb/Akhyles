@@ -187,8 +187,15 @@ export function RoutineCalendar() {
         const missed = !history.length && !!planned && localDateKey(date) < localDateKey(now);
         const statusColor = history.length ? colors.done : missed ? colors.error : undefined;
         const isSelected = sameDate(date, selected);
+        const startMovingHere = () => {
+          setSelected(date); setAdding(false);
+          if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
+            setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
+        };
         return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
-          <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
+          <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
+            <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
+          </Pressable>
           {history.length ? <Txt translate={false} size={10} weight="700" numberOfLines={1} ellipsizeMode="tail" style={{ color: colors.done }}>{history[0].dayName}</Txt> : planned ? <Txt translate={false} size={10} numberOfLines={1} ellipsizeMode="tail" style={{ color: missed ? colors.error : colors.text }}>{planned.name}</Txt> : null}
           {!!statusColor && <Txt size={10} style={{ color: statusColor }}>{history.length ? "✓" : "✕"}</Txt>}
           {overridden && !history.length && <Txt size={9} muted>ajustada</Txt>}

@@ -44,6 +44,15 @@ export function CommunityPeople({ openProfile }: { openProfile: (id: string) => 
     return () => { generation.current = current + 1; };
   }, [mode, search, revision, request, user?.id]);
   const visible = people.filter(person => mode === "friends" ? person.connected : mode === "following" ? person.followed : mode === "followers" ? person.followsYou : true);
+  const follow = async (person: CommunityUser) => {
+    const current = generation.current;
+    setBusy(true); setError("");
+    try {
+      const updated = await request<CommunityUser>(`/follow/${person.id}`, person.followed ? "DELETE" : "PUT");
+      if (generation.current === current) setPeople(list => list.map(item => item.id === person.id ? updated : item));
+    } catch (reason) { if (generation.current === current) setError((reason as Error).message); }
+    finally { if (generation.current === current) setBusy(false); }
+  };
   return <>
     <Card>
       <Row><Icon name="user-plus" /><Txt weight="600" size={20}>Encuentra a tu gente</Txt></Row>
@@ -69,11 +78,11 @@ export function CommunityPeople({ openProfile }: { openProfile: (id: string) => 
       </Pressable>)}
       {!clients.length && <Txt muted>Aún no tienes deportistas con una colaboración activa.</Txt>}
     </Card> : visible.length ? <Card style={{ padding: 12 }}>
-      {visible.map(person => <Pressable key={person.id} accessibilityRole="button" accessibilityLabel={t("Ver perfil de @{value1}", { value1: person.handle })} onPress={() => openProfile(person.id)}
-        style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, padding: 8, borderRadius: 12, backgroundColor: pressed ? colors.soft : "transparent" })}>
+      {visible.map(person => <Row key={person.id} style={{ alignItems: "center", gap: 8 }}><Pressable accessibilityRole="button" accessibilityLabel={t("Ver perfil de @{value1}", { value1: person.handle })} onPress={() => openProfile(person.id)}
+        style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12, padding: 8, borderRadius: 12, backgroundColor: pressed ? colors.soft : "transparent" })}>
         <Avatar id={person.avatar} size={42} /><View style={{ flex: 1, minWidth: 0 }}><Txt weight="600" numberOfLines={1} translate={false}>{person.name}</Txt><Txt muted size={12} numberOfLines={1} translate={false}>@{person.handle}</Txt>
-          <Txt size={12} style={{ color: colors.accent }}>{person.connected ? "Amigos" : person.followsYou ? "Te sigue · conecta con esta persona" : person.followed ? "Siguiendo" : "Ver perfil y seguir"}</Txt></View><Icon name="chevron-right" size={18} />
-      </Pressable>)}
+          <Txt size={12} style={{ color: colors.accent }}>{person.connected ? "Amigos" : person.followsYou ? "Te sigue · conecta con esta persona" : person.followed ? "Siguiendo" : "Listo para conectar"}</Txt></View><Icon name="chevron-right" size={18} />
+      </Pressable>{!person.connected && <Button label={person.followed ? "Siguiendo" : person.followsYou ? "Conectar" : "Seguir"} compact variant={person.followsYou ? "primary" : "secondary"} disabled={busy} onPress={() => void follow(person)} />}</Row>)}
     </Card> : !error && <Card><Icon name="users" size={28} /><Txt weight="600">{mode === "search" ? "No encontramos ese usuario" : mode === "friends" ? "Tu próximo rival puede ser un amigo" : "Aún no hay personas aquí"}</Txt><Txt muted>{mode === "search" ? "Comprueba el @ o busca solo parte del nombre de usuario." : "Busca por @ y entra en su perfil para seguirle. Si te devuelve el seguimiento, aparecerá en Amigos."}</Txt></Card>}
     <Button label={mode === "blocks" ? "Volver a mis amigos" : "Gestionar bloqueados"} compact variant="ghost" onPress={() => setMode(mode === "blocks" ? "friends" : "blocks")} />
   </>;

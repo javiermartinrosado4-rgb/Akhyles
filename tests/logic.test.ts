@@ -763,7 +763,7 @@ test("duration uses thirty-second sets and four or three minutes between sets", 
   assert.equal(duration({ id: "isolation", name: "Aislamiento", exercises: [{ ...isolation, sets: 2 }] }, emptyPreferences), 45);
   assert.equal(duration({ id: "mixed", name: "Mixto", exercises: [{ ...heavy, sets: 2 }, { ...isolation, sets: 2 }] }, emptyPreferences), 45);
 });
-test("double progression: all effective sets, configurable range, 5% and 3%", () => {
+test("double progression: first effective set, configurable range, 3% and 5% cap", () => {
   assert.equal(
     progression(
       "compound",
@@ -773,7 +773,7 @@ test("double progression: all effective sets, configurable range, 5% and 3%", ()
         { weight: 40, reps: 7 },
       ],
     ).increase,
-    false,
+    true,
   );
   assert.equal(
     progression(
@@ -833,7 +833,7 @@ test("double progression: all effective sets, configurable range, 5% and 3%", ()
         { weight: 42, reps: 8 },
       ],
     ).increase,
-    false,
+    true,
   );
   assert.equal(
     progression(
@@ -846,7 +846,7 @@ test("double progression: all effective sets, configurable range, 5% and 3%", ()
       ],
       3,
     ).increase,
-    false,
+    true,
   );
   assert.equal(
     progression(

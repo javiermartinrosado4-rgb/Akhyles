@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import { resolveCommunityUrl } from "../logic/endpoints";
 import { Level } from "../types";
 import { SharedProgress, SharedRoutine } from "../logic/sharing";
+import { AchievementDetails, AchievementKind } from "../logic/achievementCatalog";
 
 function configuredCommunityUrl() { try { return resolveCommunityUrl(
   process.env.EXPO_PUBLIC_COMMUNITY_URL,
@@ -11,9 +12,12 @@ function configuredCommunityUrl() { try { return resolveCommunityUrl(
   !__DEV__ && Constants.expoConfig?.extra?.communityLocalTest !== true,
 ); } catch { return ""; } }
 export const communityUrl = configuredCommunityUrl();
-export interface CommunityUser { id: string; handle: string; name: string; bio: string; avatar?: string; level: Level; posts: number; followers: number; following: number; followed: boolean; followsYou?: boolean; connected?: boolean; trainerEnabled?: boolean; routineId?: string | null; progressVisible?: boolean; routinePublic?: boolean; progressPublic?: boolean; progressVisibility?: "private" | "friends" | "public"; detailsPublic?: boolean; bodyWeightPublic?: boolean; rankingPublic?: boolean; achievementsPublic?: boolean; trainingPlace?: string; gymId?: string | null; city?: string; }
+export type TrainingVisibility = "private" | "friends" | "public";
+export interface CommunityUser { id: string; handle: string; name: string; bio: string; avatar?: string; level: Level; posts: number; followers: number; following: number; followed: boolean; followsYou?: boolean; connected?: boolean; trainerEnabled?: boolean; routineId?: string | null; progressVisible?: boolean; routinePublic?: boolean; progressPublic?: boolean; progressVisibility?: TrainingVisibility; trainingVisibility?: TrainingVisibility; detailsPublic?: boolean; bodyWeightPublic?: boolean; rankingPublic?: boolean; achievementsPublic?: boolean; achievementsVisibility?: TrainingVisibility; trainingPlace?: string; gymId?: string | null; city?: string; }
 export interface CommunityGym { id: string; provider: string; name: string; address: string; city: string; status: string; }
-export interface CommunityAchievement { id: string; userId: string; handle: string; name: string; type: "tier" | "personal_best"; tierId?: string; exerciseId?: string; exerciseName?: string; created: string; likes: number; liked: boolean }
+export type AchievementRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+export interface AchievementRarityInfo { tier: AchievementRarity; holders: number; eligible: number; percentage: number | null; calculatedAt?: string; }
+export interface CommunityAchievement { id: string; userId: string; handle: string; name: string; type: "tier" | "personal_best" | "personal"; kind?: AchievementKind | "personal"; tierId?: string; exerciseId?: string; exerciseName?: string; definitionId?: string; details?: AchievementDetails & { title?: string; description?: string; category?: string }; created: string; likes: number; liked: boolean; rarity?: AchievementRarityInfo }
 export interface AchievementPage { achievements: CommunityAchievement[]; next: number | null }
 export interface PublishedRoutine { id: string; owner: Pick<CommunityUser, "handle" | "name">; routine: SharedRoutine; updated: string }
 export interface CoachingRelationship { id: string; status: "pending" | "active"; role: "client" | "trainer"; requestedByMe: boolean; statsConsent?: boolean; created: string; updated: string; person: Pick<CommunityUser, "id" | "handle" | "name" | "avatar">; }

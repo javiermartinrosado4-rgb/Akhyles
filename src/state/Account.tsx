@@ -9,6 +9,7 @@ import { initialState, useStore } from "./Store";
 
 type Status = "local" | "pending" | "syncing" | "saved" | "conflict" | "error";
 interface Conflict { remote: RemoteCopy; local: AppState }
+export interface CloudRecovery { key: string; revision: number; updated: string; state: AppState }
 interface AccountContext {
   user: AccountUser | null; ready: boolean; status: Status; error: string; conflict: Conflict | null;
   login: (email: string,password: string) => Promise<void>;
@@ -20,6 +21,7 @@ interface AccountContext {
   sync: () => Promise<void>;
   resolve: (choice: "local" | "cloud") => Promise<void>;
   restoreArchive: (key: string) => Promise<void>;
+  listRecoveryCopies: () => Promise<CloudRecovery[]>;
   request: <T>(path: string, method?: string, data?: unknown) => Promise<T>;
 }
 const Context = createContext<AccountContext | null>(null);
@@ -56,6 +58,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (!s) throw new Error("Inicia sesión para continuar.");
     return accountRequest<T>(path,s.token,method,data);
   },[]);
+  const listRecoveryCopies = useCallback(async (): Promise<CloudRecovery[]> => {
+    const s = current.current;
+    if (!s) throw new Error("Inicia sesión para continuar.");
+    const result = await accountRequest<{versions:{revision:number;updated:string}[]}>("/sync/versions",s.token);
+    const versions = Array.isArray(result.versions) ? result.versions.slice(0,20) : [];
+    return Promise.all(versions.map(async version => {
+      const copy = await accountRequest<{revision:number;updated:string;state:AppState}>(`/sync/versions/${version.revision}`,s.token);
+      return { key:`cloud:${copy.revision}`, revision:copy.revision, updated:copy.updated, state:decodeState(JSON.stringify(cloudState(copy.state))) };
+    }));
+  },[]);
   const sync = useCallback(async () => {
     const s=current.current;
     if (!s || busy.current || authenticating.current || conflictRef.current || !storeReady || storageError || getState().signedOut) return;
@@ -74,7 +86,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         await archiveState(local);
         if (!active()) return;
         if (snapshot(getState())!==snapshot(local)) { showConflict({local:getState(),remote}); setStatus("conflict"); return; }
-        await persist(v=>acknowledge({ ...remote.state!, signedOut:false, weightReminderNotificationId:v.weightReminderNotificationId },s.user.id,remote.revision,snapshot(remote.state!),remote.updated));
+        await persist(v=>acknowledge({ ...remote.state!, signedOut:false, weightReminderNotificationId:v.weightReminderNotificationId, trainingReminderNotificationIds:v.trainingReminderNotificationIds },s.user.id,remote.revision,snapshot(remote.state!),remote.updated));
       } else if (decision==="same") {
         if (local.cloud?.revision!==remote.revision || local.cloud?.base!==snapshot(local))
           await persist(v=>acknowledge(v,s.user.id,remote.revision,snapshot(local),remote.updated));
@@ -149,7 +161,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (choice==="cloud") {
         if (!c.remote.state) throw new Error("No hay una copia en la nube para restaurar.");
         if (snapshot(getState())!==snapshot(local)) throw new Error("Has editado tu progreso. Revisa la elección de nuevo.");
-        await persist(v=>acknowledge({...c.remote.state!,signedOut:false,weightReminderNotificationId:v.weightReminderNotificationId},s.user.id,c.remote.revision,snapshot(c.remote.state!),c.remote.updated));
+        await persist(v=>acknowledge({...c.remote.state!,signedOut:false,weightReminderNotificationId:v.weightReminderNotificationId,trainingReminderNotificationIds:v.trainingReminderNotificationIds},s.user.id,c.remote.revision,snapshot(c.remote.state!),c.remote.updated));
       } else {
         const result=await accountRequest<{revision:number;updated:string}>("/sync",s.token,"PUT",{revision:c.remote.revision,state:cloudState(local)});
         if (epoch!==generation.current) return;
@@ -166,17 +178,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (!s || busy.current || authenticating.current) throw new Error("Espera a que termine la sincronización.");
     busy.current=true; const epoch=generation.current; const local=getState();
     try {
-      const saved=(await archivedStates(s.user.id)).find(x=>x.key===key);
-      if (!saved) throw new Error("Copia no encontrada para esta cuenta.");
+      if (!key.startsWith("cloud:")) throw new Error("Copia no encontrada para esta cuenta.");
+      const revision = Number(key.slice("cloud:".length));
+      if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Copia no encontrada para esta cuenta.");
+      const saved = await accountRequest<{revision:number;updated:string;state:AppState}>(`/sync/versions/${revision}`,s.token);
+      const restored = decodeState(JSON.stringify(cloudState(saved.state)));
       await archiveState(local);
       if (epoch!==generation.current || current.current?.token!==s.token) return;
       if (snapshot(getState())!==snapshot(local)) throw new Error("Has editado tu progreso. Revisa la copia de nuevo.");
-      await persist(v=>({...saved.state,cloud:v.cloud,signedOut:false,weightReminderNotificationId:v.weightReminderNotificationId}));
+      await persist(v=>({...restored,cloud:v.cloud,signedOut:false,weightReminderNotificationId:v.weightReminderNotificationId,trainingReminderNotificationIds:v.trainingReminderNotificationIds}));
       showConflict(null); setStatus("pending");
     } finally {busy.current=false;}
   },[getState,persist,showConflict]);
   const displayedStatus=status==="saved" && fingerprint!==state.cloud?.base ? "pending" : status;
-  return <Context.Provider value={{user:session?.user ?? null,ready,status:displayedStatus,error,conflict,request,sync,resolve,restoreArchive,logout,
+  return <Context.Provider value={{user:session?.user ?? null,ready,status:displayedStatus,error,conflict,request,sync,resolve,restoreArchive,listRecoveryCopies,logout,
     login:(email,password)=>authenticate("/auth/login",{email,password}),
     verify:(challengeId,code)=>authenticate("/auth/verify",{challengeId,code}),
     authenticateGoogle:(credential,nonce)=>authenticate("/auth/google",{credential,nonce}),

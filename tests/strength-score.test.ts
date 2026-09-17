@@ -134,6 +134,18 @@ test("assistance subtracts, unweighted pullups count, high reps saturate, missin
   assert.equal(points("unknown-custom", 20), 0);
 });
 
+test("declared strength references provide labelled best evidence without double counting a group", () => {
+  const state = createDemoScenario(false); state.history = [];
+  state.strengthReferences = [{ id: "bench", weight: 100, reps: 5, bodyWeight: 80, sex: "male", date: "2026-08-01" }];
+  const declared = scoreProgress(state);
+  assert.equal(declared.coverage, 1);
+  assert.equal(declared.categories.find(item => item.id === "chest")?.kind, "declared");
+  assert.ok(declared.points.at(-1)?.value);
+  state.history = [session("chest-press-free", "2026-08-02", 60)];
+  assert.equal(scoreProgress(state).coverage, 1);
+  assert.equal(scoreProgress(state).categories.find(item => item.id === "chest")?.kind, "declared");
+});
+
 test("historic bar overrides, including zero, survive preference changes and sharing", () => {
   const state = createDemoScenario(false); state.history = [session("chest-press-free", "2026-08-01", 60)];
   state.history[0].records[0].barWeight = 0;

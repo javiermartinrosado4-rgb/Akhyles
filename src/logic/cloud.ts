@@ -16,6 +16,7 @@ export function cloudState(s: AppState): AppState {
     theme: s.theme, volumeTargets: s.volumeTargets, routine: s.routine, history: s.history,
     plannedWorkouts: s.plannedWorkouts, skippedWorkoutDates: s.skippedWorkoutDates,
     active: s.active, bodyWeights: s.bodyWeights, routineVersions: s.routineVersions,
+    achievements: s.achievements,
   };
 }
 export function canonical(value: unknown): string {

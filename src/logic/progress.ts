@@ -5,6 +5,7 @@ import { scoreLoad, validBarWeight } from "./load";
 import { estimatedMax, wilksCoefficient } from "./strengthScore";
 import { displayPoints, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
 import { localDateKey } from "./schedule";
+import { scoreStrengthReference } from "./strengthReferences";
 export interface ChartPoint { date: string; value: number; detail?: string }
 export function periodProgress(points: ChartPoint[], cutoff: number, end = Infinity, includePrevious = true): ChartPoint[] {
   const sorted = [...points].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
@@ -76,16 +77,31 @@ export function scoreProgress(state: AppState) {
         detail: translate("{count}/11 grupos · equivalencias beta", { count: best.size }) });
     }
   }
+  for (const item of state.strengthReferences ?? []) {
+    const reference = scoreStrengthReference(item);
+    if (!reference || reference.value <= (best.get(reference.muscle) ?? 0)) continue;
+    best.set(reference.muscle, reference.value);
+    evidence.set(reference.muscle, { exerciseId: reference.exerciseId, kind: reference.kind, exerciseName: reference.name, load: reference.load, reps: reference.reps, maximum: reference.maximum, date: reference.date });
+  }
+  // References are a declared current baseline. Preserve historical chart points,
+  // then append the combined current score without pretending it was a workout.
+  if (state.strengthReferences?.length && best.size) {
+    const weighted = [...best].reduce((sum, [group, value]) => sum + value * groupWeights[group], 0);
+    const coverageWeight = [...best].reduce((sum, [group]) => sum + groupWeights[group], 0);
+    const value = displayPoints(weighted / coverageWeight);
+    const date = [...state.strengthReferences].map(item => item.date).sort().at(-1)!;
+    if (points.at(-1)?.value !== value) points.push({ date, value, detail: translate("{count}/11 grupos · incluye referencias declaradas", { count: best.size }) });
+  }
   const categories = (Object.keys(scoreGroups) as Muscle[]).map(id => ({ id, name: scoreGroups[id], value: best.has(id) ? displayPoints(best.get(id)!) : undefined, ...evidence.get(id) }));
   const dates = [...scoredSessions].map(Date.parse).filter(Number.isFinite).sort((a, b) => a - b);
-  const latest = dates.at(-1);
-  const age = latest === undefined ? Infinity : Math.max(0, Date.now() - latest) / 86_400_000;
+  const latest = Math.max(dates.at(-1) ?? 0, ...(state.strengthReferences ?? []).map(item => Date.parse(item.date)));
+  const age = !latest ? Infinity : Math.max(0, Date.now() - latest) / 86_400_000;
   // Informative only: it never changes the score or excludes an athlete.
   const reliability = best.size === 0 ? 0 : Math.round(
     Math.min(best.size, 8) / 8 * 45 +
     Math.min(exercises.size, 4) / 4 * 15 +
     (age <= 14 ? 20 : age <= 42 ? 12 : age <= 84 ? 6 : 0) +
-    (dates.length >= 4 ? 20 : dates.length >= 2 ? 10 : 4),
+    (dates.length >= 4 ? 20 : dates.length >= 2 ? 10 : dates.length ? 4 : 0),
   );
   const rankingEligible = best.size > 0;
   return { points, exercises: [...exercises], categories, coverage: best.size, reliability, rankingEligible };
