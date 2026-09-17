@@ -7,7 +7,7 @@ import { validRange } from "../src/logic/validation";
 import { validStoredCollections } from "../src/logic/storedState";
 import { AppState } from "../src/types";
 import { localDateKey } from "../src/logic/schedule";
-import { isActiveWorkoutOnDate, startWorkout, resumeWorkout } from "../src/logic/workout";
+import { isActiveWorkoutOnDate, openHistoricalWorkout, startWorkout, resumeWorkout } from "../src/logic/workout";
 
 test("date-only calendar keys never shift with the device timezone", () => {
   const previous = process.env.TZ;
@@ -23,6 +23,14 @@ test("calendar preparation is not treated as a workout started today", () => {
   });
   assert.equal(isActiveWorkoutOnDate(preparing), false);
   assert.equal(isActiveWorkoutOnDate(startWorkout(routine[0])), true);
+});
+
+test("opening history in the workout screen never becomes an active workout", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const active = startWorkout(routine[0]);
+  const historical = openHistoricalWorkout({ id: "past", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30, records: active.day.exercises.map(prescription => ({ prescription, name: prescription.exerciseId, type: "compound", sets: Array.from({ length: prescription.sets }, () => ({ weight: prescription.weight, reps: 8 })) })) }, false, demoProfile);
+  assert.equal(isActiveWorkoutOnDate(historical), false);
+  assert.equal(resumeWorkout({ routine, preferences: emptyPreferences, history: [], active: historical } as unknown as AppState)?.historical?.workoutId, "past");
 });
 
 test("removing the current last exercise cannot crash resume or copy its draft to another exercise", () => {

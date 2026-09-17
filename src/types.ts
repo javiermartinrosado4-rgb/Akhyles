@@ -157,6 +157,8 @@ export interface ActiveWorkout {
   /** Calendar preparation mode: edits are saved to the planned date, never history. */
   preparing?: boolean;
   plannedDate?: string;
+  /** Historical sessions reuse the workout screen without becoming an active workout. */
+  historical?: { workoutId: string; readOnly: boolean; skipped?: string[] };
   barWeights?: Record<string, string>;
   apparatusWeights?: Record<string, string>;
   machineBrands?: Record<string, string>;

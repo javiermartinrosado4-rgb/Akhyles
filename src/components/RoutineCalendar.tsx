@@ -6,7 +6,7 @@ import { Pressable, View } from "react-native";
 import { Day, ExerciseRecord, PlannedWorkout, Workout } from "../types";
 import { useStore } from "../state/Store";
 import { displayName, getExercise } from "../logic/routine";
-import { startWorkout } from "../logic/workout";
+import { openHistoricalWorkout, startWorkout } from "../logic/workout";
 import { datesForMonth, localDateKey, scheduledDay, scheduledWorkout, trainingStreak, weeklyAdherence } from "../logic/schedule";
 import { number, validWeight } from "../logic/validation";
 import { useTheme } from "../theme";
@@ -227,7 +227,14 @@ export function RoutineCalendar() {
     </View>
     <Txt muted size={12}>Verde ✓: completada · Rojo ✕: sin realizar · “ajustada”: pesos guardados para esa fecha.</Txt>
     <Txt weight="600">{selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Txt>
-    {!!selectedHistory.length && selectedHistory.map(workout => <PastWorkoutEditor key={workout.id} workout={workout} editable={canEditPast} />)}
+    {!!selectedHistory.length && selectedHistory.map(workout => <Card key={workout.id}>
+      <Txt weight="600">{canEditPast ? "Editar este entrenamiento" : "Visualizar este entrenamiento"}</Txt>
+      <Txt muted size={12}>{canEditPast ? "Abre la sesión completa para corregir pesos y repeticiones." : "Abre la sesión completa en modo lectura. Los entrenamientos de hace más de una semana no se modifican."}</Txt>
+      <Button label={canEditPast ? `Editar ${workout.dayName}` : `Visualizar ${workout.dayName}`} icon={canEditPast ? "edit" : "eye"} onPress={() => {
+        update(current => ({ ...current, active: openHistoricalWorkout(workout, !canEditPast, current.profile, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes) }));
+        router.push("/workout");
+      }} />
+    </Card>)}
     {!selectedHistory.length && selectedPlan && !isPast && !moving && <>
       <Card>
         <Txt weight="600">Preparar este día</Txt>

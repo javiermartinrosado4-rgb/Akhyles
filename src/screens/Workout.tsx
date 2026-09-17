@@ -81,6 +81,8 @@ export default function Workout() {
   }
 
   const entry = active.day.exercises[active.index];
+  const historical = active.historical;
+  const readOnly = !!historical?.readOnly;
   const exercise = getExercise(entry.exerciseId, state.preferences);
   const skipped = active.skipped ?? [];
   const drafts = active.drafts ?? { [entry.id]: active.draft };
@@ -101,7 +103,7 @@ export default function Workout() {
     setError("");
     update(s => !s.active ? s : ({ ...s,
       active: { ...s.active, barWeights: { ...s.active.barWeights, [entry.exerciseId]: value } },
-      preferences: value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
+      preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
         barWeights: { ...s.preferences.barWeights, [entry.exerciseId]: number(value) } } : s.preferences,
     }));
   };
@@ -109,13 +111,13 @@ export default function Workout() {
     setError("");
     update(s => !s.active ? s : ({ ...s,
       active: { ...s.active, apparatusWeights: { ...s.active.apparatusWeights, [entry.exerciseId]: value } },
-      preferences: value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
+      preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
         apparatusWeights: { ...s.preferences.apparatusWeights, [entry.exerciseId]: number(value) } } : s.preferences,
     }));
   };
   const changeMachineBrand = (brand?: string) => {
     update(s => !s.active ? s : ({ ...s, active: { ...s.active, machineBrands: { ...s.active.machineBrands, [entry.id]: brand ?? "" } },
-      preferences: { ...s.preferences, machineBrands: { ...s.preferences.machineBrands, ...(brand ? { [entry.exerciseId]: brand } : {}) } } }));
+      preferences: historical ? s.preferences : { ...s.preferences, machineBrands: { ...s.preferences.machineBrands, ...(brand ? { [entry.exerciseId]: brand } : {}) } } }));
   };
 
   const changeSet = (
@@ -167,7 +169,7 @@ export default function Workout() {
           ? { ...set, weight, leftWeight: set.leftWeight ?? weight, rightWeight: set.rightWeight ?? weight, leftReps: set.leftReps ?? set.reps, rightReps: set.rightReps ?? set.reps }
           : { ...set, weight };
       });
-      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } }, preferences: { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
+      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } }, preferences: historical ? s.preferences : { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
     });
   };
 
@@ -176,13 +178,11 @@ export default function Workout() {
   };
 
   const changeExerciseNote = (note: string) => {
-    update((s) => ({
-      ...s,
-      preferences: {
-        ...s.preferences,
-        notes: { ...(s.preferences.notes ?? {}), [entry.exerciseId]: note.slice(0, 300) },
-      },
-    }));
+    if (historical) return;
+    update(s => ({ ...s, preferences: {
+      ...s.preferences,
+      notes: { ...(s.preferences.notes ?? {}), [entry.exerciseId]: note.slice(0, 300) },
+    } }));
   };
 
   const goTo = (
@@ -233,6 +233,12 @@ export default function Workout() {
   };
 
   const complete = (records: ExerciseRecord[], nextSkipped: string[]) => {
+    if (historical) {
+      update(s => ({ ...s, active: undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records, skipped: historical.skipped } : workout) }));
+      setError("");
+      router.replace("/routine");
+      return;
+    }
     if (active.preparing) {
       const plannedDate = active.plannedDate ?? new Date().toISOString();
       update(s => {
@@ -361,11 +367,11 @@ export default function Workout() {
     <Page>
       <Row style={{ justifyContent: "space-between" }}>
         <Button
-          label={messages.Workout.guardarYSalir}
+          label={historical ? "Volver al calendario" : messages.Workout.guardarYSalir}
           compact
           variant="ghost"
           icon="arrow-left"
-          onPress={() => router.replace("/today")}
+          onPress={() => router.replace(historical ? "/routine" : "/today")}
         />
         <Txt size={12} muted>
           {active.index + 1} / {active.day.exercises.length}
@@ -423,13 +429,13 @@ export default function Workout() {
         </View>
         <Txt muted>{t(entry.sets === 1 ? "{value1} serie efectiva · {value2}–{value3} repeticiones" : "{value1} series efectivas · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
       </View>
-      <Button
+      {!historical && <Button
         label="Cambiar ejercicio para hoy"
         compact
         variant="secondary"
         icon="repeat"
         onPress={() => setEditingExercise(value => !value)}
-      />
+      />}
       {editingExercise && (
         <ExerciseEditor
           dayId={active.day.id}
@@ -447,42 +453,43 @@ export default function Workout() {
       {!isBodyweight && <Card>
         <Txt weight="600">Cómo introduces la carga</Txt>
         <Txt muted size={12}>{loadHint(entry.exerciseId)}</Txt>
-        <Row>
+        {!readOnly && <Row>
           <Button label="Total" compact variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} />
           {supportsPerSideInput(entry.exerciseId) && <Button label="Por lado" compact variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} />}
           {supportsBarWeight(entry.exerciseId) && <Button label="Total levantado" compact variant={loadMode === "total-with-bar" ? "primary" : "secondary"} onPress={() => changeLoadMode("total-with-bar")} />}
-        </Row>
-        {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} numeric suffix="kg" />}
+        </Row>}
+        {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} numeric suffix="kg" disabled={readOnly} />}
         {hasAddedBaseWeight && <Txt muted size={12}>{loadMode === "total-with-bar" ? "El total ya incluye la barra; no se añadirá nada más." : supportsBarWeight(entry.exerciseId) ? t("Barra añadida: {value1} kg. Se suma una sola vez a la carga externa. Si no hay barra, usa 0.", { value1: barWeightText || "0" }) : `Peso del aparato: ${apparatusWeightText || "0"} kg. Se suma a la carga indicada y la gráfica muestra el total, también para sesiones anteriores.`}</Txt>}
-        {hasApparatusWeight && <MachineBrandSelect exerciseId={entry.exerciseId} value={machineBrand} onChange={changeMachineBrand} />}
+        {hasApparatusWeight && !readOnly && <MachineBrandSelect exerciseId={entry.exerciseId} value={machineBrand} onChange={changeMachineBrand} />}
       </Card>}
       {isBodyweight && <Card>
         <Txt weight="600">Peso corporal</Txt>
         <Txt muted size={12}>{loadHint(entry.exerciseId)}</Txt>
-        <Row><Button label="Sin lastre" compact variant={!weighted ? "primary" : "secondary"} onPress={() => changeWeighted(false)} /><Button label="Con lastre" compact variant={weighted ? "primary" : "secondary"} onPress={() => changeWeighted(true)} /></Row>
-        {weighted && <Row><Button label="Total" compact variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} /><Button label="Por lado" compact variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} /></Row>}
+        {!readOnly && <Row><Button label="Sin lastre" compact variant={!weighted ? "primary" : "secondary"} onPress={() => changeWeighted(false)} /><Button label="Con lastre" compact variant={weighted ? "primary" : "secondary"} onPress={() => changeWeighted(true)} /></Row>}
+        {!readOnly && weighted && <Row><Button label="Total" compact variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} /><Button label="Por lado" compact variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} /></Row>}
       </Card>}
-      <Field
+      {!historical && <Field
         label="Notas para este ejercicio"
         value={state.preferences.notes?.[entry.exerciseId] ?? ""}
         onChangeText={changeExerciseNote}
         placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
         multiline
         maxLength={300}
-      />
+        disabled={readOnly}
+      />}
       {active.draft.map((set, index) => (
         <Card key={`${entry.id}-${index}`}>
           <Txt weight="600">
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
-          {loadMode !== "per-side" && <Button label={asymmetric[index] ? "Peso igual en ambos lados" : "Peso diferente por lado"} compact variant="ghost" onPress={() => toggleAsymmetric(index)} />}
+          {loadMode !== "per-side" && !readOnly && <Button label={asymmetric[index] ? "Peso igual en ambos lados" : "Peso diferente por lado"} compact variant="ghost" onPress={() => toggleAsymmetric(index)} />}
           {loadMode === "per-side" ? <View style={{ gap: 10 }}>
             {(["left", "right"] as const).map(side => {
               const left = side === "left";
               return <Row key={side} style={{ alignItems: "flex-end", gap: 8 }}>
                 <Txt weight="600" size={12} style={{ width: 66 }}>{left ? "Izquierdo" : "Derecho"}</Txt>
-                {(!isBodyweight || weighted) && <Field label="Peso" value={left ? (set.leftWeight ?? set.weight) : (set.rightWeight ?? set.weight)} onChangeText={(value) => changeSet(index, left ? "leftWeight" : "rightWeight", value)} numeric suffix={messages.Workout.kg} />}
-                <Field label="Repeticiones" value={left ? (set.leftReps ?? set.reps) : (set.rightReps ?? set.reps)} onChangeText={(value) => changeSet(index, left ? "leftReps" : "rightReps", value)} numeric suffix={messages.Workout.rep} />
+                {(!isBodyweight || weighted) && <Field label="Peso" value={left ? (set.leftWeight ?? set.weight) : (set.rightWeight ?? set.weight)} onChangeText={(value) => changeSet(index, left ? "leftWeight" : "rightWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
+                <Field label="Repeticiones" value={left ? (set.leftReps ?? set.reps) : (set.rightReps ?? set.reps)} onChangeText={(value) => changeSet(index, left ? "leftReps" : "rightReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
               </Row>;
             })}
           </View> : <Row>
@@ -492,26 +499,28 @@ export default function Workout() {
               onChangeText={(value) => changeSet(index, "weight", value)}
               numeric
               suffix={messages.Workout.kg}
+              disabled={readOnly}
             />}
             {(!isBodyweight || weighted) && asymmetric[index] && <>
-              <Field label="Lado izquierdo" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "leftWeight", value)} numeric suffix={messages.Workout.kg} />
-              <Field label="Lado derecho" value={set.rightWeight ?? set.weight} onChangeText={(value) => changeSet(index, "rightWeight", value)} numeric suffix={messages.Workout.kg} />
+              <Field label="Lado izquierdo" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "leftWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />
+              <Field label="Lado derecho" value={set.rightWeight ?? set.weight} onChangeText={(value) => changeSet(index, "rightWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />
             </>}
             {asymmetric[index] ? <>
-              <Field label="Repeticiones lado izquierdo" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "leftReps", value)} numeric suffix={messages.Workout.rep} />
-              <Field label="Repeticiones lado derecho" value={set.rightReps ?? set.reps} onChangeText={(value) => changeSet(index, "rightReps", value)} numeric suffix={messages.Workout.rep} />
+              <Field label="Repeticiones lado izquierdo" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "leftReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
+              <Field label="Repeticiones lado derecho" value={set.rightReps ?? set.reps} onChangeText={(value) => changeSet(index, "rightReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
             </> : <Field
               label={t("Repeticiones serie {value1}", { value1: index + 1 })}
               value={set.reps}
               onChangeText={(value) => changeSet(index, "reps", value)}
               numeric
               suffix={messages.Workout.rep}
+              disabled={readOnly}
             />}
           </Row>}
         </Card>
       ))}
       {!!error && <Notice error>{error}</Notice>}
-      <Button
+      {readOnly ? <Button label="Volver al calendario" onPress={() => router.replace("/routine")} icon="arrow-left" /> : <Button
         label={
           active.preparing
             ? (remainingAfterCurrent ? "Guardar preparación y siguiente" : "Guardar preparación")
@@ -521,13 +530,13 @@ export default function Workout() {
         }
         onPress={saveExercise}
         icon="check"
-      />
-      <Button
+      />}
+      {!historical && <Button
         label="Hoy no he podido hacer este ejercicio"
         variant="ghost"
         icon="slash"
         onPress={skipExercise}
-      />
+      />}
       <Txt size={12} muted>
         Las flechas conservan lo escrito en cada ejercicio. Omitir uno solo afecta a la sesión de hoy y no lo elimina de tu rutina.
       </Txt>

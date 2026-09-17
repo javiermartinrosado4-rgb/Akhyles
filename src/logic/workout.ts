@@ -38,7 +38,14 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
   };
 }
 export const isActiveWorkoutOnDate = (active: ActiveWorkout | undefined, date = new Date()) =>
-  !!active && !active.preparing && localDateKey(active.startedAt) === localDateKey(date);
+  !!active && !active.preparing && !active.historical && localDateKey(active.startedAt) === localDateKey(date);
+export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profile: Profile, barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>): ActiveWorkout {
+  const day: Day = { id: workout.dayId ?? `history-${workout.id}`, name: workout.dayName, exercises: workout.records.map(record => ({ ...record.prescription, range: [...record.prescription.range] as [number, number] })) };
+  const active = startWorkout(day, profile.weight, workout.level ?? profile.level, workout.sex ?? profile.sex, barWeights, apparatusWeights, loadModes);
+  const drafts = Object.fromEntries(workout.records.map(record => [record.prescription.id, record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }))]));
+  const first = day.exercises[0];
+  return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
+}
 export function finishWorkout(s: AppState, workout: Workout): AppState {
   if (s.history.some(w => w.id === workout.id || (workout.startedAt && w.startedAt === workout.startedAt))) return { ...s, active: undefined };
   let next: AppState = { ...s, active: undefined, history: [...s.history, workout] };
@@ -60,6 +67,7 @@ export function finishWorkout(s: AppState, workout: Workout): AppState {
 // Refresh untouched exercises on resume while preserving all entered work.
 export function resumeWorkout(s: AppState): ActiveWorkout | undefined {
   const active = s.active;
+  if (active?.historical) return active;
   // A session can legitimately cross midnight. Keep it recoverable until it is
   // explicitly finished or discarded; Today's UI keeps it separate from the
   // new calendar day's plan.

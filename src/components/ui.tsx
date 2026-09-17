@@ -270,6 +270,7 @@ export function Field({
   maxLength,
   multiline = false,
   email = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
@@ -281,7 +282,8 @@ export function Field({
   secure?: boolean;
   maxLength?: number;
   multiline?: boolean;
-  email?: boolean;
+    email?: boolean;
+    disabled?: boolean;
 }) {
   const { colors } = useTheme();
   const { t } = useLanguage();
@@ -310,6 +312,7 @@ export function Field({
           accessibilityLabel={t(label)}
           value={value}
           onChangeText={onChangeText}
+          editable={!disabled}
           inputMode={email ? "email" : numeric ? "decimal" : "text"}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
@@ -328,6 +331,7 @@ export function Field({
             color: colors.text,
             fontSize: 16,
             textAlignVertical: multiline ? "top" : "center",
+            opacity: disabled ? 0.65 : 1,
           }}
         />
         {suffix && (
