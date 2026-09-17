@@ -154,6 +154,9 @@ export interface RoutineVersion {
   routine: Day[];
 }
 export interface ActiveWorkout {
+  /** Calendar preparation mode: edits are saved to the planned date, never history. */
+  preparing?: boolean;
+  plannedDate?: string;
   barWeights?: Record<string, string>;
   apparatusWeights?: Record<string, string>;
   machineBrands?: Record<string, string>;

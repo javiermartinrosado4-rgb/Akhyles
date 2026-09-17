@@ -10,11 +10,12 @@ export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
     weight: formatLoad(fromStoredLoad(p.weight, mode)),
     reps: "",
   }));
-export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>): ActiveWorkout {
+export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>, options?: { preparing?: boolean; plannedDate?: string }): ActiveWorkout {
   if (!day.exercises.length) throw new Error("La sesión no tiene ejercicios.");
   const mode = loadModes?.[day.exercises[0].id] ?? "total";
   const draft = draftFor(day.exercises[0], mode);
   return {
+    ...(options?.preparing ? { preparing: true, plannedDate: options.plannedDate } : {}),
     sex,
     barWeights: Object.fromEntries(day.exercises.map(entry => [entry.exerciseId, String(barWeights?.[entry.exerciseId] ?? defaultBarWeight(entry.exerciseId))])),
     apparatusWeights: Object.fromEntries(day.exercises.map(entry => [entry.exerciseId, String(apparatusWeights?.[entry.exerciseId] ?? 0)])),

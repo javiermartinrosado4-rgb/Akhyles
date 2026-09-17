@@ -1,9 +1,12 @@
 import { useLanguage } from "../i18n";
 import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { Pressable, View } from "react-native";
 import { Day, ExerciseRecord, PlannedWorkout, Workout } from "../types";
 import { useStore } from "../state/Store";
 import { displayName, getExercise } from "../logic/routine";
+import { startWorkout } from "../logic/workout";
 import { datesForMonth, localDateKey, scheduledDay, scheduledWorkout, trainingStreak, weeklyAdherence } from "../logic/schedule";
 import { number, validWeight } from "../logic/validation";
 import { useTheme } from "../theme";
@@ -189,10 +192,13 @@ export function RoutineCalendar() {
         const isSelected = sameDate(date, selected);
         const startMovingHere = () => {
           setSelected(date); setAdding(false);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(35);
+          });
           if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
             setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
         };
-        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
+        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
           <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
             <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
           </Pressable>
@@ -207,11 +213,18 @@ export function RoutineCalendar() {
     <Txt weight="600">{selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Txt>
     {!!selectedHistory.length && selectedHistory.map(workout => <PastWorkoutEditor key={workout.id} workout={workout} editable={canEditPast} />)}
     {!selectedHistory.length && selectedPlan && !isPast && !moving && <>
-      <PlannedWorkoutEditor key={localDateKey(selected)} date={selected} day={selectedPlan} existing={selectedOverride} />
+      <Card>
+        <Txt weight="600">Preparar este día</Txt>
+        <Txt muted size={12}>Abre el mismo editor detallado del entrenamiento para dejar listas las cargas, máquinas, notas y series por lado de esta fecha.</Txt>
+        <Button label={"Preparar " + selectedPlan.name} icon="play" onPress={() => {
+          update(current => ({ ...current, active: startWorkout(selectedPlan, current.profile.weight, current.profile.level, current.profile.sex, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes, { preparing: true, plannedDate: dateAtNoon(selected) }) }));
+          router.push("/workout");
+        }} />
+      </Card>
       <Button label="Mover esta sesión" compact variant="secondary" onPress={() => setMoving({ sourceKey: selectedKey, day: selectedPlan, fromRecurring: !!selectedBase })} />
       <Button label="Quitar sesión del calendario" compact variant="ghost" onPress={removeSession} />
     </>}
-    {!selectedHistory.length && moving && <Notice>{canMoveHere ? t("Mueve {name} a esta fecha.", { name: moving.day.name }) : "Elige una fecha libre. También puedes usar el sábado o domingo de la semana anterior."}</Notice>}
+    {!selectedHistory.length && moving && <Notice>{canMoveHere ? t("Suelta o confirma aquí: {name}.", { name: moving.day.name }) : "Mantén pulsado el día, espera la vibración y arrástralo hasta una fecha libre. También puedes usar el sábado o domingo de la semana anterior."}</Notice>}
     {!selectedHistory.length && canMoveHere && <Button label="Mover aquí" onPress={moveHere} />}
     {!selectedHistory.length && moving && <Button label="Cancelar movimiento" compact variant="ghost" onPress={() => setMoving(null)} />}
     {!selectedHistory.length && !selectedPlan && !isPast && !moving && <>

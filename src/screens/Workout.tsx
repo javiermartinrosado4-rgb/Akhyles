@@ -18,7 +18,7 @@ import { useStore } from "../state/Store";
 import { allExercises, displayName, getExercise, restSeconds } from "../logic/routine";
 import { draftFor, finishWorkout } from "../logic/workout";
 import { number, validWeight } from "../logic/validation";
-import { ExerciseRecord, SetRecord } from "../types";
+import { ExerciseRecord, SetRecord, PlannedWorkout } from "../types";
 import { WeightSuggestion } from "../components/WeightSuggestion";
 import { useTheme } from "../theme";
 import { Calories } from "../components/Calories";
@@ -226,6 +226,24 @@ export default function Workout() {
   };
 
   const complete = (records: ExerciseRecord[], nextSkipped: string[]) => {
+    if (active.preparing) {
+      const plannedDate = active.plannedDate ?? new Date().toISOString();
+      update(s => {
+        const current = s.plannedWorkouts?.find(item => new Date(item.date).toDateString() === new Date(plannedDate).toDateString());
+        const byId = new Map(records.map(record => [record.prescription.id, record]));
+        const day = { ...active.day, exercises: active.day.exercises.map(entry => {
+          const record = byId.get(entry.id);
+          const weight = record?.sets[0]?.weight;
+          const machineBrand = record?.machineBrand;
+          return { ...entry, ...(Number.isFinite(weight) ? { weight } : {}), ...(machineBrand ? { machineBrand } : {}) };
+        }) };
+        const item: PlannedWorkout = { date: plannedDate, dayId: day.id, day };
+        return { ...s, active: undefined, plannedWorkouts: [...(s.plannedWorkouts ?? []).filter(value => new Date(value.date).toDateString() !== new Date(plannedDate).toDateString()), item] };
+      });
+      setError("");
+      router.replace("/routine");
+      return;
+    }
     const ordered = active.day.exercises.flatMap((item) => {
       const record = records.find((candidate) => candidate.prescription.id === item.id);
       return record ? [record] : [];
@@ -480,7 +498,9 @@ export default function Workout() {
       {!!error && <Notice error>{error}</Notice>}
       <Button
         label={
-          remainingAfterCurrent
+          active.preparing
+            ? (remainingAfterCurrent ? "Guardar preparación y siguiente" : "Guardar preparación")
+            : remainingAfterCurrent
             ? messages.Workout.guardarYSiguienteEjercicio
             : messages.Workout.finalizarEntrenamiento
         }
