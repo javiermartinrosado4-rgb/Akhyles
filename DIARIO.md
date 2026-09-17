@@ -1301,3 +1301,10 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - El envío 10 (`1.0.17`) quedó **Cancelado** al reiniciar la revisión para incluir esta corrección. Producción no iniciada.
 - La advertencia no bloqueante sigue siendo la ausencia de archivo de desofuscación; la build no usa R8/ProGuard.
 - Tarea futura, no incluida en esta entrega: valorar la generación y subida del archivo de desofuscación R8/ProGuard para facilitar el análisis de errores y ANR en próximas versiones.
+
+### Entrega Web + Android — 17 de septiembre de 2026
+
+- Web publicada y verificada en `https://app.akhyles.com/` con los ajustes de peso y repeticiones por lado, referencias de fuerza persistentes, logros simbólicos y privacidad/comunidad actualizadas.
+- Android `1.0.23` / `versionCode 25` cargado en Prueba cerrada Alpha y enviado a revisión de Google Play. El envío queda **En revisión**; Producción no iniciada.
+- AAB enviado: `android/app/build/outputs/bundle/release/app-release.aab`; SHA-256 `CBA681241626B1AD5101296BDE063C2744EC57EB9E427CABB44514040FDC9C1E`; firma SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
+- Git actualizado en `main`: `424c5af chore: bump Android release to 1.0.23` (incluye `8ed0879 fix: unify community achievements and side load scoring`).
