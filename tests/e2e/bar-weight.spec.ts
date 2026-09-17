@@ -9,6 +9,7 @@ for (const bar of ["0", "15,5"]) test(`per-side bar ${bar} survives reload and i
   await page.goto("/");
   await page.evaluate(s => localStorage.setItem("gym60:state:v1", JSON.stringify(s)), state);
   await page.goto("/workout");
+  await expect(page.getByRole("button", { name: "Peso diferente por lado", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Por lado", exact: true }).click();
   const field = page.getByRole("textbox", { name: "Peso de la barra", exact: true });
   await expect(field).toHaveValue("0");

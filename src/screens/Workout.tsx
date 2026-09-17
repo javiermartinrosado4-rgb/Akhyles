@@ -102,7 +102,6 @@ export default function Workout() {
   const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
   const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
   const weighted = active.weighted?.[entry.id] ?? false;
-  const asymmetric = active.asymmetricSets?.[entry.id] ?? active.draft.map(set => set.leftWeight !== undefined);
   const changeBarWeight = (value: string) => {
     setError("");
     update(s => !s.active ? s : ({ ...s,
@@ -146,18 +145,6 @@ export default function Workout() {
     });
   };
 
-  const toggleAsymmetric = (index: number) => {
-    update(s => {
-      if (!s.active) return s;
-      const enabled = s.active.asymmetricSets?.[entry.id] ?? s.active.draft.map(set => set.leftWeight !== undefined);
-      const next = enabled.map((value, position) => position === index ? !value : value);
-      const draft = s.active.draft.map((set, position) => position === index
-        ? next[position] ? { ...set, leftWeight: set.weight, rightWeight: set.weight } : { ...set, leftWeight: undefined, rightWeight: undefined }
-        : set);
-      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, asymmetricSets: { ...(s.active.asymmetricSets ?? {}), [entry.id]: next } } };
-    });
-  };
-
   const changeLoadMode = (nextMode: LoadInputMode) => {
     if (nextMode === loadMode) return;
     update(s => {
@@ -171,9 +158,11 @@ export default function Workout() {
         // sides from the existing total so switching modes never loses a set.
         return nextMode === "per-side"
           ? { ...set, weight, leftWeight: set.leftWeight ?? weight, rightWeight: set.rightWeight ?? weight, leftReps: set.leftReps ?? set.reps, rightReps: set.rightReps ?? set.reps }
-          : { ...set, weight };
+          : { ...set, weight, leftWeight: undefined, rightWeight: undefined, leftReps: undefined, rightReps: undefined };
       });
-      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } }, preferences: historical ? s.preferences : { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
+      const asymmetricSets = { ...(s.active.asymmetricSets ?? {}) };
+      delete asymmetricSets[entry.id];
+      return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode }, asymmetricSets }, preferences: historical ? s.preferences : { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
     });
   };
 
@@ -294,11 +283,11 @@ export default function Workout() {
       setError("Introduce un peso base entre 0 y 100 kg. Puedes poner 0."); return;
     }
     const sets = active.draft.map((set, index) => {
-      const sideSpecific = loadMode === "per-side" || asymmetric[index];
+      const sideSpecific = loadMode === "per-side";
       const leftWeight = sideSpecific ? number(set.leftWeight ?? set.weight) : undefined;
       const rightWeight = sideSpecific ? number(set.rightWeight ?? set.weight) : undefined;
       const enteredWeight = sideSpecific ? Math.min(leftWeight!, rightWeight!) : number(set.weight);
-      const sideReps = loadMode === "per-side" || sideSpecific;
+      const sideReps = loadMode === "per-side";
       const leftReps = sideReps ? number(set.leftReps ?? set.reps) : undefined;
       const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
@@ -486,7 +475,6 @@ export default function Workout() {
           <Txt weight="600">
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
-          {loadMode !== "per-side" && !readOnly && <Button label={asymmetric[index] ? "Peso igual en ambos lados" : "Peso diferente por lado"} compact variant="ghost" onPress={() => toggleAsymmetric(index)} />}
           {loadMode === "per-side" ? <View style={{ gap: 10 }}>
             {(["left", "right"] as const).map(side => {
               const left = side === "left";
@@ -497,7 +485,7 @@ export default function Workout() {
               </Row>;
             })}
           </View> : <Row>
-            {(!isBodyweight || weighted) && !asymmetric[index] && <Field
+            {(!isBodyweight || weighted) && <Field
               label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
               value={set.weight}
               onChangeText={(value) => changeSet(index, "weight", value)}
@@ -505,21 +493,14 @@ export default function Workout() {
               suffix={messages.Workout.kg}
               disabled={readOnly}
             />}
-            {(!isBodyweight || weighted) && asymmetric[index] && <>
-              <Field label="Lado izquierdo" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "leftWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />
-              <Field label="Lado derecho" value={set.rightWeight ?? set.weight} onChangeText={(value) => changeSet(index, "rightWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />
-            </>}
-            {asymmetric[index] ? <>
-              <Field label="Repeticiones lado izquierdo" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "leftReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
-              <Field label="Repeticiones lado derecho" value={set.rightReps ?? set.reps} onChangeText={(value) => changeSet(index, "rightReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
-            </> : <Field
+            <Field
               label={t("Repeticiones serie {value1}", { value1: index + 1 })}
               value={set.reps}
               onChangeText={(value) => changeSet(index, "reps", value)}
               numeric
               suffix={messages.Workout.rep}
               disabled={readOnly}
-            />}
+            />
           </Row>}
         </Card>
       ))}

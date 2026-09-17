@@ -33,6 +33,20 @@ test("opening history in the workout screen never becomes an active workout", ()
   assert.equal(resumeWorkout({ routine, preferences: emptyPreferences, history: [], active: historical } as unknown as AppState)?.historical?.workoutId, "past");
 });
 
+test("load mode preferences resolve by exercise and historical side records reopen per side", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const prescription = routine[0].exercises[0];
+  const active = startWorkout(routine[0], undefined, undefined, undefined, undefined, undefined, { [prescription.exerciseId]: "per-side" });
+  assert.equal(active.loadModes?.[prescription.id], "per-side");
+  const historical = openHistoricalWorkout({
+    id: "side-past", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30,
+    records: [{ prescription, name: prescription.exerciseId, type: "compound", sets: [{ weight: 20, reps: 8, leftWeight: 12, rightWeight: 8, leftReps: 8, rightReps: 7 }] }],
+  }, false, demoProfile, undefined, undefined, { [prescription.exerciseId]: "total" });
+  assert.equal(historical.loadModes?.[prescription.id], "per-side");
+  assert.equal(historical.draft[0]?.leftWeight, "12");
+  assert.equal(historical.draft[0]?.rightWeight, "8");
+});
+
 test("removing the current last exercise cannot crash resume or copy its draft to another exercise", () => {
   const routine = generateRoutine(demoProfile, emptyPreferences);
   const active = startWorkout(routine[0]); active.index = active.day.exercises.length - 1;

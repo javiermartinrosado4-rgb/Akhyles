@@ -3,7 +3,7 @@ import { progression } from "./progression";
 import { getExercise } from "./routine";
 import { localDateKey } from "./schedule";
 import { number } from "./validation";
-import { defaultBarWeight, fromStoredLoad, LoadInputMode, formatLoad } from "./load";
+import { defaultBarWeight, defaultLoadInputMode, fromStoredLoad, LoadInputMode, formatLoad } from "./load";
 import { syncPersonalAchievements } from "./personalAchievements";
 export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
   Array.from({ length: p.sets }, () => ({
@@ -12,7 +12,8 @@ export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
   }));
 export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>, options?: { preparing?: boolean; plannedDate?: string }): ActiveWorkout {
   if (!day.exercises.length) throw new Error("La sesión no tiene ejercicios.");
-  const mode = loadModes?.[day.exercises[0].id] ?? "total";
+  const modeFor = (entry: Prescription) => loadModes?.[entry.id] ?? loadModes?.[entry.exerciseId] ?? defaultLoadInputMode(entry.exerciseId);
+  const mode = modeFor(day.exercises[0]);
   const draft = draftFor(day.exercises[0], mode);
   return {
     ...(options?.preparing ? { preparing: true, plannedDate: options.plannedDate } : {}),
@@ -33,7 +34,7 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
     records: [],
     draft,
     drafts: { [day.exercises[0].id]: draft },
-    loadModes: Object.fromEntries(day.exercises.map(entry => [entry.id, loadModes?.[entry.id] ?? "total"])),
+    loadModes: Object.fromEntries(day.exercises.map(entry => [entry.id, modeFor(entry)])),
     skipped: [],
   };
 }
@@ -41,7 +42,11 @@ export const isActiveWorkoutOnDate = (active: ActiveWorkout | undefined, date = 
   !!active && !active.preparing && !active.historical && localDateKey(active.startedAt) === localDateKey(date);
 export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profile: Profile, barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>): ActiveWorkout {
   const day: Day = { id: workout.dayId ?? `history-${workout.id}`, name: workout.dayName, exercises: workout.records.map(record => ({ ...record.prescription, range: [...record.prescription.range] as [number, number] })) };
-  const active = startWorkout(day, profile.weight, workout.level ?? profile.level, workout.sex ?? profile.sex, barWeights, apparatusWeights, loadModes);
+  const historicalModes = Object.fromEntries(workout.records.map(record => {
+    const perSide = record.sets.some(set => set.leftWeight !== undefined || set.rightWeight !== undefined || set.leftReps !== undefined || set.rightReps !== undefined);
+    return [record.prescription.id, perSide ? "per-side" : loadModes?.[record.prescription.id] ?? loadModes?.[record.prescription.exerciseId] ?? defaultLoadInputMode(record.prescription.exerciseId)];
+  }));
+  const active = startWorkout(day, profile.weight, workout.level ?? profile.level, workout.sex ?? profile.sex, barWeights, apparatusWeights, historicalModes);
   const drafts = Object.fromEntries(workout.records.map(record => [record.prescription.id, record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }))]));
   const first = day.exercises[0];
   return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
