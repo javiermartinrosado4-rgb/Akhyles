@@ -2,7 +2,7 @@ import { catalog } from "../data/catalog";
 import { AppState, Day, Exercise, Preferences, Range } from "../types";
 import { scoreProgress } from "./progress";
 import { estimatedMax, POINTS_MODEL } from "./strengthScore";
-import { scoreLoad, storedSetLoad, validBarWeight } from "./load";
+import { effectiveLiftedLoad, storedSetLoad, validBarWeight } from "./load";
 import { MuscleScore } from "./bodyMap";
 import { scoreGroups } from "./scoreReferences";
 import { validRange } from "./validation";
@@ -167,12 +167,12 @@ export function exportProgress(state: AppState, details = false, bodyWeight = fa
   for (const workout of state.history) for (const record of workout.records) {
     sets += record.sets.length;
     const best = record.sets.filter(set => set.weight > 0 && set.reps > 0)
-      .map(set => ({ ...set, maximum: estimatedMax(scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight ?? state.preferences.barWeights?.[record.prescription.exerciseId]), Math.min(set.reps, 10)) ?? 0 }))
+      .map(set => ({ ...set, maximum: estimatedMax(effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set), workout.bodyWeight, record.apparatusWeight, record.barWeight, state.preferences.barWeights?.[record.prescription.exerciseId]) ?? 0, Math.min(set.reps, 10)) ?? 0 }))
       .sort((a, b) => b.maximum - a.maximum)[0];
     const previous = latest.get(record.prescription.exerciseId);
     if (best && (!previous || best.maximum > (previous.maximum ?? 0))) latest.set(record.prescription.exerciseId, {
       id: record.prescription.exerciseId, name: record.name, weight: best.weight,
-      load: scoreLoad(record.prescription.exerciseId, storedSetLoad(best), record.apparatusWeight ?? record.barWeight ?? state.preferences.barWeights?.[record.prescription.exerciseId]),
+      load: effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(best), workout.bodyWeight, record.apparatusWeight, record.barWeight, state.preferences.barWeights?.[record.prescription.exerciseId]) ?? 0,
       reps: best.reps, maximum: Math.round(best.maximum * 10) / 10, date: workout.date,
     });
   }

@@ -8,12 +8,16 @@ export function WeightSuggestion({ record }: { record: ExerciseRecord }) {
   const { t, locale } = useLanguage();
   const { state } = useStore();
   const e = getExercise(record.prescription.exerciseId, state.preferences);
+  const assisted = e.id === "assisted-pullup";
   const result = progression(record.type, record.prescription.range, record.sets, record.prescription.sets,
-    state.preferences.loadSteps?.[e.id] ?? e.loadStep);
+    state.preferences.loadSteps?.[e.id] ?? e.loadStep, assisted ? "decrease" : "increase");
   return <Card>
     <Txt translate={false} weight="600">{record.name}</Txt>
     <Txt muted size={13}>{record.sets.map(s => `${s.weight} kg × ${s.reps}`).join(" · ")}</Txt>
-    <Notice>{result.increase ? t("Máximo alcanzado en todas las series. Próxima sesión: {weight} kg (+{percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.", { weight: result.suggested.toLocaleString(locale), percent: result.percent.toLocaleString(locale) }) : t(result.message)}</Notice>
+    <Notice>{result.increase ? assisted
+      ? `Máximo alcanzado. Próxima sesión: ${result.suggested.toLocaleString(locale)} kg de ayuda (-${result.percent.toLocaleString(locale)}%). Se prepara automáticamente; puedes modificar la asistencia.`
+      : t("Máximo alcanzado en todas las series. Próxima sesión: {weight} kg (+{percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.", { weight: result.suggested.toLocaleString(locale), percent: result.percent.toLocaleString(locale) })
+      : t(result.message)}</Notice>
     <Txt>{t("Próxima carga preparada: {weight} kg", { weight: (state.preferences.weights[e.id] ?? result.current).toLocaleString(locale) })}</Txt>
     <Txt muted size={12}>Al guardar las series de tu próxima sesión confirmarás la carga utilizada.</Txt>
   </Card>;

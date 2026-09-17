@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultLoadInputMode, fromStoredLoad, scoreLoad, storedSetLoad, supportsPerSideInput, toStoredLoad, validBarWeight } from "../src/logic/load";
+import { defaultLoadInputMode, effectiveExternalLoad, effectiveLiftedLoad, fromStoredLoad, scoreLoad, storedSetLoad, supportsApparatusWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../src/logic/load";
 
 test("per-side input is always normalized to total load", () => {
   assert.equal(toStoredLoad(15, "per-side"), 30);
@@ -12,6 +12,20 @@ test("per-side input is always normalized to total load", () => {
   assert.equal(supportsPerSideInput("leg-press"), true);
   assert.equal(supportsPerSideInput("bench-smith"), true);
   assert.equal(supportsPerSideInput("pronated-pullup"), true);
+});
+
+test("apparatus weight is hidden for the requested isolation and ab work", () => {
+  for (const id of ["chest-cable", "standing-cable-pec-dec", "pec-deck", "preacher-curl", "machine-curl", "triceps-machine", "leg-extension", "standing-curl", "seated-curl", "lying-curl", "abductor", "adductor-machine", "machine-crunch", "machine-leg-tuck", "machine-leg-raise"]) {
+    assert.equal(supportsApparatusWeight(id), false, id);
+  }
+  assert.equal(supportsApparatusWeight("hack"), true);
+  assert.equal(supportsApparatusWeight("seated-press"), true);
+});
+
+test("assisted pull-ups use body weight minus assistance and ignore machine mass", () => {
+  assert.equal(effectiveExternalLoad("assisted-pullup", 25, 10), 25);
+  assert.equal(effectiveLiftedLoad("assisted-pullup", 25, 80, 10), 55);
+  assert.equal(effectiveLiftedLoad("assisted-pullup", 25), undefined);
 });
 
 test("asymmetric per-side records preserve a conservative bilateral load", () => {

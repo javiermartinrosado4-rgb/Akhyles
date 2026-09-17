@@ -180,8 +180,8 @@ export const messages = {
     serie: "Serie ",
     kg: "kg",
     rep: "rep.",
+    guardar: "Guardar",
     finalizarEntrenamiento: "Finalizar entrenamiento",
-    guardarYSiguienteEjercicio: "Guardar y siguiente ejercicio",
     corregirEjercicioAnterior: "Corregir ejercicio anterior",
     losDatosDeEstaSesionSeGuardan:
       "Los datos de esta sesión se guardan mientras escribes. Usa siempre el mismo criterio de carga (por mancuerna o total) para comparar tus sesiones.",

@@ -40,16 +40,32 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
 }
 export const isActiveWorkoutOnDate = (active: ActiveWorkout | undefined, date = new Date()) =>
   !!active && !active.preparing && !active.historical && localDateKey(active.startedAt) === localDateKey(date);
-export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profile: Profile, barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>): ActiveWorkout {
-  const day: Day = { id: workout.dayId ?? `history-${workout.id}`, name: workout.dayName, exercises: workout.records.map(record => ({ ...record.prescription, range: [...record.prescription.range] as [number, number] })) };
+export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profile: Profile, barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, routine?: Day[]): ActiveWorkout {
+  const routineDay = routine?.find(day => day.id === workout.dayId)
+    ?? routine?.find(day => day.name === workout.dayName);
+  const remaining = [...workout.records];
+  const orderedRecords = routineDay
+    ? [
+        ...routineDay.exercises.flatMap(entry => {
+          const index = remaining.findIndex(record => record.prescription.id === entry.id);
+          const fallback = index >= 0 ? index : remaining.findIndex(record => record.prescription.exerciseId === entry.exerciseId);
+          return fallback < 0 ? [] : [remaining.splice(fallback, 1)[0]!];
+        }),
+        ...remaining,
+      ]
+    : workout.records;
+  const day: Day = { id: workout.dayId ?? `history-${workout.id}`, name: workout.dayName, exercises: orderedRecords.map(record => ({ ...record.prescription, range: [...record.prescription.range] as [number, number] })) };
   const historicalModes = Object.fromEntries(workout.records.map(record => {
     const perSide = record.sets.some(set => set.leftWeight !== undefined || set.rightWeight !== undefined || set.leftReps !== undefined || set.rightReps !== undefined);
-    return [record.prescription.id, perSide ? "per-side" : loadModes?.[record.prescription.id] ?? loadModes?.[record.prescription.exerciseId] ?? defaultLoadInputMode(record.prescription.exerciseId)];
+    // A preference is for the next workout, not evidence about a completed one.
+    // Legacy records without side fields were stored as totals; applying a newer
+    // per-side preference here made every save double their load again.
+    return [record.prescription.id, record.loadMode ?? (perSide ? "per-side" : "total")];
   }));
   const active = startWorkout(day, profile.weight, workout.level ?? profile.level, workout.sex ?? profile.sex, barWeights, apparatusWeights, historicalModes);
   const drafts = Object.fromEntries(workout.records.map(record => [record.prescription.id, record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }))]));
   const first = day.exercises[0];
-  return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
+  return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, records: orderedRecords, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
 }
 export function finishWorkout(s: AppState, workout: Workout): AppState {
   if (s.history.some(w => w.id === workout.id || (workout.startedAt && w.startedAt === workout.startedAt))) return { ...s, active: undefined };
@@ -63,7 +79,7 @@ export function finishWorkout(s: AppState, workout: Workout): AppState {
     if (!r.sets.length) continue;
     const e = getExercise(r.prescription.exerciseId, s.preferences);
     const result = progression(r.type, r.prescription.range, r.sets, r.prescription.sets,
-      s.preferences.loadSteps?.[e.id] ?? e.loadStep);
+      s.preferences.loadSteps?.[e.id] ?? e.loadStep, e.id === "assisted-pullup" ? "decrease" : "increase");
     recommendations.set(e.id, result.increase ? result.suggested : r.sets[0]!.weight);
   }
   for (const [exerciseId, weight] of recommendations) next = confirmWeight(next, exerciseId, weight);

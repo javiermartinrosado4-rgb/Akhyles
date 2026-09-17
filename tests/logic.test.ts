@@ -878,6 +878,10 @@ test("double progression: first effective set, configurable range, 3% and 5% cap
     }
   assert.equal(roundWeight(12.38), 12.5);
 });
+
+test("assisted pull-up progression reduces assistance", () => {
+  assert.equal(progression("compound", [6, 8], [{ weight: 30, reps: 8 }, { weight: 30, reps: 7 }], 2, 1.25, "decrease").suggested, 28.75);
+});
 test("profile validation accepts decimal commas without requiring body-fat data", () => {
   assert.deepEqual(profileErrors(demoProfile), {});
   assert.ok(profileErrors({ ...demoProfile, weight: "abc" }).weight);

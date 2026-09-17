@@ -25,7 +25,7 @@ import { Calories } from "../components/Calories";
 import { EquipmentPhoto } from "../components/EquipmentPhoto";
 import { ExerciseEditor } from "../components/ExerciseEditor";
 import { MachineBrandSelect } from "../components/MachineBrandSelect";
-import { defaultBarWeight, defaultLoadInputMode, formatLoad, fromStoredLoad, loadHint, LoadInputMode, supportsBarWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../logic/load";
+import { defaultBarWeight, defaultLoadInputMode, formatLoad, fromStoredLoad, isAssistedPullup, loadHint, LoadInputMode, supportsApparatusWeight, supportsBarWeight, supportsPerSideInput, toStoredLoad, validBarWeight } from "../logic/load";
 
 const draftFromRecord = (sets: SetRecord[], mode: LoadInputMode = "total") =>
   sets.map((set) => ({ weight: formatLoad(fromStoredLoad(set.weight, mode)), reps: String(set.reps), ...(set.leftWeight !== undefined ? { leftWeight: String(set.leftWeight), rightWeight: String(set.rightWeight ?? set.weight) } : {}), ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}) }));
@@ -97,7 +97,7 @@ export default function Workout() {
   const apparatusWeightText = active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0);
   const machineBrand = active.machineBrands?.[entry.id] ?? entry.machineBrand ?? state.preferences.machineBrands?.[entry.exerciseId];
   const isBodyweight = exercise.variant === "bodyweight";
-  const hasApparatusWeight = exercise.variant === "machine" || exercise.variant === "smith";
+  const hasApparatusWeight = (exercise.variant === "machine" || exercise.variant === "smith") && supportsApparatusWeight(entry.exerciseId);
   const hasAddedBaseWeight = supportsBarWeight(entry.exerciseId) || hasApparatusWeight;
   const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
   const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
@@ -153,7 +153,12 @@ export default function Workout() {
       const toPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value * 2 : mode === "total-with-bar" ? Math.max(0, value - bar) : value;
       const fromPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value / 2 : mode === "total-with-bar" ? value + bar : value;
       const draft = s.active.draft.map(set => {
-        const weight = formatLoad(fromPlates(toPlates(number(set.weight), loadMode), nextMode));
+        // When leaving per-side mode, the side fields are the latest edit;
+        // set.weight may still contain the old derived total.
+        const currentValue = loadMode === "per-side"
+          ? Math.min(number(set.leftWeight ?? set.weight), number(set.rightWeight ?? set.weight))
+          : number(set.weight);
+        const weight = formatLoad(fromPlates(toPlates(currentValue, loadMode), nextMode));
         // Per-side input always presents one complete row per arm. Seed both
         // sides from the existing total so switching modes never loses a set.
         return nextMode === "per-side"
@@ -227,7 +232,14 @@ export default function Workout() {
 
   const complete = (records: ExerciseRecord[], nextSkipped: string[]) => {
     if (historical) {
-      update(s => ({ ...s, active: undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records, skipped: historical.skipped } : workout) }));
+      // Replacing a record appends it while editing. Restore the original
+      // session sequence before persisting so a corrected exercise never
+      // jumps to a different position next time the history is opened.
+      const ordered = active.day.exercises.flatMap(item => {
+        const record = records.find(candidate => candidate.prescription.id === item.id);
+        return record ? [record] : [];
+      });
+      update(s => ({ ...s, active: undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records: ordered, skipped: historical.skipped } : workout) }));
       setError("");
       router.replace("/routine");
       return;
@@ -313,6 +325,7 @@ export default function Workout() {
       return;
     }
     const record: ExerciseRecord = {
+      loadMode,
       ...(supportsBarWeight(entry.exerciseId) ? { barWeight: number(barWeightText) || 0 } : {}),
       ...(hasApparatusWeight ? { apparatusWeight: number(apparatusWeightText) || 0 } : {}),
       ...(machineBrand ? { machineBrand } : {}),
@@ -330,10 +343,16 @@ export default function Workout() {
     const nextSkipped = skipped.filter((id) => id !== entry.id);
     const target = nextPending(records, nextSkipped);
     if (target < 0) complete(records, nextSkipped);
-    else goTo(target, records, nextSkipped, {
-      ...drafts,
-      [entry.id]: active.draft,
-    });
+    else update(s => !s.active ? s : ({
+      ...s,
+      active: {
+        ...s.active,
+        records,
+        skipped: nextSkipped,
+        draft: active.draft,
+        drafts: { ...(s.active.drafts ?? {}), [entry.id]: active.draft },
+      },
+    }));
   };
 
   const skipExercise = () => {
@@ -348,13 +367,6 @@ export default function Workout() {
       [entry.id]: active.draft,
     });
   };
-
-  const remainingAfterCurrent = active.day.exercises.some(
-    (item) =>
-      item.id !== entry.id &&
-      !completed.has(item.id) &&
-      !skipped.includes(item.id),
-  );
 
   return (
     <Page>
@@ -486,7 +498,7 @@ export default function Workout() {
             })}
           </View> : <Row>
             {(!isBodyweight || weighted) && <Field
-              label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
+              label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : isAssistedPullup(entry.exerciseId) ? "Kilos de ayuda" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
               value={set.weight}
               onChangeText={(value) => changeSet(index, "weight", value)}
               numeric
@@ -506,13 +518,7 @@ export default function Workout() {
       ))}
       {!!error && <Notice error>{error}</Notice>}
       {readOnly ? <Button label="Volver al calendario" onPress={closeHistorical} icon="arrow-left" /> : <Button
-        label={
-          active.preparing
-            ? (remainingAfterCurrent ? "Guardar preparación y siguiente" : "Guardar preparación")
-            : remainingAfterCurrent
-            ? messages.Workout.guardarYSiguienteEjercicio
-            : messages.Workout.finalizarEntrenamiento
-        }
+        label={messages.Workout.guardar}
         onPress={saveExercise}
         icon="check"
       />}

@@ -149,7 +149,7 @@ test("complete onboarding, back navigation, validation, editing, workout and per
   await page.reload();
   await page.getByRole("button", { name: "Iniciar entrenamiento", exact: true }).click();
   await page
-    .getByRole("button", { name: "Guardar y siguiente ejercicio" })
+    .getByRole("button", { name: "Guardar" })
     .click();
   await expect(
     page.getByText(/Completa cada serie con un peso válido/),
@@ -172,18 +172,13 @@ test("complete onboarding, back navigation, validation, editing, workout and per
       await weights.nth(j).fill("35");
       await repetitions.nth(j).fill("9");
     }
-    const finish = page.getByRole("button", {
-      name: "Finalizar entrenamiento",
-      exact: true,
-    });
-    if (await finish.count()) {
-      await finish.click();
+    const next = page.getByRole("button", { name: "Ejercicio siguiente", exact: true });
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
+    if (!(await next.isEnabled())) {
       finished = true;
       break;
     }
-    await page
-      .getByRole("button", { name: "Guardar y siguiente ejercicio" })
-      .click();
+    await next.click();
   }
   expect(finished).toBe(true);
   await expect(page.getByText("ENTRENAMIENTO GUARDADO")).toBeVisible();

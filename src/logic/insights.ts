@@ -1,6 +1,6 @@
 import { AppState, ExerciseRecord, Workout } from "../types";
 import { estimatedMax } from "./strengthScore";
-import { scoreLoad, storedSetLoad } from "./load";
+import { effectiveLiftedLoad, storedSetLoad } from "./load";
 import { localDateKey, startOfWeek, weeklyAdherence } from "./schedule";
 import { scoreProgress } from "./progress";
 
@@ -23,17 +23,21 @@ export interface WeeklyProgressInsight {
 
 type StrengthRecord = Omit<ExerciseChange, "before" | "percent">;
 
-function strongest(record: ExerciseRecord) {
+function strongest(record: ExerciseRecord, bodyWeight?: number) {
   return record.sets
     .filter(set => Number.isFinite(set.weight) && set.weight > 0 && Number.isInteger(set.reps) && set.reps > 0)
-    .map(set => ({ weight: storedSetLoad(set), reps: Math.min(set.reps, 10), maximum: estimatedMax(scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight), Math.min(set.reps, 10)) ?? 0 }))
+    .flatMap(set => {
+      const load = effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set), bodyWeight, record.apparatusWeight, record.barWeight);
+      const maximum = load === undefined ? undefined : estimatedMax(load, Math.min(set.reps, 10));
+      return maximum === undefined ? [] : [{ weight: storedSetLoad(set), reps: Math.min(set.reps, 10), maximum }];
+    })
     .sort((a, b) => b.maximum - a.maximum)[0];
 }
 
 function bestByExercise(workouts: Workout[]) {
   const best = new Map<string, StrengthRecord>();
   for (const workout of workouts) for (const record of workout.records) {
-    const set = strongest(record);
+    const set = strongest(record, workout.bodyWeight);
     const previous = best.get(record.prescription.exerciseId);
     if (!set || (previous && previous.after >= set.maximum)) continue;
     best.set(record.prescription.exerciseId, {

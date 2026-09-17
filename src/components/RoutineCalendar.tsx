@@ -231,7 +231,7 @@ export function RoutineCalendar() {
       <Txt weight="600">{canEditPast ? "Editar este entrenamiento" : "Visualizar este entrenamiento"}</Txt>
       <Txt muted size={12}>{canEditPast ? "Abre la sesión completa para corregir pesos y repeticiones." : "Abre la sesión completa en modo lectura. Los entrenamientos de hace más de una semana no se modifican."}</Txt>
       <Button label={canEditPast ? `Editar ${workout.dayName}` : `Visualizar ${workout.dayName}`} icon={canEditPast ? "edit" : "eye"} onPress={() => {
-        update(current => ({ ...current, active: openHistoricalWorkout(workout, !canEditPast, current.profile, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes) }));
+        update(current => ({ ...current, active: openHistoricalWorkout(workout, !canEditPast, current.profile, current.preferences.barWeights, current.preferences.apparatusWeights, current.routine) }));
         router.push("/workout");
       }} />
     </Card>)}

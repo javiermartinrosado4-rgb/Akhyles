@@ -9,6 +9,7 @@ export function progression(
   sets: SetRecord[],
   expectedSets = 2,
   loadStep = 1.25,
+  direction: "increase" | "decrease" = "increase",
 ) {
   const valid =
     validRange(range) &&
@@ -30,9 +31,9 @@ export function progression(
     .sort((a, b) => Math.abs(a - current * 0.03) - Math.abs(b - current * 0.03));
   const available = increments[0];
   const suggested = increase && current > 0 && available !== undefined
-    ? roundWeight(current + available) : current;
-  const canIncrease = increase && suggested > current && validWeight(suggested);
-  const percent = canIncrease ? Math.round((suggested / current - 1) * 1000) / 10 : 0;
+    ? roundWeight(direction === "decrease" ? Math.max(0, current - available) : current + available) : current;
+  const canIncrease = increase && validWeight(suggested) && (direction === "decrease" ? suggested < current : suggested > current);
+  const percent = canIncrease ? Math.round(Math.abs(suggested / current - 1) * 1000) / 10 : 0;
   return {
     increase: canIncrease,
     suggested: canIncrease ? suggested : current,

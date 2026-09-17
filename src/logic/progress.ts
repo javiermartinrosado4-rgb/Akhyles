@@ -1,7 +1,7 @@
 import { AppState, Exercise, Muscle, Workout } from "../types";
 import { getLocale, translate } from "../i18n/translate";
 import { allExercises } from "./routine";
-import { scoreLoad, storedSetLoad, validBarWeight } from "./load";
+import { effectiveExternalLoad, effectiveLiftedLoad, storedSetLoad, validBarWeight } from "./load";
 import { estimatedMax, wilksCoefficient } from "./strengthScore";
 import { displayPoints, gluteInference, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
 import { localDateKey } from "./schedule";
@@ -22,7 +22,8 @@ export const eligibleForScore = (e: Exercise) => !e.custom && scoreReferences[e.
 export function exerciseProgress(history: Workout[], id: string, apparatusWeights: Record<string, number> = {}): ChartPoint[] {
   return [...history].sort((a, b) => a.date.localeCompare(b.date)).flatMap(w => {
     const sets = w.records.filter(r => r.prescription.exerciseId === id)
-      .flatMap(r => r.sets.map(set => ({ ...set, total: scoreLoad(id, storedSetLoad(set), r.apparatusWeight ?? r.barWeight ?? apparatusWeights[id] ?? 0) })));
+      .flatMap(r => r.sets.map(set => ({ ...set, total: effectiveLiftedLoad(id, storedSetLoad(set), w.bodyWeight, r.apparatusWeight, r.barWeight, apparatusWeights[id]) })))
+      .filter((set): set is typeof set & { total: number } => Number.isFinite(set.total));
     const best = sets.filter(s => s.weight > 0 && s.reps > 0).sort((a, b) => b.total - a.total || b.reps - a.reps)[0];
     return best ? [{ date: w.date, value: best.total, detail: translate("{reps} rep · peso corporal {weight} kg", { reps: best.reps, weight: w.bodyWeight ?? translate("sin registrar") }) }] : [];
   });
@@ -53,7 +54,7 @@ export function scoreProgress(state: AppState) {
       for (const set of r.sets) {
         const stored = storedSetLoad(set);
         if (!Number.isFinite(stored) || stored < 0 || stored > 1000 || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100) continue;
-        const externalLoad = scoreLoad(exercise.id, stored, r.apparatusWeight ?? r.barWeight);
+        const externalLoad = effectiveExternalLoad(exercise.id, stored, r.apparatusWeight, r.barWeight);
         const load = reference.body === "add" ? w.bodyWeight! + externalLoad : reference.body === "subtract" ? w.bodyWeight! - externalLoad : externalLoad;
         // Higher-rep work remains valid training; no extra strength bonus beyond ten reps.
         const maximum = estimatedMax(load, Math.min(set.reps, 10));

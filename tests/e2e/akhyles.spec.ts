@@ -96,7 +96,8 @@ test("workout arrows preserve drafts and skipped exercises only affect today's s
     await weights.nth(i).fill("35");
     await repetitions.nth(i).fill("8");
   }
-  await page.getByRole("button", { name: "Guardar y siguiente ejercicio", exact: true }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await page.getByRole("button", { name: "Ejercicio siguiente", exact: true }).click();
   for (let i = 1; i < exerciseCount; i++)
     await page.getByRole("button", { name: "Hoy no he podido hacer este ejercicio", exact: true }).click();
   await expect(page.getByText(/Hoy no has podido hacer:/)).toBeVisible();

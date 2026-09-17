@@ -41,10 +41,45 @@ test("load mode preferences resolve by exercise and historical side records reop
   const historical = openHistoricalWorkout({
     id: "side-past", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30,
     records: [{ prescription, name: prescription.exerciseId, type: "compound", sets: [{ weight: 20, reps: 8, leftWeight: 12, rightWeight: 8, leftReps: 8, rightReps: 7 }] }],
-  }, false, demoProfile, undefined, undefined, { [prescription.exerciseId]: "total" });
+  }, false, demoProfile);
   assert.equal(historical.loadModes?.[prescription.id], "per-side");
   assert.equal(historical.draft[0]?.leftWeight, "12");
   assert.equal(historical.draft[0]?.rightWeight, "8");
+});
+
+test("editing a legacy historical total ignores a newer per-side preference", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const prescription = routine[0].exercises[0];
+  const historical = openHistoricalWorkout({
+    id: "legacy-total", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30,
+    records: [{ prescription, name: prescription.exerciseId, type: "compound", sets: [{ weight: 30, reps: 8 }] }],
+  }, false, demoProfile);
+  assert.equal(historical.loadModes?.[prescription.id], "total");
+  assert.equal(historical.draft[0]?.weight, "30");
+});
+
+test("historical records retain their saved input mode", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const prescription = routine[0].exercises[0];
+  const historical = openHistoricalWorkout({
+    id: "saved-mode", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30,
+    records: [{ loadMode: "total-with-bar", prescription, name: prescription.exerciseId, type: "compound", sets: [{ weight: 30, reps: 8 }] }],
+  }, false, demoProfile);
+  assert.equal(historical.loadModes?.[prescription.id], "total-with-bar");
+});
+
+test("historical workouts follow the current routine order, not the edit order", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const [first, second] = routine[0].exercises;
+  const historical = openHistoricalWorkout({
+    id: "ordered", dayId: routine[0].id, dayName: routine[0].name, date: "2026-09-01T12:00:00.000Z", minutes: 30,
+    records: [
+      { prescription: second, name: second.exerciseId, type: "compound", sets: [{ weight: 20, reps: 8 }] },
+      { prescription: first, name: first.exerciseId, type: "compound", sets: [{ weight: 10, reps: 8 }] },
+    ],
+  }, false, demoProfile, undefined, undefined, routine);
+  assert.deepEqual(historical.day.exercises.slice(0, 2).map(entry => entry.id), [first.id, second.id]);
+  assert.deepEqual(historical.records.slice(0, 2).map(record => record.prescription.id), [first.id, second.id]);
 });
 
 test("removing the current last exercise cannot crash resume or copy its draft to another exercise", () => {

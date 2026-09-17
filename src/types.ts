@@ -100,6 +100,8 @@ export interface SetRecord {
   rightReps?: number;
 }
 export interface ExerciseRecord {
+  /** Input representation used when this record was saved. It keeps historical edits from reinterpreting a total as a per-side load. */
+  loadMode?: import("./logic/load").LoadInputMode;
   /** Extra bar mass used with the logged external/plate load, frozen per session. */
   barWeight?: number;
   /** Apparatus base mass, frozen when the workout is saved. */

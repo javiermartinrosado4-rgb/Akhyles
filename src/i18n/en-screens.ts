@@ -314,7 +314,7 @@ export const enScreens: Record<string, string> = {
   "Peso total": "Total weight",
   "kg": "kg",
   "rep.": "reps",
-  "Guardar y siguiente ejercicio": "Save and next exercise",
+  "Guardar": "Save",
   "Finalizar entrenamiento": "Finish workout",
   "Hoy no he podido hacer este ejercicio": "I could not do this exercise today",
   "Las flechas conservan lo escrito en cada ejercicio. Omitir uno solo afecta a la sesión de hoy y no lo elimina de tu rutina.": "The arrows keep what you entered for each exercise. Skipping an exercise only affects today's session and does not remove it from your routine.",

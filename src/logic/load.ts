@@ -18,12 +18,36 @@ const BARBELL_BASICS = new Set([
 // the sum of both sides.
 const DUAL_CABLE_LOADS = new Set(["chest-cable", "standing-cable-pec-dec"]);
 
+// These movements are logged using the exercise load itself. A machine/frame
+// base weight is not useful for comparing them and should not be offered.
+const APPARATUS_WEIGHT_EXCLUDED = new Set([
+  "chest-cable", "standing-cable-pec-dec", "pec-deck",
+  "bayesian-curl", "cable-curl-unilateral", "cable-curl-bar", "dumbbell-curl",
+  "preacher-curl", "preacher-free", "unilateral-preacher", "ez-bar-curl",
+  "incline-curl", "pronated-curl", "standing-curl", "machine-curl",
+  "seated-curl", "lying-curl",
+  "triceps-machine", "leg-extension", "abductor", "adductor-machine",
+  "cable-floor-crunch", "machine-crunch", "machine-leg-tuck", "machine-leg-raise",
+]);
+
 export const defaultLoadInputMode = (exerciseId: string): LoadInputMode =>
   DUAL_CABLE_LOADS.has(exerciseId) ? "per-side" : "total";
 
 /** Available for every entered load, including plate-loaded and Smith machines. */
 export const supportsPerSideInput = (_exerciseId: string) => true;
 export const supportsBarWeight = (exerciseId: string) => BARBELL_BASICS.has(exerciseId);
+export const supportsApparatusWeight = (exerciseId: string) => !APPARATUS_WEIGHT_EXCLUDED.has(exerciseId);
+export const isAssistedPullup = (exerciseId: string) => exerciseId === "assisted-pullup";
+
+/** Assistance is counterweight, never an extra machine mass. */
+export const effectiveExternalLoad = (exerciseId: string, stored: number, apparatusWeight?: number, barWeight?: number, preferenceApparatusWeight?: number) =>
+  scoreLoad(exerciseId, stored, isAssistedPullup(exerciseId) ? undefined : apparatusWeight ?? barWeight ?? preferenceApparatusWeight);
+
+/** Load actually moved by the athlete, when the exercise is body-weight based. */
+export const effectiveLiftedLoad = (exerciseId: string, stored: number, bodyWeight?: number, apparatusWeight?: number, barWeight?: number, preferenceApparatusWeight?: number) =>
+  isAssistedPullup(exerciseId)
+    ? Number.isFinite(bodyWeight) ? bodyWeight! - stored : undefined
+    : effectiveExternalLoad(exerciseId, stored, apparatusWeight, barWeight, preferenceApparatusWeight);
 
 export const toStoredLoad = (entered: number, mode: LoadInputMode) =>
   mode === "per-side" ? entered * 2 : entered;
@@ -53,7 +77,7 @@ export const formatLoad = (value: number) =>
 
 export function loadHint(exerciseId: string): string {
   if (DUAL_CABLE_LOADS.has(exerciseId)) return "Usa Por lado: registra lo que indica una de las dos poleas. Akhyles suma ambas para guardarlo y puntuarlo (20 kg por lado = 40 kg totales).";
-  if (exerciseId === "assisted-pullup") return "Introduce kilos de ayuda, no kilos levantados. Menos asistencia representa más fuerza. Usa Total para el bloque de la máquina.";
+  if (exerciseId === "assisted-pullup") return "Introduce kilos de ayuda, no kilos levantados. La gráfica y los cálculos restan esa asistencia a tu peso corporal de esa sesión. Menos asistencia representa más fuerza.";
   if (["pronated-pullup", "neutral-pullup", "weighted-dips", "push-up", "handstand-push-up"].includes(exerciseId)) return "Sin lastre solo registra las repeticiones. Si activas Con lastre, introduce únicamente el peso añadido: Akhyles suma el peso corporal de esta sesión para los cálculos.";
   if (BARBELL_BASICS.has(exerciseId)) return "Puedes registrar discos (total o por lado) y su barra, o introducir directamente el peso total levantado. Si no especificas barra, se asumen 0 kg.";
   return "Introduce la carga total o la carga por lado. Akhyles duplica el valor por lado para guardar y comparar siempre el total. En un unilateral, usa la carga del lado trabajado.";
