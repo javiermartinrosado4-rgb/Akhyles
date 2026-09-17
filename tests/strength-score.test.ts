@@ -152,6 +152,14 @@ test("arm calibration anchors 30 kg per dumbbell to the Olympian ceiling", () =>
   assert.ok(Math.abs((result.categories.find(item => item.id === "triceps")?.value ?? 0) - 1000) < 2);
 });
 
+test("unilateral cable triceps at 15 kg per side stays medium-strong, not Olympian", () => {
+  const state = createDemoScenario(false); state.routineVersions = [];
+  state.history = [session("triceps-single", "2026-08-01", 30)];
+  state.history[0].records[0].sets[0].reps = 10;
+  const value = scoreProgress(state).categories.find(item => item.id === "triceps")?.value ?? 0;
+  assert.ok(value >= 450 && value < 700, `unexpected triceps score: ${value}`);
+});
+
 test("compound lower-body lifts provide discounted glute evidence", () => {
   const state = createDemoScenario(false); state.routineVersions = [];
   state.history = [session("deadlift-conventional", "2026-08-01", 160)];
