@@ -197,9 +197,7 @@ export function RoutineCalendar() {
         const isSelected = sameDate(date, selected);
         const startMovingHere = () => {
           setSelected(date); setAdding(false);
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
-            if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(35);
-          });
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
           if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
             setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
         };
