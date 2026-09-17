@@ -31,13 +31,16 @@ export const scoreReferences: Record<string, ScoreReference> = {
   "rear-cable": analogy(0.1, 0.085), "rear-free": analogy(0.12, 0.1),
   "cable-y-raise": analogy(0.08, 0.07), "cross-cable-lateral": analogy(0.11, 0.09),
   "rear-machine": analogy(0.25, 0.21), "low-high-face-pull": analogy(0.18, 0.15), "lateral-machine": analogy(0.2, 0.17),
-  "bayesian-curl": analogy(0.09, 0.075), "cable-curl-unilateral": analogy(0.1, 0.085), "cable-curl-bar": analogy(0.22, 0.18), "dumbbell-curl": analogy(0.22, 0.18),
-  "preacher-curl": analogy(0.23, 0.19), "preacher-free": analogy(0.22, 0.18),
-  "unilateral-preacher": analogy(0.1, 0.085), "ez-bar-curl": analogy(0.25, 0.2),
-  "machine-curl": analogy(0.25, 0.2), "incline-curl": analogy(0.2, 0.16), "pronated-curl": analogy(0.16, 0.13),
-  "triceps-extension": analogy(0.25, 0.21), "triceps-single": analogy(0.1, 0.085),
-  "katana": analogy(0.22, 0.18), "katana-single": analogy(0.09, 0.075), "katana-bar": analogy(0.24, 0.2),
-  "triceps-machine": analogy(0.28, 0.23), "french-press": analogy(0.25, 0.21), "katana-dumbbell": analogy(0.12, 0.1),
+  // Arm loads use a dedicated calibration: cable stacks and dumbbells are
+  // not comparable to a barbell total, and 14 kg per dumbbell / 15 kg per
+  // cable side is already a strong intermediate-to-elite performance.
+  "bayesian-curl": analogy(0.035, 0.03), "cable-curl-unilateral": analogy(0.06, 0.05), "cable-curl-bar": analogy(0.04, 0.034), "dumbbell-curl": analogy(0.03, 0.026),
+  "preacher-curl": analogy(0.04, 0.034), "preacher-free": analogy(0.038, 0.032),
+  "unilateral-preacher": analogy(0.06, 0.05), "ez-bar-curl": analogy(0.045, 0.038),
+  "machine-curl": analogy(0.05, 0.042), "incline-curl": analogy(0.04, 0.034), "pronated-curl": analogy(0.05, 0.042),
+  "triceps-extension": analogy(0.032, 0.027), "triceps-single": analogy(0.06, 0.05),
+  "katana": analogy(0.04, 0.034), "katana-single": analogy(0.06, 0.05), "katana-bar": analogy(0.042, 0.035),
+  "triceps-machine": analogy(0.045, 0.038), "french-press": analogy(0.04, 0.034), "katana-dumbbell": analogy(0.055, 0.046),
   "bulgarian-quads": squat(0.4), "bulgarian-free": squat(0.4), "bulgarian-smith": squat(0.5),
   "hip-thrust": analogy(1.15, 1.2), "hip-thrust-free": analogy(1.1, 1.15), "hip-thrust-smith": analogy(1.1, 1.15),
   "abductor": analogy(0.4, 0.45), "adductor-machine": analogy(0.45, 0.5), "kickback": analogy(0.12, 0.14),
@@ -48,6 +51,14 @@ export const scoreReferences: Record<string, ScoreReference> = {
   "standing-calf": analogy(0.65), "squat-calf-machine": analogy(0.7), "leg-press-calf": analogy(1.2),
   "cable-floor-crunch": analogy(0.3, 0.28), "machine-crunch": analogy(0.4, 0.38),
   "machine-leg-tuck": analogy(0.25, 0.23), "machine-leg-raise": analogy(0.25, 0.23),
+};
+/** Secondary glute contribution inferred from compound lower-body patterns.
+ * It is deliberately discounted because stance, depth and technique vary. */
+export const gluteInference: Record<string, number> = {
+  "deadlift-conventional": 0.58, "rdl-bar": 0.5, "rdl-dumbbell": 0.45, "rdl-smith": 0.5, "rdl-machine": 0.5,
+  "squat-free": 0.52, "high-bar-squat": 0.5, "low-bar-squat": 0.58, "squat-smith": 0.5,
+  "hack": 0.42, "pendulum": 0.42, "leg-press": 0.35,
+  "bulgarian-quads": 0.48, "bulgarian-free": 0.48, "bulgarian-smith": 0.5,
 };
 export const scoreGroups: Record<Muscle, string> = {
   chest: "Pecho", back: "Espalda", shoulders: "Hombros", biceps: "Bíceps", triceps: "Tríceps",

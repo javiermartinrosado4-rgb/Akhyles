@@ -9,7 +9,7 @@ import { bodyFront } from "../src/components/anatomy/bodyFront";
 import { bodyBack } from "../src/components/anatomy/bodyBack";
 import { bodyFemaleFront } from "../src/components/anatomy/bodyFemaleFront";
 import { bodyFemaleBack } from "../src/components/anatomy/bodyFemaleBack";
-import { scoreGroups } from "../src/logic/scoreReferences";
+import { gluteInference, scoreGroups } from "../src/logic/scoreReferences";
 
 test("fixed strength colors do not depend on another muscle or missing values", () => {
   assert.equal(muscleAppearance(200).color, strengthBands[2].color);
@@ -54,7 +54,7 @@ test("old demo sessions recover their known sex without changing any loads or re
   assert.equal(repairLegacyDemoScores(mixed), mixed);
 });
 
-test("every group's actual recorded load drives its own strength without fabricating other groups", () => {
+test("every group's actual recorded load drives its own strength, with discounted compound glute carryover", () => {
   for (const group of Object.keys(scoreGroups)) {
     const exercise = catalog.find(item => item.muscle === group)!;
     const state = createDemoScenario(false);
@@ -67,7 +67,7 @@ test("every group's actual recorded load drives its own strength without fabrica
     const read = () => scoreProgress(state).categories.find(item => item.id === group)!;
     const base = read().value!;
     assert.ok(base > 0, group);
-    assert.equal(scoreProgress(state).coverage, 1, group);
+    assert.equal(scoreProgress(state).coverage, group === "quads" && gluteInference[exercise.id] !== undefined ? 2 : 1, group);
     state.history[0].records[0].sets[0].weight = 40;
     assert.ok(read().value! > base, `more weight must increase ${group}`);
     state.history[0].records[0].sets[0].weight = 30;

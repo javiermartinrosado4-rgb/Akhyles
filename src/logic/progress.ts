@@ -3,7 +3,7 @@ import { getLocale, translate } from "../i18n/translate";
 import { allExercises } from "./routine";
 import { scoreLoad, validBarWeight } from "./load";
 import { estimatedMax, wilksCoefficient } from "./strengthScore";
-import { displayPoints, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
+import { displayPoints, gluteInference, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
 import { localDateKey } from "./schedule";
 import { scoreStrengthReference } from "./strengthReferences";
 export interface ChartPoint { date: string; value: number; detail?: string }
@@ -65,6 +65,15 @@ export function scoreProgress(state: AppState) {
           load, reps: set.reps, maximum: maximum!, date: w.date, body: reference.body,
         });
         best.set(category, Math.max(best.get(category) ?? 0, value));
+        const gluteFactor = gluteInference[exercise.id];
+        if (gluteFactor !== undefined) {
+          const inferred = value * gluteFactor;
+          if (inferred > (best.get("glutes") ?? 0)) evidence.set("glutes", {
+            exerciseId: exercise.id, kind: "inferred", exerciseName: r.name || exercise.name,
+            load, reps: set.reps, maximum: maximum!, date: w.date,
+          });
+          best.set("glutes", Math.max(best.get("glutes") ?? 0, inferred));
+        }
         changed = true;
       }
     }

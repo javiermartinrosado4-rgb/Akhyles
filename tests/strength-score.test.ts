@@ -50,7 +50,7 @@ test("duplicates do not farm points; coverage is explicit and future lifts do no
   assert.deepEqual(scoreProgress(state), first);
   state.history.push(session("squat-free", "2026-08-02"), session("deadlift-conventional", "2026-08-03"), session("supported-row", "2026-08-03"));
   const complete = scoreProgress(state);
-  assert.equal(complete.coverage, 4); assert.equal(complete.rankingEligible, true);
+  assert.equal(complete.coverage, 5); assert.equal(complete.rankingEligible, true);
   assert.deepEqual(complete.points[0], first.points[0]);
   state.profile.sex = "female"; state.profile.weight = "60";
   assert.deepEqual(scoreProgress(state), complete);
@@ -132,6 +132,26 @@ test("assistance subtracts, unweighted pullups count, high reps saturate, missin
   assert.equal(points("dumbbell-curl", 20, 101), 0);
   assert.equal(points("dumbbell-curl", 20, 1.5), 0);
   assert.equal(points("unknown-custom", 20), 0);
+});
+
+test("arm calibration recognises strong per-side dumbbell and cable work", () => {
+  const state = createDemoScenario(false); state.routineVersions = [];
+  state.history = [session("dumbbell-curl", "2026-08-01", 28), session("triceps-extension", "2026-08-02", 30)];
+  for (const workout of state.history) workout.records[0].sets[0].reps = 10;
+  const result = scoreProgress(state);
+  assert.ok((result.categories.find(item => item.id === "biceps")?.value ?? 0) >= 500);
+  assert.ok((result.categories.find(item => item.id === "triceps")?.value ?? 0) >= 500);
+});
+
+test("compound lower-body lifts provide discounted glute evidence", () => {
+  const state = createDemoScenario(false); state.routineVersions = [];
+  state.history = [session("deadlift-conventional", "2026-08-01", 160)];
+  const result = scoreProgress(state);
+  const glutes = result.categories.find(item => item.id === "glutes");
+  const hamstrings = result.categories.find(item => item.id === "hamstrings");
+  assert.ok(glutes?.value && hamstrings?.value);
+  assert.equal(glutes?.kind, "inferred");
+  assert.ok(glutes!.value! < hamstrings!.value!);
 });
 
 test("declared strength references provide labelled best evidence without double counting a group", () => {
