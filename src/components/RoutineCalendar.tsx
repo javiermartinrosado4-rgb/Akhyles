@@ -26,6 +26,7 @@ type MovingSession = { sourceKey: string; day: Day; fromRecurring: boolean };
 function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; editable: boolean; create?: boolean }) {
   const { t } = useLanguage();
   const { update } = useStore();
+  const { colors } = useTheme();
   const [draft, setDraft] = useState(() => workout.records.map(record => record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps) }))));
   const [error, setError] = useState("");
   const set = (recordIndex: number, setIndex: number, field: "weight" | "reps", value: string) => {
@@ -46,15 +47,21 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
       : [...state.history, { ...workout, records }] }));
   };
   return <Card>
-    <Txt weight="600">{create ? "Editar entrenamiento de este día" : "Corregir entrenamiento registrado"}</Txt>
-    <Txt muted size={12}>{create ? "Puedes completar pesos y repeticiones aunque aún no hubiera ningún registro guardado." : "Corrige pesos o repeticiones si registraste un error. La fecha y la estructura de tu rutina no cambian."}</Txt>
-    {workout.records.map((record, r) => <View key={`${workout.id}-${record.prescription.id}`} style={{ gap: 7 }}>
-      <Txt translate={false} weight="600">{record.name}</Txt>
+    <Txt weight="600" size={20} translate={false}>{workout.dayName}</Txt>
+    <Txt muted size={12}>{create ? "Puedes completar pesos y repeticiones aunque aún no hubiera ningún registro guardado." : "Revisa la sesión completa y corrige cualquier peso o repetición. La fecha y la estructura de tu rutina no cambian."}</Txt>
+    {workout.records.map((record, r) => <Card key={`${workout.id}-${record.prescription.id}`} style={{ padding: 12, gap: 7 }}>
+      <Row style={{ alignItems: "flex-start" }}>
+        <Txt weight="600" size={13} style={{ color: colors.accent, width: 24 }}>{String(r + 1).padStart(2, "0")}</Txt>
+        <View style={{ flex: 1 }}>
+          <Txt translate={false} weight="600">{record.name}</Txt>
+          <Txt muted size={12}>{t(record.prescription.sets === 1 ? "{value1} serie · {value2}–{value3} repeticiones" : "{value1} series · {value2}–{value3} repeticiones", { value1: record.prescription.sets, value2: record.prescription.range[0], value3: record.prescription.range[1] })}</Txt>
+        </View>
+      </Row>
       {record.sets.map((_set, s) => <Row key={s}>
         <Field label={t("Peso {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].weight} onChangeText={value => set(r, s, "weight", value)} numeric suffix="kg" />
         <Field label={t("Repeticiones {name}, serie {n}", { name: record.name, n: s + 1 })} value={draft[r][s].reps} onChangeText={value => set(r, s, "reps", value)} numeric suffix="rep" />
       </Row>)}
-    </View>)}
+    </Card>)}
     {!!error && <Notice error>{error}</Notice>}
     {editable ? <Button label="Guardar corrección" onPress={save} /> : <Txt muted size={12}>Los registros de hace más de una semana se conservan como historial.</Txt>}
   </Card>;

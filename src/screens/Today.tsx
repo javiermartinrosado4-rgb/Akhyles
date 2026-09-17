@@ -52,7 +52,7 @@ export default function Today() {
   const activeToday = isActiveWorkoutOnDate(state.active, now) ? state.active : undefined;
   // A session started before midnight is still recoverable, but must never be
   // presented as the plan for the current calendar day.
-  const pendingActive = state.active && !activeToday ? state.active : undefined;
+  const pendingActive = state.active && !state.active.preparing && !activeToday ? state.active : undefined;
   const todayWorkouts = workoutsOnDate(state.history, now);
   const completed = [...todayWorkouts]
     .reverse()

@@ -38,7 +38,7 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
   };
 }
 export const isActiveWorkoutOnDate = (active: ActiveWorkout | undefined, date = new Date()) =>
-  !!active && localDateKey(active.startedAt) === localDateKey(date);
+  !!active && !active.preparing && localDateKey(active.startedAt) === localDateKey(date);
 export function finishWorkout(s: AppState, workout: Workout): AppState {
   if (s.history.some(w => w.id === workout.id || (workout.startedAt && w.startedAt === workout.startedAt))) return { ...s, active: undefined };
   let next: AppState = { ...s, active: undefined, history: [...s.history, workout] };

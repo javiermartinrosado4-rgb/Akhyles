@@ -7,12 +7,22 @@ import { validRange } from "../src/logic/validation";
 import { validStoredCollections } from "../src/logic/storedState";
 import { AppState } from "../src/types";
 import { localDateKey } from "../src/logic/schedule";
-import { startWorkout, resumeWorkout } from "../src/logic/workout";
+import { isActiveWorkoutOnDate, startWorkout, resumeWorkout } from "../src/logic/workout";
 
 test("date-only calendar keys never shift with the device timezone", () => {
   const previous = process.env.TZ;
   try { process.env.TZ = "America/Los_Angeles"; assert.equal(localDateKey("2026-09-14"), "2026-09-14"); }
   finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
+});
+
+test("calendar preparation is not treated as a workout started today", () => {
+  const routine = generateRoutine(demoProfile, emptyPreferences);
+  const preparing = startWorkout(routine[0], undefined, undefined, undefined, undefined, undefined, undefined, {
+    preparing: true,
+    plannedDate: new Date().toISOString(),
+  });
+  assert.equal(isActiveWorkoutOnDate(preparing), false);
+  assert.equal(isActiveWorkoutOnDate(startWorkout(routine[0])), true);
 });
 
 test("removing the current last exercise cannot crash resume or copy its draft to another exercise", () => {
