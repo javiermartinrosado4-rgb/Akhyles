@@ -1308,3 +1308,13 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Android `1.0.23` / `versionCode 25` cargado en Prueba cerrada Alpha y enviado a revisión de Google Play. El envío queda **En revisión**; Producción no iniciada.
 - AAB enviado: `android/app/build/outputs/bundle/release/app-release.aab`; SHA-256 `CBA681241626B1AD5101296BDE063C2744EC57EB9E427CABB44514040FDC9C1E`; firma SHA-1 `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`.
 - Git actualizado en `main`: `424c5af chore: bump Android release to 1.0.23` (incluye `8ed0879 fix: unify community achievements and side load scoring`).
+
+### CorrecciÃ³n de pesos distintos por lado â€” 17 de septiembre de 2026
+
+- Causa: la opciÃ³n Â«Peso diferente por ladoÂ» se mostraba cuando el ejercicio estaba en modo Â«TotalÂ», porque la condiciÃ³n estaba invertida. AdemÃ¡s, al cambiar desde Â«Por ladoÂ» a Â«TotalÂ» se conservaban campos izquierdo/derecho y podÃ­an reaparecer en la ediciÃ³n.
+- SoluciÃ³n: la ediciÃ³n por lados queda limitada al modo Â«Por ladoÂ»; al volver a Â«TotalÂ» se limpian los valores laterales y se guarda solo la carga total. Las sesiones histÃ³ricas detectan sus datos laterales y se reabren en el modo correcto, por lo que siguen siendo editables sin perder marcas.
+- TambiÃ©n se corrigiÃ³ la resoluciÃ³n de preferencias de carga por ejercicio al iniciar o reabrir un entrenamiento.
+- Verificaciones: typecheck correcto, 147 pruebas unitarias correctas (2 omitidas), ESLint de archivos modificados correcto y `git diff --check` correcto. La E2E de Playwright no terminÃ³ al arrancar el entorno web y se detuvo sin errores de aplicaciÃ³n.
+- Web: exportada con las URLs de producciÃ³n, publicada por SFTP tras preflight correcto y verificada con HTTP 200. Bundle servido: `entry-4f8e819869331f00347bc0cc010016cd.js`.
+- Git: commit `09b5d872878b0469e1aaf380d6e6bd32a16ff6d0` subido a `main`.
+- Google Play: **no estÃ¡ actualizado con esta correcciÃ³n**. La versiÃ³n `1.0.24` / `versionCode 27` enviada a Prueba cerrada Alpha contiene el estado anterior y sigue en revisiÃ³n; para incluir este arreglo Android harÃ¡ falta una nueva build con un `versionCode` superior.
