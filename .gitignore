@@ -44,6 +44,7 @@ yarn-error.*
 # Verification artifacts
 test-results/
 playwright-report/
+dist-verify/
 *.log
 
 # Community server: accounts and uploaded photos
