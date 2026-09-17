@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultLoadInputMode, fromStoredLoad, scoreLoad, supportsPerSideInput, toStoredLoad, validBarWeight } from "../src/logic/load";
+import { defaultLoadInputMode, fromStoredLoad, scoreLoad, storedSetLoad, supportsPerSideInput, toStoredLoad, validBarWeight } from "../src/logic/load";
 
 test("per-side input is always normalized to total load", () => {
   assert.equal(toStoredLoad(15, "per-side"), 30);
@@ -12,6 +12,12 @@ test("per-side input is always normalized to total load", () => {
   assert.equal(supportsPerSideInput("leg-press"), true);
   assert.equal(supportsPerSideInput("bench-smith"), true);
   assert.equal(supportsPerSideInput("pronated-pullup"), true);
+});
+
+test("asymmetric per-side records preserve a conservative bilateral load", () => {
+  assert.equal(storedSetLoad({ weight: 12, leftWeight: 14, rightWeight: 12 }), 24);
+  assert.equal(storedSetLoad({ weight: 28, leftWeight: 14, rightWeight: 14 }), 28);
+  assert.equal(storedSetLoad({ weight: 28 }), 28);
 });
 
 test("a custom bar, including zero, overrides the default without doubling", () => {

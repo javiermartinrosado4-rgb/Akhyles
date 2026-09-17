@@ -92,7 +92,7 @@ export interface Preferences {
 export interface SetRecord {
   weight: number;
   reps: number;
-  /** When a set is logged asymmetrically, weight remains the conservative lower-side reference. */
+  /** When both sides are logged, weight is the conservative bilateral total (2 × weaker side). */
   leftWeight?: number;
   rightWeight?: number;
   /** Optional per-side repetitions; reps remains the conservative lower-side value. */

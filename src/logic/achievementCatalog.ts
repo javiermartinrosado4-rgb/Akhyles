@@ -3,7 +3,7 @@ import { pointsTierById } from "./achievements";
 export type AchievementKind = "tier" | "personal_best" | "sessions" | "coverage" | "reliability" | "perfect_week" | "consistency" | "personal";
 export interface AchievementDetails {
   beforePoints?: number; afterPoints?: number; gainedPoints?: number; coverage?: number; reliability?: number;
-  beforeMaximum?: number; maximum?: number; percent?: number; weight?: number; load?: number; reps?: number; date?: string;
+  beforeMaximum?: number; maximum?: number; percent?: number; milestone?: number; weight?: number; load?: number; reps?: number; date?: string;
   sessions?: number; weekStart?: string; completed?: number; scheduled?: number; weeks?: number; strengthPercent?: number; compared?: number;
 }
 export interface AchievementLike { type: "tier" | "personal_best" | "personal"; kind?: string; tierId?: string; exerciseName?: string; details?: AchievementDetails & { title?: string; description?: string } }
@@ -26,6 +26,7 @@ export function achievementPresentation(achievement: AchievementLike) {
   if (kind === "tier") return { ...base, title: `${base.title} · ${pointsTierById(achievement.tierId).name}` };
   if (kind === "personal_best") {
     const exercise = achievement.exerciseName ?? "Marca personal";
+    if (achievement.details?.milestone !== undefined) return { ...base, title: `Hito de fuerza · ${exercise}`, explanation: `Has alcanzado ${achievement.details.milestone} kg en este ejercicio.` };
     if (/press\s+(militar|por encima de la cabeza)|overhead press/i.test(exercise)) return {
       ...base, title: `El peso de Atlas · ${exercise}`,
       explanation: "Atlas sostiene el cielo en el mito; este guiño se reserva para un press vertical excepcional.",

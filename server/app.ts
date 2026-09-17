@@ -278,21 +278,30 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       .run(randomUUID(), userId, type, fields.tierId ?? null, fields.exerciseId ?? null, fields.exerciseName?.slice(0, 160) ?? null, kind, JSON.stringify(details), dedupeKey, new Date().toISOString());
   };
   function recordAchievements(userId: string, previous: ProgressSnapshot | undefined, current: ProgressSnapshot) {
-    if (!previous || options(userId).achievements !== 1) return;
+    // Keep achievements privately even while Community sharing is disabled. The
+    // single training-visibility setting decides whether they can be read.
+    if (!previous) return;
     const before = Number.isFinite(previous.points) ? previous.points! : 0;
     const after = Number.isFinite(current.points) ? current.points! : 0;
     const reached = pointsTiers.slice(1).filter(tier => before < tier.minimum && after >= tier.minimum).at(-1);
     if (reached) createAchievement(userId, "tier", "tier", { beforePoints: before, afterPoints: after, gainedPoints: Math.round((after - before) * 10) / 10, coverage: current.pointsCoverage, reliability: current.pointsReliability }, `tier:${reached.id}`, { tierId: reached.id });
     const prior = new Map((previous.exercises ?? []).map(exercise => [exercise.id, exercise]));
+    const milestonesFor = (exerciseId: string) => {
+      // Arm and unilateral work has meaningful landmarks well below 100 kg;
+      // compound lifts use deliberately sparse, memorable plate milestones.
+      if (/(curl|triceps|katana|lateral|rear|kickback)/.test(exerciseId)) return [20, 30, 40, 50, 60];
+      if (/(pullup|dip)/.test(exerciseId)) return [20, 40, 60, 80, 100];
+      return [100, 150, 200, 250, 300, 350, 400, 500];
+    };
     for (const exercise of current.exercises ?? []) {
       const old = prior.get(exercise.id);
-      const beforeMaximum = old?.maximum ?? 0;
-      const maximum = exercise.maximum ?? 0;
-      if (old && maximum > beforeMaximum + 0.05) {
+      const beforeLoad = old?.load ?? old?.weight ?? 0;
+      const load = exercise.load ?? exercise.weight ?? 0;
+      const reached = milestonesFor(exercise.id).filter(milestone => beforeLoad < milestone && load >= milestone).at(-1);
+      if (old && reached !== undefined) {
         createAchievement(userId, "personal_best", "personal_best", {
-          beforeMaximum, maximum, percent: Math.round((maximum / beforeMaximum - 1) * 1000) / 10,
-          weight: exercise.weight, load: exercise.load, reps: exercise.reps, date: exercise.date,
-        }, `pr:${exercise.id}:${exercise.date}`, { exerciseId: exercise.id, exerciseName: exercise.name });
+          milestone: reached, weight: exercise.weight, load: exercise.load, reps: exercise.reps, date: exercise.date,
+        }, `load-milestone:${exercise.id}:${reached}`, { exerciseId: exercise.id, exerciseName: exercise.name });
       }
     }
     for (const milestone of [10, 25, 50, 100, 250, 500]) if ((previous.sessions ?? 0) < milestone && (current.sessions ?? 0) >= milestone)

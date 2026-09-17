@@ -1,3 +1,5 @@
+import type { SetRecord } from "../types";
+
 /** Load stored in a set is added external load. A saved bar or apparatus base is added once for charts and scoring. */
 export type LoadInputMode = "total" | "per-side" | "total-with-bar";
 
@@ -34,6 +36,17 @@ export const defaultBarWeight = (_exerciseId: string) => 0;
 export const validBarWeight = (value: number) => Number.isFinite(value) && value >= 0 && value <= 100;
 export const scoreLoad = (exerciseId: string, stored: number, barWeight?: number) =>
   stored + (barWeight ?? defaultBarWeight(exerciseId));
+
+/**
+ * A per-side set is compared using both arms, while still being conservative:
+ * 14 kg left / 12 kg right is worth 24 kg, not 12 kg and not an inflated 26 kg.
+ * This also repairs legacy sessions which retained the two side values but stored
+ * only the weaker single-arm load in `weight`.
+ */
+export const storedSetLoad = (set: Pick<SetRecord, "weight" | "leftWeight" | "rightWeight">) =>
+  Number.isFinite(set.leftWeight) && Number.isFinite(set.rightWeight)
+    ? 2 * Math.min(set.leftWeight!, set.rightWeight!)
+    : set.weight;
 
 export const formatLoad = (value: number) =>
   String(Math.round(value * 100) / 100);

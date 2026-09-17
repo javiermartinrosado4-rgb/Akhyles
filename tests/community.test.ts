@@ -111,21 +111,21 @@ test("trainer profiles remain available while profile comments are retired", asy
   } finally { await f.close(); }
 });
 
-test("achievements are opt-in, record new tiers and personal bests, and support congratulations", async () => {
+test("achievements use symbolic load milestones instead of every personal best", async () => {
   const f = await fixture();
   try {
     const athlete = await f.register("achievement_athlete"), friend = await f.register("achievement_friend");
     await f.call("/me/privacy", "PATCH", { trainingVisibility: "public" }, athlete.token);
-    const initial = { version: 1, sessions: 1, sets: 3, points: 95, pointsModel: "akhyles-relative-v3", pointsCoverage: 1, pointsReliability: 20, pointsRankingEligible: true, updated: new Date().toISOString(), exercises: [{ id: "chest-press-free", name: "Press de banca", weight: 60, reps: 5, maximum: 68, date: new Date().toISOString() }] };
+    const initial = { version: 1, sessions: 1, sets: 3, points: 95, pointsModel: "akhyles-relative-v3", pointsCoverage: 1, pointsReliability: 20, pointsRankingEligible: true, updated: new Date().toISOString(), exercises: [{ id: "chest-press-free", name: "Press de banca", weight: 90, reps: 5, maximum: 102, date: new Date().toISOString() }] };
     assert.equal((await f.call("/progress/me", "PUT", initial, athlete.token)).status, 200);
-    const improved = { ...initial, points: 110, updated: new Date(Date.now() + 1000).toISOString(), exercises: [{ ...initial.exercises[0], weight: 70, maximum: 79, date: new Date(Date.now() + 1000).toISOString() }] };
+    const improved = { ...initial, points: 110, updated: new Date(Date.now() + 1000).toISOString(), exercises: [{ ...initial.exercises[0], weight: 100, maximum: 114, date: new Date(Date.now() + 1000).toISOString() }] };
     assert.equal((await f.call("/progress/me", "PUT", improved, athlete.token)).status, 200);
     const page = await f.call(`/achievements?user=${athlete.user.id}`, "GET", undefined, athlete.token);
     assert.equal(page.status, 200); assert.equal(page.data.achievements.length, 2);
     assert.ok(page.data.achievements.some((achievement: { type: string; tierId?: string }) => achievement.type === "tier" && achievement.tierId === "progress"));
     const personalBest = page.data.achievements.find((achievement: { type: string }) => achievement.type === "personal_best");
     assert.equal(personalBest.kind, "personal_best");
-    assert.equal(personalBest.details.maximum, 79);
+    assert.equal(personalBest.details.milestone, 100);
     assert.equal((await f.call(`/achievements/${personalBest.id}/like`, "PUT", undefined, friend.token)).status, 200);
     assert.ok((await f.call("/notifications", "GET", undefined, athlete.token)).data.some((notification: { type: string }) => notification.type.startsWith("achievement_like:")));
     assert.equal((await f.call("/me/notification-preferences", "PATCH", { achievementLikes: false }, athlete.token)).data.achievementLikes, false);

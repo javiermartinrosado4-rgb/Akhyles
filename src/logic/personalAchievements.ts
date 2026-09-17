@@ -1,6 +1,6 @@
 import { AppState, LocalAchievement, Workout } from "../types";
 import { estimatedMax } from "./strengthScore";
-import { scoreLoad } from "./load";
+import { scoreLoad, storedSetLoad } from "./load";
 import { strengthReferenceDefinitions } from "./strengthReferences";
 
 const add = (items: LocalAchievement[], achievement: LocalAchievement) => items.some(item => item.id === achievement.id) ? items : [...items, achievement];
@@ -21,7 +21,7 @@ export function personalAchievements(state: AppState): LocalAchievement[] {
   const best = new Map<string, number>(); let totalPrs = 0;
   for (const workout of history) {
     for (const record of workout.records) {
-      const current = Math.max(...record.sets.map(set => estimatedMax(scoreLoad(record.prescription.exerciseId, set.weight, record.apparatusWeight ?? record.barWeight), Math.min(set.reps, 10)) ?? 0), 0);
+      const current = Math.max(...record.sets.map(set => estimatedMax(scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight), Math.min(set.reps, 10)) ?? 0), 0);
       const prior = best.get(record.prescription.exerciseId) ?? 0;
       if (prior > 0 && current > prior * 1.005) {
         totalPrs++;

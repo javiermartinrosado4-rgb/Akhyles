@@ -160,11 +160,6 @@ function CommunityScreen() {
     await refresh();
     setMessage("Privacidad de Comunidad actualizada.");
   });
-  const updateAchievementsVisibility = (visibility: TrainingVisibility) => run(async () => {
-    const updated = await request<CommunityUser>("/me/achievement-privacy", "PATCH", { visibility });
-    setProfile(updated); await refresh();
-    setMessage(visibility === "private" ? "Tus logros siguen siendo tuyos y ya no se mostrarán a otras personas." : "Tus logros podrán aparecer en perfiles y Comunidad según tu privacidad.");
-  });
   const loadSharedProgress = () => run(async () => {
     if (!profile) return;
     setSharedProgress(await request<PublishedProgress>(`/profiles/${profile.id}/progress`));
@@ -177,7 +172,7 @@ function CommunityScreen() {
       <Row style={{ alignItems: "flex-start" }}><AchievementBadge achievement={post} size={54} /><View style={{ flex: 1, gap: 5 }}><Txt weight="600">{presentation.title}</Txt><AchievementRarity rarity={post.rarity} definition={post.definitionId} /><Txt muted size={12}>{presentation.explanation}</Txt></View></Row>
       {post.kind === "personal_best" && details && <Card style={{ padding: 12 }}>
         <Txt weight="600">{number(details.load ?? details.weight ?? 0)} kg × {details.reps} repeticiones</Txt>
-        <Txt muted size={12}>1RM estimado: {number(details.maximum ?? 0)} kg · antes: {number(details.beforeMaximum ?? 0)} kg{details.percent !== undefined ? ` · +${number(details.percent)}%` : ""}</Txt>
+        {details.milestone !== undefined ? <Txt muted size={12}>Hito simbólico desbloqueado: {number(details.milestone)} kg.</Txt> : <Txt muted size={12}>1RM estimado: {number(details.maximum ?? 0)} kg · antes: {number(details.beforeMaximum ?? 0)} kg{details.percent !== undefined ? ` · +${number(details.percent)}%` : ""}</Txt>}
       </Card>}
       {post.kind === "tier" && details && <Txt size={13}>A-Points: {number(details.beforePoints ?? 0)} → {number(details.afterPoints ?? 0)}{details.gainedPoints !== undefined ? ` · +${number(details.gainedPoints)}` : ""}</Txt>}
       {post.kind === "perfect_week" && details && <Txt size={13}>Semana completa: {details.completed}/{details.scheduled} sesiones.</Txt>}
@@ -233,6 +228,7 @@ function CommunityScreen() {
         <Row>
           <Avatar id={profile.avatar} />
           <View style={{ flex: 1, minWidth: 0 }}><Txt size={23} weight="600" numberOfLines={2} translate={false}>{profile.name}</Txt><Txt muted numberOfLines={1} translate={false}>@{profile.handle}</Txt></View>
+          {!mine && <Button label={profile.followed ? "Dejar de seguir" : profile.followsYou ? "Devolver seguimiento" : "Seguir"} compact disabled={busy} onPress={() => void run(async () => { setProfile(await request<CommunityUser>(`/follow/${profile.id}`, profile.followed ? "DELETE" : "PUT")); setSharedProgress(null); })} />}
         </Row>
         <Row style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
           <Txt size={13}>{t(profile.posts === 1 ? "{count} logro" : "{count} logros", { count: profile.posts })}</Txt>
@@ -251,11 +247,7 @@ function CommunityScreen() {
         {!!profile.city && <Txt muted translate={false}>{profile.city}</Txt>}
         {profile.trainerEnabled && <Pill>Entrenador</Pill>}
         {profile.trainerEnabled && <TrainerProfileCard profileId={profile.id} mine={mine} />}
-        {mine ? <Button label="Editar perfil social" compact variant="secondary" onPress={() => { setName(profile.name); setBio(profile.bio); setAvatar(profile.avatar ?? "mountain"); setTrainingPlace(profile.trainingPlace ?? ""); setCity(profile.city ?? ""); setTrainerEnabled(!!profile.trainerEnabled); setEditing(!editing); }} /> :
-          <Button label={profile.followed ? "Dejar de seguir" : profile.followsYou ? "Devolver seguimiento" : "Seguir"} disabled={busy} onPress={() => void run(async () => {
-            setProfile(await request<CommunityUser>(`/follow/${profile.id}`, profile.followed ? "DELETE" : "PUT"));
-            setSharedProgress(null);
-          })} />}
+        {mine && <Button label="Editar perfil social" compact variant="secondary" onPress={() => { setName(profile.name); setBio(profile.bio); setAvatar(profile.avatar ?? "mountain"); setTrainingPlace(profile.trainingPlace ?? ""); setCity(profile.city ?? ""); setTrainerEnabled(!!profile.trainerEnabled); setEditing(!editing); }} />}
         {editing && mine && <>
           <Field label="Nombre público" value={name} onChangeText={setName} />
           <Field label="Biografía" value={bio} onChangeText={setBio} maxLength={300} />
@@ -319,8 +311,7 @@ function CommunityScreen() {
         {mine && settings && <Card style={{ padding: 14 }}>
           <Txt weight="600">Tú decides qué compartes</Txt>
           <TrainingSharingSelect value={profile.trainingVisibility ?? profile.progressVisibility ?? "private"} disabled={busy} onChange={value => void updateTrainingVisibility(value)} />
-          <Txt muted size={12}>Incluye rutina, mapa corporal, progreso, entrenamientos y peso corporal. Los logros y rankings se gestionan por separado.</Txt>
-          <TrainingSharingSelect kind="achievements" value={profile.achievementsVisibility ?? (profile.achievementsPublic ? "public" : "private")} disabled={busy} onChange={value => void updateAchievementsVisibility(value)} />
+          <Txt muted size={12}>Incluye rutina, mapa corporal, progreso, entrenamientos, peso corporal y logros. El ranking se gestiona por separado.</Txt>
         </Card>}
         {mine && settings && <ComparisonCard />}
 

@@ -1,6 +1,6 @@
 import { AppState } from "../types";
 import { estimatedMax } from "./strengthScore";
-import { scoreLoad } from "./load";
+import { scoreLoad, storedSetLoad } from "./load";
 
 export type MasteryRank = "Initiate" | "Warrior" | "Spartan" | "Hero" | "Demigod" | "Olympian" | "Titan";
 export interface ExerciseMastery { exerciseId: string; name: string; rank: MasteryRank; ratio: number; maximum: number; bodyWeight: number; }
@@ -29,7 +29,7 @@ export function exerciseMasteries(state: AppState): ExerciseMastery[] {
       if (!standard) continue;
       const bodyweightMovement = ["pronated-pullup", "neutral-pullup"].includes(record.prescription.exerciseId);
       const maximum = Math.max(...record.sets.map(set => {
-        const external = scoreLoad(record.prescription.exerciseId, set.weight, record.apparatusWeight ?? record.barWeight);
+        const external = scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight);
         return estimatedMax(bodyweightMovement ? bodyWeight! + external : external, Math.min(set.reps, 10)) ?? 0;
       }), 0);
       const old = best.get(record.prescription.exerciseId);

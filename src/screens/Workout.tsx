@@ -159,7 +159,14 @@ export default function Workout() {
       const bar = number(barWeightText) || 0;
       const toPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value * 2 : mode === "total-with-bar" ? Math.max(0, value - bar) : value;
       const fromPlates = (value: number, mode: LoadInputMode) => mode === "per-side" ? value / 2 : mode === "total-with-bar" ? value + bar : value;
-      const draft = s.active.draft.map(set => ({ ...set, weight: formatLoad(fromPlates(toPlates(number(set.weight), loadMode), nextMode)) }));
+      const draft = s.active.draft.map(set => {
+        const weight = formatLoad(fromPlates(toPlates(number(set.weight), loadMode), nextMode));
+        // Per-side input always presents one complete row per arm. Seed both
+        // sides from the existing total so switching modes never loses a set.
+        return nextMode === "per-side"
+          ? { ...set, weight, leftWeight: set.leftWeight ?? weight, rightWeight: set.rightWeight ?? weight, leftReps: set.leftReps ?? set.reps, rightReps: set.rightReps ?? set.reps }
+          : { ...set, weight };
+      });
       return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode } }, preferences: { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
     });
   };
@@ -229,7 +236,6 @@ export default function Workout() {
     if (active.preparing) {
       const plannedDate = active.plannedDate ?? new Date().toISOString();
       update(s => {
-        const current = s.plannedWorkouts?.find(item => new Date(item.date).toDateString() === new Date(plannedDate).toDateString());
         const byId = new Map(records.map(record => [record.prescription.id, record]));
         const day = { ...active.day, exercises: active.day.exercises.map(entry => {
           const record = byId.get(entry.id);
@@ -278,15 +284,15 @@ export default function Workout() {
       setError("Introduce un peso base entre 0 y 100 kg. Puedes poner 0."); return;
     }
     const sets = active.draft.map((set, index) => {
-      const sideSpecific = asymmetric[index];
-      const leftWeight = sideSpecific ? number(set.leftWeight ?? "") : undefined;
-      const rightWeight = sideSpecific ? number(set.rightWeight ?? "") : undefined;
+      const sideSpecific = loadMode === "per-side" || asymmetric[index];
+      const leftWeight = sideSpecific ? number(set.leftWeight ?? set.weight) : undefined;
+      const rightWeight = sideSpecific ? number(set.rightWeight ?? set.weight) : undefined;
       const enteredWeight = sideSpecific ? Math.min(leftWeight!, rightWeight!) : number(set.weight);
       const sideReps = loadMode === "per-side" || sideSpecific;
       const leftReps = sideReps ? number(set.leftReps ?? set.reps) : undefined;
       const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
-        weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, enteredWeight - (number(barWeightText) || 0)) : sideSpecific ? enteredWeight : toStoredLoad(enteredWeight, loadMode),
+        weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, enteredWeight - (number(barWeightText) || 0)) : sideSpecific ? enteredWeight * 2 : toStoredLoad(enteredWeight, loadMode),
         reps: sideReps ? Math.min(leftReps!, rightReps!) : number(set.reps),
         ...(sideSpecific ? { leftWeight, rightWeight } : {}),
         ...(sideReps ? { leftReps, rightReps } : {}),
@@ -469,10 +475,19 @@ export default function Workout() {
           <Txt weight="600">
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
-          <Button label={asymmetric[index] ? "Peso igual en ambos lados" : "Peso diferente por lado"} compact variant="ghost" onPress={() => toggleAsymmetric(index)} />
-          <Row>
+          {loadMode !== "per-side" && <Button label={asymmetric[index] ? "Peso igual en ambos lados" : "Peso diferente por lado"} compact variant="ghost" onPress={() => toggleAsymmetric(index)} />}
+          {loadMode === "per-side" ? <View style={{ gap: 10 }}>
+            {(["left", "right"] as const).map(side => {
+              const left = side === "left";
+              return <Row key={side} style={{ alignItems: "flex-end", gap: 8 }}>
+                <Txt weight="600" size={12} style={{ width: 66 }}>{left ? "Izquierdo" : "Derecho"}</Txt>
+                {(!isBodyweight || weighted) && <Field label="Peso" value={left ? (set.leftWeight ?? set.weight) : (set.rightWeight ?? set.weight)} onChangeText={(value) => changeSet(index, left ? "leftWeight" : "rightWeight", value)} numeric suffix={messages.Workout.kg} />}
+                <Field label="Repeticiones" value={left ? (set.leftReps ?? set.reps) : (set.rightReps ?? set.reps)} onChangeText={(value) => changeSet(index, left ? "leftReps" : "rightReps", value)} numeric suffix={messages.Workout.rep} />
+              </Row>;
+            })}
+          </View> : <Row>
             {(!isBodyweight || weighted) && !asymmetric[index] && <Field
-              label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : loadMode === "per-side" ? "Peso por lado" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
+              label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
               value={set.weight}
               onChangeText={(value) => changeSet(index, "weight", value)}
               numeric
@@ -482,7 +497,7 @@ export default function Workout() {
               <Field label="Lado izquierdo" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "leftWeight", value)} numeric suffix={messages.Workout.kg} />
               <Field label="Lado derecho" value={set.rightWeight ?? set.weight} onChangeText={(value) => changeSet(index, "rightWeight", value)} numeric suffix={messages.Workout.kg} />
             </>}
-            {(loadMode === "per-side" || asymmetric[index]) ? <>
+            {asymmetric[index] ? <>
               <Field label="Repeticiones lado izquierdo" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "leftReps", value)} numeric suffix={messages.Workout.rep} />
               <Field label="Repeticiones lado derecho" value={set.rightReps ?? set.reps} onChangeText={(value) => changeSet(index, "rightReps", value)} numeric suffix={messages.Workout.rep} />
             </> : <Field
@@ -492,7 +507,7 @@ export default function Workout() {
               numeric
               suffix={messages.Workout.rep}
             />}
-          </Row>
+          </Row>}
         </Card>
       ))}
       {!!error && <Notice error>{error}</Notice>}

@@ -1,6 +1,6 @@
 import { AppState, ExerciseRecord, Workout } from "../types";
 import { estimatedMax } from "./strengthScore";
-import { scoreLoad } from "./load";
+import { scoreLoad, storedSetLoad } from "./load";
 import { localDateKey, startOfWeek, weeklyAdherence } from "./schedule";
 import { scoreProgress } from "./progress";
 
@@ -26,7 +26,7 @@ type StrengthRecord = Omit<ExerciseChange, "before" | "percent">;
 function strongest(record: ExerciseRecord) {
   return record.sets
     .filter(set => Number.isFinite(set.weight) && set.weight > 0 && Number.isInteger(set.reps) && set.reps > 0)
-    .map(set => ({ weight: set.weight, reps: Math.min(set.reps, 10), maximum: estimatedMax(scoreLoad(record.prescription.exerciseId, set.weight, record.apparatusWeight ?? record.barWeight), Math.min(set.reps, 10)) ?? 0 }))
+    .map(set => ({ weight: storedSetLoad(set), reps: Math.min(set.reps, 10), maximum: estimatedMax(scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight), Math.min(set.reps, 10)) ?? 0 }))
     .sort((a, b) => b.maximum - a.maximum)[0];
 }
 
