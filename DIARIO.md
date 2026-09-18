@@ -6,6 +6,7 @@
 - Se genero el APK/AAB con las URLs publicas de produccion (`https://api.akhyles.com` y `https://api.akhyles.com/community`) y se verificaron firma, manifiesto, permisos y ausencia de endpoints locales.
 - El AAB `akhyles-release.aab` se subio a la prueba cerrada Alpha como `30 (1.0.27)` con lanzamiento al 100%.
 - Google Play mostro unicamente el aviso informativo de que no hay archivo de desofuscacion (no usamos R8/ProGuard). Se envio el cambio a revision; Play confirmo `1 cambio enviado a revision`.
+- El registro final del diario se sincronizo en Git con el commit `9717225`.
 
 ### Correccion de export Web sin sincronizacion - 18 de septiembre de 2026
 
