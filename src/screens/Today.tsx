@@ -73,9 +73,9 @@ export default function Today() {
   // without expanding the rest of the weekly routine.
   const [expandedDayId, setExpandedDayId] = useState<string | null>(() => planned?.id ?? null);
   const [editingRoutine, setEditingRoutine] = useState(false);
-  const session = expandedDayId
+  const session = (expandedDayId
     ? (todaySession?.id === expandedDayId ? todaySession : state.routine.find(day => day.id === expandedDayId))
-    : undefined;
+    : undefined) as typeof state.routine[number];
   const nextPlanned = Array.from({ length: 7 }, (_, offset) => {
     const date = new Date(now);
     date.setDate(now.getDate() + offset + 1);
@@ -135,6 +135,16 @@ export default function Today() {
         {quote.author && <Txt muted size={12} style={{ marginTop: 6 }} translate={false}>— {quote.author}</Txt>}
       </Card>
 
+      {session && <Card style={{ backgroundColor: colors.accentSoft, borderColor: colors.accentSoft, padding: 24 }}>
+        <Pill>{activeToday ? "SESIÓN EN CURSO" : completed ? "SESIÓN TERMINADA" : "ENTRENAMIENTO DE HOY"}</Pill>
+        <Txt size={28} weight="600">{session.name}</Txt>
+        <Txt muted>{t(session.exercises.length === 1 ? "{count} ejercicio" : "{count} ejercicios", { count: session.exercises.length })}</Txt>
+        {!completed && <Button label={activeToday ? messages.Today.continuarEntrenamiento : messages.Today.iniciarEntrenamiento} icon="play" onPress={() => {
+          update(current => ({ ...current, active: activeToday ? resumeWorkout(current) : startWorkout(session, current.profile.weight, current.profile.level, current.profile.sex, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes) }));
+          router.push("/workout");
+        }} />}
+      </Card>}
+
       <Card style={{ padding: 14 }}>
         <Txt weight="600">Tu semana</Txt>
         <Row style={{ flexWrap: "wrap" }}>{schedule.map(({ day, weekday }) => <Pressable key={day.id} accessibilityRole="button" accessibilityLabel={`${t(weekdayName(weekday))} ${t(day.name)}`} onPress={() => setExpandedDayId(value => value === day.id ? null : day.id)} style={{ paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10, backgroundColor: expandedDayId === day.id ? colors.accentSoft : colors.soft }}><Txt size={12} weight="600">{t(weekdayName(weekday))} · {t(day.name)}</Txt></Pressable>)}</Row>
@@ -150,7 +160,7 @@ export default function Today() {
         <Button label="Continuar entrenamiento pendiente" icon="play" onPress={() => router.push("/workout")} />
       </Card>}
 
-      {session && (
+      {session !== undefined && false && (
         <Card
           style={{
             backgroundColor: colors.accentSoft,

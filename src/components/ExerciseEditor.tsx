@@ -391,7 +391,7 @@ export function ExerciseEditor({
             value={name}
             onChangeText={setName}
           />
-          {original && ["machine", "smith"].includes(original.variant) && <MachineBrandSelect exerciseId={original.id} value={prescription?.machineBrand ?? prefs.machineBrands?.[original.id]} onChange={changeMachineBrand} />}
+          {original && !["free", "bodyweight"].includes(original.variant) && <MachineBrandSelect exerciseId={original.id} value={prescription?.machineBrand ?? prefs.machineBrands?.[original.id]} onChange={changeMachineBrand} />}
           <Row style={{ alignItems: "flex-start" }}>
             <Field
               label={inputMode === "per-side" ? "Peso inicial por lado" : messages.ExerciseEditor.pesoInicial}

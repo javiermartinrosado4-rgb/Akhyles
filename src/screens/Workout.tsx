@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import {
   Button,
   Card,
+  Choice,
   Heading,
   Notice,
   Page,
@@ -106,11 +107,13 @@ export default function Workout() {
   const apparatusWeightText = active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0);
   const machineBrand = active.machineBrands?.[entry.id] ?? entry.machineBrand ?? state.preferences.machineBrands?.[entry.exerciseId];
   const isBodyweight = exercise.variant === "bodyweight";
+  const canIdentifyMachine = !["free", "bodyweight"].includes(exercise.variant);
   const hasApparatusWeight = (exercise.variant === "machine" || exercise.variant === "smith") && supportsApparatusWeight(entry.exerciseId);
   const hasAddedBaseWeight = supportsBarWeight(entry.exerciseId) || hasApparatusWeight;
   const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
   const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
   const weighted = active.weighted?.[entry.id] ?? false;
+  const asymmetric = (index: number) => active.asymmetricSets?.[entry.id]?.[index] ?? false;
   const changeBarWeight = (value: string) => {
     setError("");
     setSavedNotice(false);
@@ -144,9 +147,11 @@ export default function Workout() {
     setSavedNotice(false);
     update((s) => {
       if (!s.active) return s;
-      const draft = s.active.draft.map((set, i) =>
-        i === index ? { ...set, [field]: value } : set,
-      );
+      const draft = s.active.draft.map((set, i) => i !== index ? set : field === "weight" && loadMode === "per-side" && !asymmetric(index)
+        ? { ...set, weight: value, leftWeight: value, rightWeight: value }
+        : field === "reps" && loadMode === "per-side" && !asymmetric(index)
+          ? { ...set, reps: value, leftReps: value, rightReps: value }
+        : { ...set, [field]: value });
       return {
         ...s,
         active: {
@@ -157,6 +162,12 @@ export default function Workout() {
       };
     });
   };
+  const changeAsymmetric = (index: number, value: boolean) => update(s => {
+    if (!s.active) return s;
+    const values = [...(s.active.asymmetricSets?.[entry.id] ?? Array.from({ length: s.active.draft.length }, () => false))];
+    values[index] = value;
+    return { ...s, active: { ...s.active, asymmetricSets: { ...(s.active.asymmetricSets ?? {}), [entry.id]: values } } };
+  });
 
   const changeLoadMode = (nextMode: LoadInputMode) => {
     if (nextMode === loadMode) return;
@@ -320,11 +331,12 @@ export default function Workout() {
       const rightWeight = sideSpecific ? number(set.rightWeight ?? set.weight) : undefined;
       const enteredWeight = sideSpecific ? Math.min(leftWeight!, rightWeight!) : number(set.weight);
       const sideReps = loadMode === "per-side";
+      const uneven = sideSpecific && asymmetric(index);
       const leftReps = sideReps ? number(set.leftReps ?? set.reps) : undefined;
       const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
         weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, enteredWeight - (number(barWeightText) || 0)) : sideSpecific ? enteredWeight * 2 : toStoredLoad(enteredWeight, loadMode),
-        reps: sideReps ? Math.min(leftReps!, rightReps!) : number(set.reps),
+        reps: sideReps ? (uneven ? Math.min(leftReps!, rightReps!) : number(set.reps)) : number(set.reps),
         ...(sideSpecific ? { leftWeight, rightWeight } : {}),
         ...(sideReps ? { leftReps, rightReps } : {}),
       };
@@ -488,7 +500,7 @@ export default function Workout() {
         </Row>}
         {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} numeric suffix="kg" disabled={readOnly} />}
         {hasAddedBaseWeight && <Txt muted size={12}>{loadMode === "total-with-bar" ? "El total ya incluye la barra; no se añadirá nada más." : supportsBarWeight(entry.exerciseId) ? t("Barra añadida: {value1} kg. Se suma una sola vez a la carga externa. Si no hay barra, usa 0.", { value1: barWeightText || "0" }) : `Peso del aparato: ${apparatusWeightText || "0"} kg. Se suma a la carga indicada y la gráfica muestra el total, también para sesiones anteriores.`}</Txt>}
-        {hasApparatusWeight && !readOnly && <MachineBrandSelect exerciseId={entry.exerciseId} value={machineBrand} onChange={changeMachineBrand} />}
+        {canIdentifyMachine && !readOnly && <MachineBrandSelect exerciseId={entry.exerciseId} value={machineBrand} onChange={changeMachineBrand} />}
       </Card>}
       {isBodyweight && <Card>
         <Txt weight="600">Peso corporal</Txt>
@@ -511,7 +523,11 @@ export default function Workout() {
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
           {loadMode === "per-side" ? <View style={{ gap: 10 }}>
-            {(["left", "right"] as const).map(side => {
+            {!readOnly && <Choice title="Pesos distintos por lado" description="Actívalo solo si cada brazo o pierna usa una carga diferente." selected={asymmetric(index)} onPress={() => changeAsymmetric(index, !asymmetric(index))} multiple />}
+            {!asymmetric(index) ? <Row style={{ alignItems: "flex-end", gap: 8 }}>
+              {(!isBodyweight || weighted) && <Field label="Peso por lado" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "weight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
+              <Field label="Repeticiones" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "reps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
+            </Row> : ( ["left", "right"] as const).map(side => {
               const left = side === "left";
               return <Row key={side} style={{ alignItems: "flex-end", gap: 8 }}>
                 <Txt weight="600" size={12} style={{ width: 66 }}>{left ? "Izquierdo" : "Derecho"}</Txt>

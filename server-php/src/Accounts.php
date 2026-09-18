@@ -175,6 +175,7 @@ final class Accounts {
         return $p;
     }
     public function handle(string $method, string $path, array $data = [], string $token = '', string $ip = 'local'): array {
+        if ($path === '/app/version' && $method === 'GET') return ['version'=>'1.0.25','androidUrl'=>'https://play.google.com/store/apps/details?id=com.akhyles.app'];
         if ($path === '/health' && $method === 'GET') {
             $this->run('SELECT 1 FROM account_users LIMIT 1');
             return ['service'=>'akhyles-accounts','ok'=>true,'schema'=>1,'googleConfigured'=>!empty($this->config['google_client_id'])];

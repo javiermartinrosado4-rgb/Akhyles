@@ -75,8 +75,12 @@ export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profi
       } : {}),
     }))];
   }));
+  const asymmetricSets = Object.fromEntries(workout.records.map(record => [record.prescription.id,
+    record.sets.map(set => set.leftWeight !== undefined && set.rightWeight !== undefined
+      ? set.leftWeight !== set.rightWeight || (set.leftReps !== undefined && set.rightReps !== undefined && set.leftReps !== set.rightReps)
+      : false)]));
   const first = day.exercises[0];
-  return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, records: orderedRecords, drafts, draft: drafts[first.id], machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
+  return { ...active, startedAt: workout.startedAt ?? workout.date, historical: { workoutId: workout.id, readOnly, skipped: workout.skipped }, records: orderedRecords, drafts, draft: drafts[first.id], asymmetricSets, machineBrands: Object.fromEntries(workout.records.filter(record => record.machineBrand).map(record => [record.prescription.id, record.machineBrand!])), barWeights: Object.fromEntries(workout.records.filter(record => record.barWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.barWeight)])), apparatusWeights: Object.fromEntries(workout.records.filter(record => record.apparatusWeight !== undefined).map(record => [record.prescription.exerciseId, String(record.apparatusWeight)])) };
 }
 export function progressionForRecord(preferences: Preferences, record: ExerciseRecord) {
   const e = getExercise(record.prescription.exerciseId, preferences);

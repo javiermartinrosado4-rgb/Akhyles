@@ -105,6 +105,7 @@ export const enDomain: Record<string, string> = {
   "Máquina de gemelo de pie": "Standing Calf Raise Machine",
   "Gemelo en máquina de sentadilla": "Squat Machine Calf Raise",
   "Gemelo en prensa": "Leg Press Calf Raise",
+  "Gemelo Leg Press Máquina": "Machine Leg Press Calf Raise",
   "Crunch en polea en el suelo": "Floor Cable Crunch",
   "Crunch en máquina": "Machine Crunch",
   "Encogimiento de piernas en máquina": "Machine Knee Tuck",

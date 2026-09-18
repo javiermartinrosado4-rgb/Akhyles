@@ -136,6 +136,7 @@ export const exerciseEquipment: Record<string, EquipmentSetup> = {
   "standing-calf": { photo: "standing-calf", label: "Gemelo de pie" },
   "squat-calf-machine": { photo: "squat-machine", label: "Máquina de sentadilla" },
   "leg-press-calf": { photo: "leg-press", label: "Prensa de piernas" },
+  "calf-leg-press-machine": { photo: "leg-press", label: "Leg press Technogym" },
   "cable-floor-crunch": { photo: "cable", label: "Polea · cuerda" },
   "machine-crunch": { photo: "machine-crunch", label: "Máquina de abdominales" },
   "machine-leg-tuck": { photo: "machine-leg-tuck", label: "Encogimiento de piernas" },

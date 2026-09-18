@@ -28,3 +28,6 @@ export async function accountRequest<T>(path: string, token?: string, method = "
     throw new AccountError(0, "No se puede conectar. Tus cambios siguen en este dispositivo; volveremos a intentar sincronizarlos.");
   } finally { clearTimeout(timer); }
 }
+export async function latestAppVersion(): Promise<{ version: string; androidUrl?: string }> {
+  return accountRequest<{ version: string; androidUrl?: string }>("/app/version");
+}

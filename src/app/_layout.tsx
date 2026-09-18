@@ -13,7 +13,8 @@ import { TrainingReminder } from "../components/TrainingReminder";
 import { NotificationNavigation } from "../components/NotificationNavigation";
 import { AccountProvider, useAccount } from "../state/Account";
 import { LanguageProvider, useLanguage } from "../i18n";
-import { accountUrl } from "../services/account";
+import { accountUrl, latestAppVersion } from "../services/account";
+import Constants from "expo-constants";
 export { ErrorBoundary } from "../components/RouteError";
 function Frame() {
   const { language, t } = useLanguage();
@@ -22,6 +23,7 @@ function Frame() {
   const account = useAccount();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
+  const [newVersion, setNewVersion] = React.useState<string | null>(null);
   const wide = Platform.OS === "web" && width >= 840;
   // The browser build is a private companion to the mobile app. Local Expo
   // development intentionally stays open so the interface can be built and
@@ -35,6 +37,17 @@ function Frame() {
       document.body.style.backgroundColor = colors.outside;
     }
   }, [colors.outside, language, t]);
+  React.useEffect(() => {
+    let alive = true;
+    if (!accountUrl) return;
+    void latestAppVersion().then(remote => {
+      const current = String(Constants.expoConfig?.version ?? "0.0.0").split(".").map(Number);
+      const latest = String(remote.version).split(".").map(Number);
+      const newer = [0, 1, 2].reduce((result, i) => result === 0 ? Math.sign((latest[i] ?? 0) - (current[i] ?? 0)) : result, 0) > 0;
+      if (alive && newer) setNewVersion(remote.version);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
   return (
     <View
       style={{
@@ -73,7 +86,7 @@ function Frame() {
             />
           </View>
         ) : null}
-        {!ready || (requiresWebSignIn && !account.ready) ? <Loading /> : storageBlocked ? null : requiresWebSignIn && !account.user && !publicPath ? <Redirect href="/account" /> : <><WeightReminder /><TrainingReminder /><NotificationNavigation /><Slot /></>}
+        {!ready || (requiresWebSignIn && !account.ready) ? <Loading /> : storageBlocked ? null : requiresWebSignIn && !account.user && !publicPath ? <Redirect href="/account" /> : <>{newVersion && <Notice>Hay una nueva versión disponible ({newVersion}). Actualiza Akhyles para disfrutar de las mejoras.</Notice>}<WeightReminder /><TrainingReminder /><NotificationNavigation /><Slot /></>}
       </SafeAreaView>
     </View>
   );

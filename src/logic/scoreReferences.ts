@@ -50,7 +50,7 @@ export const scoreReferences: Record<string, ScoreReference> = {
   "squat-smith": squat(1.05), "rdl-bar": analogy(0.8), "rdl-dumbbell": analogy(0.65),
   "rdl-smith": analogy(0.85), "rdl-machine": analogy(0.9),
   "standing-curl": analogy(0.25, 0.27), "seated-curl": analogy(0.32, 0.34), "lying-curl": analogy(0.28, 0.3),
-  "standing-calf": analogy(0.65), "squat-calf-machine": analogy(0.7), "leg-press-calf": analogy(1.2),
+  "standing-calf": analogy(0.65), "squat-calf-machine": analogy(0.7), "leg-press-calf": analogy(1.2), "calf-leg-press-machine": analogy(1.2),
   "cable-floor-crunch": analogy(0.3, 0.28), "machine-crunch": analogy(0.4, 0.38),
   "machine-leg-tuck": analogy(0.25, 0.23), "machine-leg-raise": analogy(0.25, 0.23),
 };
