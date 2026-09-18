@@ -551,13 +551,20 @@ export default function Workout() {
         maxLength={300}
         disabled={readOnly}
       />}
-      {!historical && <Button
-        label="Cambiar ejercicio para hoy"
-        compact
-        variant="secondary"
-        icon="repeat"
-        onPress={() => setEditingExercise(value => !value)}
-      />}
+      <Row style={{ alignItems: "stretch", gap: 8 }}>
+        <View style={{ flex: 1, justifyContent: "center" }}>
+          <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
+        </View>
+        {!historical && <Button
+          label="Cambiar ejercicio para hoy"
+          compact
+          tight
+          variant="secondary"
+          icon="repeat"
+          style={{ flex: 1, minWidth: 0 }}
+          onPress={() => setEditingExercise(value => !value)}
+        />}
+      </Row>
       {editingExercise && (
         <ExerciseEditor
           dayId={active.day.id}
@@ -567,11 +574,9 @@ export default function Workout() {
           sessionOnly
         />
       )}
-      <Notice>{messages.Workout.hazElCalentamientoYLasAproximacionesQue}</Notice>
       {exercise.note && <Notice>{exercise.note}</Notice>}
       {completed.has(entry.id) && <Pill>Ejercicio registrado · puedes corregirlo</Pill>}
       {isSkipped && <Pill>Omitido por hoy · puedes volver y registrarlo</Pill>}
-      <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
       {!!error && <Notice error>{error}</Notice>}
       {readOnly ? <Button label="Volver al calendario" onPress={closeHistorical} icon="arrow-left" /> : <Button
         label={historical && savedNotice ? "Guardado" : messages.Workout.guardar}
