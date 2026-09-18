@@ -1357,3 +1357,10 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - API publicada y verificada en `https://api.akhyles.com/community/health`; Web republicada con el bundle `entry-4068f3e80fbc3ead7c22037fa2d7f5bc.js` y verificada con hash coincidente.
 - Verificación manual: tras recargar la Web, la sincronización terminó en **Guardado en el dispositivo y en la nube**. El móvil con la versión anterior también vuelve a acceder y sincronizar, por lo que no se genera otra build ni se modifica el envío de Play.
 - La build Android provisional se detuvo antes de completarse; no se instaló ni se publicó ningún cambio Android adicional.
+
+#### Medidas para evitar regresiones
+
+- Todo campo diccionario del estado cloud debe conservar forma de objeto JSON, también cuando esté vacío; en PHP se debe aplicar `normalizeState` a cada mapa nuevo antes de responder o persistir.
+- Cada nuevo campo de preferencias o sesión debe añadirse simultáneamente al normalizador PHP, a la reparación del lector cliente y a una prueba de round-trip cliente↔API.
+- Antes de publicar una actualización, ejecutar una cuenta con copia cloud existente y verificar: inicio de sesión, descarga de copia, estado **Guardado en el dispositivo y en la nube** y recarga completa de la Web.
+- No asumir que una build Android nueva es necesaria hasta comprobar primero la compatibilidad de la API y del estado remoto; una regresión de serialización puede afectar a versiones antiguas ya instaladas.
