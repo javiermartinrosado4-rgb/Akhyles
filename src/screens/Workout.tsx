@@ -564,29 +564,31 @@ export default function Workout() {
           </Row>}
         </Card>
       ))}
-      {!historical && <Field
-        label="Notas para este ejercicio"
-        value={state.preferences.notes?.[entry.exerciseId] ?? ""}
-        onChangeText={changeExerciseNote}
-        placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
-        multiline
-        maxLength={300}
-        disabled={readOnly}
-      />}
-      <Row style={{ alignItems: "stretch", gap: 8 }}>
-        <View style={{ flex: 1, justifyContent: "center" }}>
-          <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
-        </View>
-        {!historical && <Button
-          label="Cambiar ejercicio para hoy"
-          compact
-          tight
-          variant="secondary"
-          icon="repeat"
-          style={{ flex: 1, minWidth: 0 }}
-          onPress={() => setEditingExercise(value => !value)}
+      <View style={{ width: "100%", gap: 10 }}>
+        {!historical && <Field
+          label="Notas para este ejercicio"
+          value={state.preferences.notes?.[entry.exerciseId] ?? ""}
+          onChangeText={changeExerciseNote}
+          placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
+          multiline
+          maxLength={300}
+          disabled={readOnly}
         />}
-      </Row>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", width: "100%" }}>
+          <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 }}>
+            <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
+          </View>
+          {!historical && <Button
+            label="Cambiar ejercicio para hoy"
+            compact
+            tight
+            variant="secondary"
+            icon="repeat"
+            style={{ flexGrow: 1, flexShrink: 1, flexBasis: 180, minWidth: 0 }}
+            onPress={() => setEditingExercise(value => !value)}
+          />}
+        </View>
+      </View>
       {editingExercise && (
         <ExerciseEditor
           dayId={active.day.id}
