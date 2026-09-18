@@ -1,5 +1,10 @@
 # Diario de Akhyles
 
+### Publicacion web del selector desplegable - 18 de septiembre de 2026
+
+- Se genero el export Web y se publico unicamente por SFTP tras superar el preflight obligatorio.
+- La web publica sirve el bundle `entry-4d0ace83bd763d83c3de42df1dd7b3b8.js` y fue verificada en `https://app.akhyles.com/` con HTTP 200.
+
 ### Selector desplegable de ejercicios - 18 de septiembre de 2026
 
 - Se sustituyo la tira horizontal de ejercicios por un selector entre los botones de ejercicio anterior y siguiente.
