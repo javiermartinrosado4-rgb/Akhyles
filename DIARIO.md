@@ -1,5 +1,11 @@
 # Diario de Akhyles
 
+### Reordenacion de la pantalla de ejercicio - 18 de septiembre de 2026
+
+- El selector de pesos distintos por lado queda en un unico toggle verde junto a las series efectivas y controla todos los sets del ejercicio.
+- Las notas del ejercicio aparecen inmediatamente despues de las series; cambiar ejercicio y el aviso de calentamiento quedan debajo.
+- Se eliminaron los toggles repetidos dentro de cada serie para evitar estados inconsistentes.
+
 ### Preparación de entrenamientos sin repeticiones — 18 de septiembre de 2026
 
 - Los entrenamientos futuros ahora se pueden guardar indicando únicamente los pesos; las repeticiones siguen siendo obligatorias al registrar una sesión realizada o editar un histórico.

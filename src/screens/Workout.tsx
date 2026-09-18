@@ -2,11 +2,10 @@ import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { Redirect, router } from "expo-router";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, Switch, View } from "react-native";
 import {
   Button,
   Card,
-  Choice,
   Heading,
   Notice,
   Page,
@@ -113,7 +112,7 @@ export default function Workout() {
   const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
   const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
   const weighted = active.weighted?.[entry.id] ?? false;
-  const asymmetric = (index: number) => active.asymmetricSets?.[entry.id]?.[index] ?? false;
+  const asymmetricEnabled = (active.asymmetricSets?.[entry.id] ?? []).some(Boolean);
   const changeBarWeight = (value: string) => {
     setError("");
     setSavedNotice(false);
@@ -147,9 +146,9 @@ export default function Workout() {
     setSavedNotice(false);
     update((s) => {
       if (!s.active) return s;
-      const draft = s.active.draft.map((set, i) => i !== index ? set : field === "weight" && loadMode === "per-side" && !asymmetric(index)
+      const draft = s.active.draft.map((set, i) => i !== index ? set : field === "weight" && loadMode === "per-side" && !asymmetricEnabled
         ? { ...set, weight: value, leftWeight: value, rightWeight: value }
-        : field === "reps" && loadMode === "per-side" && !asymmetric(index)
+        : field === "reps" && loadMode === "per-side" && !asymmetricEnabled
           ? { ...set, reps: value, leftReps: value, rightReps: value }
         : { ...set, [field]: value });
       return {
@@ -162,10 +161,9 @@ export default function Workout() {
       };
     });
   };
-  const changeAsymmetric = (index: number, value: boolean) => update(s => {
+  const changeAsymmetric = (value: boolean) => update(s => {
     if (!s.active) return s;
-    const values = [...(s.active.asymmetricSets?.[entry.id] ?? Array.from({ length: s.active.draft.length }, () => false))];
-    values[index] = value;
+    const values = Array.from({ length: s.active.draft.length }, () => value);
     return { ...s, active: { ...s.active, asymmetricSets: { ...(s.active.asymmetricSets ?? {}), [entry.id]: values } } };
   });
 
@@ -332,7 +330,7 @@ export default function Workout() {
       const rightWeight = sideSpecific ? number(set.rightWeight ?? set.weight) : undefined;
       const enteredWeight = sideSpecific ? Math.min(leftWeight!, rightWeight!) : number(set.weight);
       const sideReps = loadMode === "per-side";
-      const uneven = sideSpecific && asymmetric(index);
+      const uneven = sideSpecific && asymmetricEnabled;
       const leftReps = sideReps ? number(set.leftReps ?? set.reps) : undefined;
       const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
@@ -472,30 +470,23 @@ export default function Workout() {
           </View>
           <EquipmentPhoto key={entry.exerciseId} exerciseId={entry.exerciseId} exerciseName={displayName(entry.exerciseId, state.preferences)} />
         </View>
-        <Txt muted>{t(entry.sets === 1 ? "{value1} serie efectiva · {value2}–{value3} repeticiones" : "{value1} series efectivas · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
+        <Row style={{ alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <Txt muted style={{ flex: 1 }}>{t(entry.sets === 1 ? "{value1} serie efectiva · {value2}–{value3} repeticiones" : "{value1} series efectivas · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
+          {loadMode === "per-side" && (!isBodyweight || weighted) && <View style={{ alignItems: "flex-end", gap: 4 }}>
+            <Txt size={11} weight="600" muted>Pesos distintos por lado</Txt>
+            <Switch
+              accessibilityLabel="Pesos distintos por lado"
+              value={asymmetricEnabled}
+              onValueChange={changeAsymmetric}
+              disabled={readOnly}
+              trackColor={{ false: colors.border, true: colors.accentSoft }}
+              thumbColor={asymmetricEnabled ? colors.accent : colors.muted}
+              ios_backgroundColor={colors.border}
+            />
+          </View>}
+        </Row>
         {active.preparing && <Notice>En un entrenamiento futuro puedes guardar solo los pesos. Las repeticiones se indicarán al realizar la sesión.</Notice>}
       </View>
-      {!historical && <Button
-        label="Cambiar ejercicio para hoy"
-        compact
-        variant="secondary"
-        icon="repeat"
-        onPress={() => setEditingExercise(value => !value)}
-      />}
-      {editingExercise && (
-        <ExerciseEditor
-          dayId={active.day.id}
-          prescription={entry}
-          close={() => setEditingExercise(false)}
-          report={setError}
-          sessionOnly
-        />
-      )}
-      {completed.has(entry.id) && <Pill>Ejercicio registrado · puedes corregirlo</Pill>}
-      {isSkipped && <Pill>Omitido por hoy · puedes volver y registrarlo</Pill>}
-      <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
-      <Notice>{messages.Workout.hazElCalentamientoYLasAproximacionesQue}</Notice>
-      {exercise.note && <Notice>{exercise.note}</Notice>}
       {!isBodyweight && <Card>
         <Txt weight="600">Cómo introduces la carga</Txt>
         <Txt muted size={12}>{loadHint(entry.exerciseId)}</Txt>
@@ -514,23 +505,13 @@ export default function Workout() {
         {!readOnly && <Row><Button label="Sin lastre" compact variant={!weighted ? "primary" : "secondary"} onPress={() => changeWeighted(false)} /><Button label="Con lastre" compact variant={weighted ? "primary" : "secondary"} onPress={() => changeWeighted(true)} /></Row>}
         {!readOnly && weighted && <Row><Button label="Total" compact variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} /><Button label="Por lado" compact variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} /></Row>}
       </Card>}
-      {!historical && <Field
-        label="Notas para este ejercicio"
-        value={state.preferences.notes?.[entry.exerciseId] ?? ""}
-        onChangeText={changeExerciseNote}
-        placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
-        multiline
-        maxLength={300}
-        disabled={readOnly}
-      />}
       {active.draft.map((set, index) => (
         <Card key={`${entry.id}-${index}`}>
           <Txt weight="600">
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
           {loadMode === "per-side" ? <View style={{ gap: 10 }}>
-            {!readOnly && <Choice title="Pesos distintos por lado" description="Actívalo solo si cada brazo o pierna usa una carga diferente." selected={asymmetric(index)} onPress={() => changeAsymmetric(index, !asymmetric(index))} multiple />}
-            {!asymmetric(index) ? <Row style={{ alignItems: "flex-end", gap: 8 }}>
+            {!asymmetricEnabled ? <Row style={{ alignItems: "flex-end", gap: 8 }}>
               {(!isBodyweight || weighted) && <Field label="Peso por lado" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "weight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
               <Field label="Repeticiones" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "reps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
             </Row> : ( ["left", "right"] as const).map(side => {
@@ -561,6 +542,36 @@ export default function Workout() {
           </Row>}
         </Card>
       ))}
+      {!historical && <Field
+        label="Notas para este ejercicio"
+        value={state.preferences.notes?.[entry.exerciseId] ?? ""}
+        onChangeText={changeExerciseNote}
+        placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
+        multiline
+        maxLength={300}
+        disabled={readOnly}
+      />}
+      {!historical && <Button
+        label="Cambiar ejercicio para hoy"
+        compact
+        variant="secondary"
+        icon="repeat"
+        onPress={() => setEditingExercise(value => !value)}
+      />}
+      {editingExercise && (
+        <ExerciseEditor
+          dayId={active.day.id}
+          prescription={entry}
+          close={() => setEditingExercise(false)}
+          report={setError}
+          sessionOnly
+        />
+      )}
+      <Notice>{messages.Workout.hazElCalentamientoYLasAproximacionesQue}</Notice>
+      {exercise.note && <Notice>{exercise.note}</Notice>}
+      {completed.has(entry.id) && <Pill>Ejercicio registrado · puedes corregirlo</Pill>}
+      {isSkipped && <Pill>Omitido por hoy · puedes volver y registrarlo</Pill>}
+      <Pill>{t("Descanso recomendado: {value1} min", { value1: restSeconds(exercise) / 60 })}</Pill>
       {!!error && <Notice error>{error}</Notice>}
       {readOnly ? <Button label="Volver al calendario" onPress={closeHistorical} icon="arrow-left" /> : <Button
         label={historical && savedNotice ? "Guardado" : messages.Workout.guardar}
