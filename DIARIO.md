@@ -1341,3 +1341,11 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Android generado como `1.0.25` / `versionCode 28`, con firma existente verificada. APK SHA-256 `989614C1FFA5E3C2C0BD0B16E01F8256C60EB0261E0E3C102B9A2CE229675284`; AAB SHA-256 `9FE79DDB8FB0979A6668C7847109F04E3BDE3A4A0C8E6219DED87046135E8251`.
 - Play Console: AAB cargado en Prueba cerrada Alpha, notas de versión añadidas y **1 cambio enviado a revisión**. La revisión está pendiente; Producción no iniciada.
 - Git: commit `b96d01a fix: correct historical weight progression` subido a `main`; este registro documenta la publicación completa.
+
+### Incidencia de inicio de sesión y sincronización en Android — 18 de septiembre de 2026
+
+- Síntoma observado en el dispositivo con la versión anterior: al entrar con Google aparecía `Invalid stored collections` (referido inicialmente como `Invalid stored conections`), la cuenta no quedaba reconocida y la app continuaba en modo local. La web seguía funcionando correctamente.
+- Causa: el estado persistido en AsyncStorage no superaba `validStoredCollections`. `StoreProvider` dejaba el almacenamiento bloqueado al capturar la excepción; posteriormente `AccountProvider` no podía guardar la sesión y omitía la sincronización cuando existía `storageError`.
+- Solución aplicada en local: `localRepository.load()` conserva el payload incompatible bajo una clave de recuperación, retira únicamente la ranura primaria y permite hidratar un estado limpio. Así el inicio de sesión puede continuar y la copia cloud se descarga automáticamente; no se borra silenciosamente el payload original.
+- Limitación: si había entrenamientos locales que nunca llegaron a la nube, el payload de recuperación se conserva técnicamente pero no se fusiona automáticamente con la copia cloud. Debe validarse si hace falta una herramienta de restauración o una migración parcial.
+- Verificación: typecheck correcto, ESLint del repositorio afectado correcto y 156 tests correctos (2 omitidos). La corrección está incluida en la nueva Android `1.0.25` / `versionCode 28`, enviada a revisión Alpha; el dispositivo seguirá afectado hasta instalar esa versión.

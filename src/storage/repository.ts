@@ -181,7 +181,25 @@ export function decodeState(raw: string): AppState {
 export const localRepository: StateRepository = {
   async load() {
     const raw = await AsyncStorage.getItem(APP.storageKey);
-    return raw ? decodeState(raw) : null;
+    if (!raw) return null;
+    try {
+      return decodeState(raw);
+    } catch (error) {
+      // A state written by an older release can fail the current collection
+      // validator. Keep the exact payload recoverable, but move it out of the
+      // primary slot so account login and cloud restore are not blocked by a
+      // stale local schema.
+      const recoveryKey = `${APP.storageKey}:invalid:${Date.now()}`;
+      try {
+        await AsyncStorage.setItem(recoveryKey, raw);
+        await AsyncStorage.removeItem(APP.storageKey);
+      } catch {
+        // If the quarantine cannot be completed, retain the original failure
+        // rather than risking an overwrite of the only local copy.
+        throw error;
+      }
+      return null;
+    }
   },
   async save(state) {
     await AsyncStorage.setItem(APP.storageKey, JSON.stringify(state));
