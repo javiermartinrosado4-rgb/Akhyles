@@ -1,5 +1,11 @@
 # Diario de Akhyles
 
+### Correccion de export Web sin sincronizacion - 18 de septiembre de 2026
+
+- La exportacion anterior habia heredado `.env.local`: faltaba `EXPO_PUBLIC_ACCOUNT_URL` y Comunidad apuntaba a `127.0.0.1:8082`, por lo que la web arrancaba en modo local.
+- Se regenero el bundle con `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com`, `EXPO_PUBLIC_COMMUNITY_URL=https://api.akhyles.com/community`, `AKHYLES_ANDROID_LOCAL=0` y cache de Metro limpio.
+- La web publica fue verificada con HTTP 200; el bundle `entry-8d22631b82f780b91608063cda0abd75.js` contiene ambas URLs de produccion y no contiene localhost.
+
 ### Publicacion web de la correccion del solapamiento - 18 de septiembre de 2026
 
 - Se publico el export Web corregido por SFTP tras superar el preflight obligatorio.
