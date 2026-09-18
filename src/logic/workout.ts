@@ -1,9 +1,9 @@
 import { ActiveWorkout, AppState, Day, ExerciseRecord, Level, Preferences, Prescription, Profile, Workout } from "../types";
 import { progression } from "./progression";
 import { getExercise } from "./routine";
-import { localDateKey } from "./schedule";
+import { localDateKey, routineAt } from "./schedule";
 import { number } from "./validation";
-import { defaultBarWeight, defaultLoadInputMode, fromStoredLoad, LoadInputMode, formatLoad } from "./load";
+import { defaultBarWeight, defaultLoadInputMode, fromStoredLoad, LoadInputMode, formatLoad, storedProgressionStep } from "./load";
 import { syncPersonalAchievements } from "./personalAchievements";
 export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
   Array.from({ length: p.sets }, () => ({
@@ -82,7 +82,8 @@ export function progressionForRecord(preferences: Preferences, record: ExerciseR
   const e = getExercise(record.prescription.exerciseId, preferences);
   const mode = record.loadMode ?? defaultLoadInputMode(e.id);
   const result = progression(record.type, record.prescription.range, record.sets, record.prescription.sets,
-    undefined, e.id === "assisted-pullup" ? "decrease" : "increase");
+    storedProgressionStep(e.id, preferences.loadSteps?.[e.id] ?? e.loadStep ?? 1.25, mode),
+    e.id === "assisted-pullup" ? "decrease" : "increase");
   return { e, result };
 }
 
@@ -156,6 +157,9 @@ export function confirmWeight(
   fromDate?: string,
 ): AppState {
   const cutoff = localDateKey(fromDate ?? new Date());
+  const nextDate = new Date(`${cutoff}T00:00:00.000Z`);
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  const effectiveFrom = nextDate.toISOString().slice(0, 10);
   const updateDay = (day: Day): Day => ({
     ...day,
     exercises: day.exercises.map((p) =>
@@ -165,9 +169,22 @@ export function confirmWeight(
   const plannedWorkouts = s.plannedWorkouts?.map(item =>
     localDateKey(item.date) > cutoff ? { ...item, day: updateDay(item.day) } : item,
   );
-  const routineVersions = s.routineVersions?.map(version =>
+  let routineVersions = s.routineVersions?.map(version =>
     localDateKey(version.effectiveFrom) > cutoff ? { ...version, routine: version.routine.map(updateDay) } : version,
   );
+  // Calendar dates resolve their program from routineVersions before looking at
+  // the live routine. Merely updating `routine` therefore left the next weekly
+  // occurrence on the old load. Add a boundary after the performed session so
+  // future dates see the recommendation while past calendar days stay intact.
+  if (routineVersions?.length && !routineVersions.some(version => localDateKey(version.effectiveFrom) === effectiveFrom)) {
+    const program = routineAt(s.profile, s.routine, s.routineVersions, new Date(`${cutoff}T12:00:00`));
+    if (program.routine.length) {
+      routineVersions = [
+        ...routineVersions,
+        { effectiveFrom, profile: program.profile, routine: program.routine.map(updateDay) },
+      ].sort((a, b) => localDateKey(a.effectiveFrom).localeCompare(localDateKey(b.effectiveFrom)));
+    }
+  }
   return {
     ...s,
     preferences: {

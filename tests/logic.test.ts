@@ -38,6 +38,7 @@ import {
   localDateKey,
   routineSchedule,
   scheduledDay,
+  scheduledWorkout,
   scheduledWeekdays,
   workoutsOnDate,
 } from "../src/logic/schedule";
@@ -59,17 +60,17 @@ test("weekly completed volume counts only direct recorded sets in the current we
   const previous = recorded("standing-calf", 20, 70, "2026-09-06T10:00:00");
   assert.equal(completedWeeklyVolume([recent, previous], emptyPreferences, now).calves, 2);
 });
-test("35 kg row automatically becomes 3% heavier for next session", () => {
+test("35 kg row uses the nearest available increment within the 3-5% window", () => {
   const state = testState();
   const next = finishWorkout(state, recorded("supported-row", 35));
-  assert.equal(next.preferences.weights["supported-row"], 36.05);
+  assert.equal(next.preferences.weights["supported-row"], 36.25);
   assert.equal(next.history[0].records[0].sets[0].weight, 35);
-  assert.equal(JSON.parse(JSON.stringify(next)).preferences.weights["supported-row"], 36.05);
+  assert.equal(JSON.parse(JSON.stringify(next)).preferences.weights["supported-row"], 36.25);
   assert.equal(next.history[0].bodyWeight, 70);
   const day = next.routine.find(d => d.exercises.some(p => p.exerciseId === "supported-row"))!;
-  assert.equal(day.exercises.find(p => p.exerciseId === "supported-row")!.weight, 36.05);
+  assert.equal(day.exercises.find(p => p.exerciseId === "supported-row")!.weight, 36.25);
   assert.equal(startWorkout(day, "76,5").bodyWeight, 76.5);
-  assert.equal(progression("compound", [6, 8], [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }], 2, 2.5).suggested, 36.05);
+  assert.equal(progression("compound", [6, 8], [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }], 2, 1.25).suggested, 36.25);
   assert.doesNotThrow(() => progression("compound", [6, 8], [{ weight: Infinity, reps: 8 }]));
 });
 test("saving an edited historical exercise recalculates its future load", () => {
@@ -82,8 +83,8 @@ test("saving an edited historical exercise recalculates its future load", () => 
     sets: [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }],
   };
   const next = applyExerciseRecommendation(state, record);
-  assert.equal(next.preferences.weights["supported-row"], 36.05);
-  assert.equal(next.routine.flatMap(day => day.exercises).find(entry => entry.exerciseId === "supported-row")?.weight, 36.05);
+  assert.equal(next.preferences.weights["supported-row"], 36.25);
+  assert.equal(next.routine.flatMap(day => day.exercises).find(entry => entry.exerciseId === "supported-row")?.weight, 36.25);
 });
 test("historical recalculation updates future calendar copies without rewriting past copies", () => {
   const state = testState();
@@ -102,22 +103,51 @@ test("historical recalculation updates future calendar copies without rewriting 
   };
   const next = applyExerciseRecommendation(state, record, "2026-09-07T10:00:00.000Z");
   assert.equal(next.plannedWorkouts?.[0].day.exercises.find(item => item.exerciseId === "supported-row")?.weight, 30);
-  assert.equal(next.plannedWorkouts?.[1].day.exercises.find(item => item.exerciseId === "supported-row")?.weight, 36.05);
+  assert.equal(next.plannedWorkouts?.[1].day.exercises.find(item => item.exerciseId === "supported-row")?.weight, 36.25);
 });
-test("a configured per-side cable increment is applied per stack, not as a doubled display value", () => {
+test("historical recalculation reaches the next weekly session when calendar uses routine versions", () => {
+  const state = testState();
+  const exercise = getExercise("supported-row", emptyPreferences);
+  const record = {
+    name: exercise.name,
+    type: exercise.type,
+    prescription: { ...prescribe(exercise, emptyPreferences), weight: 35 },
+    sets: [{ weight: 35, reps: 8 }, { weight: 35, reps: 8 }],
+  };
+  state.profile = { ...state.profile, days: 1, trainingDays: [1] };
+  state.routine = [{ id: "monday", name: "Monday", exercises: [record.prescription] }];
+  state.routineVersions = [{
+    effectiveFrom: "2026-09-01",
+    profile: state.profile,
+    routine: JSON.parse(JSON.stringify(state.routine)),
+  }];
+  const oldWeight = scheduledWorkout(state.profile, state.routine, [], new Date("2026-09-07T12:00:00"), [], state.routineVersions)!
+    .exercises.find(item => item.exerciseId === "supported-row")!.weight;
+
+  const next = applyExerciseRecommendation(state, record, "2026-09-07T10:00:00");
+  const editedMonday = scheduledWorkout(next.profile, next.routine, [], new Date("2026-09-07T12:00:00"), [], next.routineVersions)!;
+  const followingMonday = scheduledWorkout(next.profile, next.routine, [], new Date("2026-09-14T12:00:00"), [], next.routineVersions)!;
+
+  assert.equal(next.routineVersions?.find(version => version.effectiveFrom === "2026-09-01")?.routine
+    .flatMap(item => item.exercises).find(item => item.exerciseId === "supported-row")?.weight, oldWeight);
+  assert.equal(editedMonday.exercises.find(item => item.exerciseId === "supported-row")?.weight, oldWeight);
+  assert.equal(followingMonday.exercises.find(item => item.exerciseId === "supported-row")?.weight, 36.25);
+  assert.equal(next.routineVersions?.some(version => version.effectiveFrom === "2026-09-08"), true);
+});
+test("per-side progression uses one configured step per stack without doubling the recorded total", () => {
   const exercise = getExercise("chest-cable", emptyPreferences);
   const preferences = { ...emptyPreferences, loadSteps: { "chest-cable": 1.25 }, loadModes: { "chest-cable": "per-side" as const } };
   const record = {
     loadMode: "per-side" as const,
     name: exercise.name,
     type: exercise.type,
-    prescription: { ...prescribe(exercise, preferences), weight: 20 },
-    sets: [{ weight: 20, leftWeight: 10, rightWeight: 10, reps: 10 }, { weight: 20, leftWeight: 10, rightWeight: 10, reps: 10 }],
+    prescription: { ...prescribe(exercise, preferences), weight: 70 },
+    sets: [{ weight: 70, leftWeight: 35, rightWeight: 35, reps: 10 }, { weight: 70, leftWeight: 35, rightWeight: 35, reps: 10 }],
   };
-  assert.equal(progressionForRecord(preferences, record).result.suggested, 20.6);
+  assert.equal(progressionForRecord(preferences, record).result.suggested, 72.5);
   const next = applyExerciseRecommendation({ ...testState(), preferences, routine: [{ id: "cable", name: "Cable", exercises: [record.prescription] }] }, record);
-  assert.equal(next.preferences.weights["chest-cable"], 20.6);
-  assert.equal(startWorkout(next.routine[0], "70", undefined, undefined, undefined, undefined, next.preferences.loadModes).draft[0]?.weight, "10.3");
+  assert.equal(next.preferences.weights["chest-cable"], 72.5);
+  assert.equal(startWorkout(next.routine[0], "70", undefined, undefined, undefined, undefined, next.preferences.loadModes).draft[0]?.weight, "36.25");
 });
 test("score excludes unsupported exercises and missing historical demographics", () => {
   const state = testState();
@@ -810,7 +840,7 @@ test("duration uses thirty-second sets and four or three minutes between sets", 
   assert.equal(duration({ id: "isolation", name: "Aislamiento", exercises: [{ ...isolation, sets: 2 }] }, emptyPreferences), 45);
   assert.equal(duration({ id: "mixed", name: "Mixto", exercises: [{ ...heavy, sets: 2 }, { ...isolation, sets: 2 }] }, emptyPreferences), 45);
 });
-test("double progression: first effective set and proportional 3% increase", () => {
+test("double progression: first effective set and an available 3-5% increment", () => {
   assert.equal(
     progression(
       "compound",
@@ -831,7 +861,7 @@ test("double progression: first effective set and proportional 3% increase", () 
         { weight: 40, reps: 8 },
       ],
     ).suggested,
-    41.2,
+    41.25,
   );
   assert.equal(
     progression(
@@ -842,7 +872,7 @@ test("double progression: first effective set and proportional 3% increase", () 
         { weight: 40, reps: 9 },
       ],
     ).suggested,
-    41.2,
+    41.25,
     "superar el máximo del rango también debe preparar una subida de peso",
   );
   assert.equal(
@@ -854,7 +884,8 @@ test("double progression: first effective set and proportional 3% increase", () 
         { weight: 12, reps: 10 },
       ],
     ).suggested,
-    12.36,
+    12,
+    "the configured equipment step would exceed 5%, so the load stays unchanged",
   );
   assert.equal(
     progression(
@@ -923,19 +954,19 @@ test("double progression: first effective set and proportional 3% increase", () 
         assert.ok(suggestion.suggested / kg <= 1.05 + 1e-8);
       }
     }
-  assert.equal(roundWeight(12.38), 12.38);
+  assert.equal(roundWeight(12.38), 12.5);
 });
 
 test("assisted pull-up progression reduces assistance", () => {
-  assert.equal(progression("compound", [6, 8], [{ weight: 30, reps: 8 }, { weight: 30, reps: 7 }], 2, 1.25, "decrease").suggested, 29.1);
+  assert.equal(progression("compound", [6, 8], [{ weight: 30, reps: 8 }, { weight: 30, reps: 7 }], 2, 1.25, "decrease").suggested, 28.75);
 });
 test("progression normalizes legacy per-side records before suggesting the next total", () => {
   const result = progression("isolation", [8, 10], [
-    { weight: 10, leftWeight: 10, rightWeight: 10, reps: 10 },
-    { weight: 10, leftWeight: 10, rightWeight: 10, reps: 10 },
-  ], 2, 1.25);
-  assert.equal(result.current, 20);
-  assert.equal(result.suggested, 20.6);
+    { weight: 35, leftWeight: 35, rightWeight: 35, reps: 10 },
+    { weight: 35, leftWeight: 35, rightWeight: 35, reps: 10 },
+  ], 2, 2.5);
+  assert.equal(result.current, 70);
+  assert.equal(result.suggested, 72.5);
 });
 test("profile validation accepts decimal commas without requiring body-fat data", () => {
   assert.deepEqual(profileErrors(demoProfile), {});

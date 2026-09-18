@@ -3,18 +3,15 @@ import { translate } from "../i18n/translate";
 import { ExerciseType, Range, SetRecord } from "../types";
 import { storedSetLoad } from "./load";
 import { validRange, validWeight } from "./validation";
-// Keep decimal loads stable without forcing gym-specific quarter-kilo jumps.
-// Eight decimal places also removes normal IEEE-754 noise after per-side
-// conversions (e.g. 11.25 × 2 = 22.5) while preserving user-entered values.
-export const roundWeight = (value: number) => Number(value.toFixed(8));
+// Prepared loads stay on the quarter-kilo grid commonly available in gyms.
+export const roundWeight = (value: number) => Math.round(value * 4) / 4;
 export function progression(
   type: ExerciseType,
   range: Range,
   sets: SetRecord[],
   expectedSets = 2,
-  _loadStep = 1.25,
+  loadStep = 1.25,
   direction: "increase" | "decrease" = "increase",
-  _honorConfiguredStep = false,
 ) {
   // Per-side records are persisted with both side values, while legacy data
   // may still have the old single-side value in `weight`. Always progress from
@@ -34,12 +31,22 @@ export function progression(
   // valuable training evidence, but do not block the next-session suggestion.
   const increase = valid && (normalizedSets[0]?.reps ?? 0) >= range[1];
   const current = normalizedSets[0]?.weight ?? 0;
-  // Progression is based on the load actually recorded, never on a machine
-  // increment or a configured plate jump. This keeps small loads and
-  // per-side cable exercises proportional: 20 kg total becomes 20.6 kg,
-  // which is 10.3 kg per side, not a doubled fixed increment.
-  const suggested = increase && current > 0
-    ? roundWeight(direction === "decrease" ? Math.max(0, current * 0.97) : current * 1.03) : current;
+  const step = validWeight(loadStep) && loadStep > 0 ? loadStep : 1.25;
+  // Use the smallest equipment increment that reaches 3%, but never accept
+  // one above 5%. Both values are normalized stored totals, so a per-side
+  // record cannot be doubled a second time here.
+  const candidates = Array.from(
+    { length: validWeight(current) ? Math.ceil(current * 0.05 / step) + 2 : 0 },
+    (_, index) => roundWeight(direction === "decrease"
+      ? Math.max(0, current - (index + 1) * step)
+      : current + (index + 1) * step),
+  ).filter((candidate, index, all) => {
+    const delta = Math.abs(candidate - current);
+    return all.indexOf(candidate) === index &&
+      delta >= current * 0.03 - 1e-8 && delta <= current * 0.05 + 1e-8 &&
+      (direction === "decrease" ? candidate < current : candidate > current);
+  }).sort((a, b) => Math.abs(a - current) - Math.abs(b - current));
+  const suggested = increase && current > 0 ? candidates[0] ?? current : current;
   const canIncrease = increase && validWeight(suggested) && (direction === "decrease" ? suggested < current : suggested > current);
   const percent = canIncrease ? Math.round(Math.abs(suggested / current - 1) * 1000) / 10 : 0;
   return {

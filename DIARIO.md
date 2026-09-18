@@ -1326,3 +1326,11 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - **Pendiente/no confirmado como resuelto:** el usuario sigue observando que el peso del lunes siguiente no se actualiza al editar el lunes anterior. La corrección no debe considerarse cerrada hasta reproducirlo y verificarlo en la Web con sus datos reales.
 - Verificaciones locales: typecheck correcto; 155 pruebas correctas, 2 omitidas y 0 fallos.
 - Google Play: **no estÃ¡ actualizado con esta correcciÃ³n**. La versiÃ³n `1.0.24` / `versionCode 27` enviada a Prueba cerrada Alpha contiene el estado anterior y sigue en revisiÃ³n; para incluir este arreglo Android harÃ¡ falta una nueva build con un `versionCode` superior.
+
+### Progresión histórica corregida en local — 18 de septiembre de 2026
+
+- Causa confirmada: al corregir un entrenamiento anterior se actualizaba la rutina viva, pero el calendario de la semana siguiente seguía leyendo una instantánea antigua de `routineVersions`. En los registros por lado existía además riesgo de reinterpretar un total ya normalizado y aparentar el doble de carga.
+- Solución: la carga por lado se normaliza una sola vez; se recupera el incremento real configurado del equipo y solo se acepta si queda entre el 3 % y el 5 %. La carga preparada se redondea a cuartos de kilo (`X`, `X,25`, `X,50`, `X,75`); si ningún incremento disponible cabe en el margen, se conserva el peso.
+- Al guardar una corrección histórica se crea un límite de rutina desde el día siguiente: el entrenamiento corregido conserva su peso histórico y la siguiente sesión semanal recibe la nueva carga. Ejemplo verificado: 35 kg pasan a 36,25 kg, no a 70 kg ni a 36,05 kg.
+- Pruebas locales: TypeScript correcto, ESLint correcto en los archivos modificados, 156 pruebas correctas y 2 omitidas, revisión de secretos y `git diff --check` correctos. La comprobación global de ESLint sigue bloqueada por el bundle generado preexistente `dist-verify`, ajeno al cambio.
+- Estado de entrega: corrección implementada en el árbol local; aún no se ha publicado una nueva Web ni una nueva build Android con este arreglo.
