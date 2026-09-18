@@ -1,5 +1,10 @@
 # Diario de Akhyles
 
+### Publicacion web de la correccion del solapamiento - 18 de septiembre de 2026
+
+- Se publico el export Web corregido por SFTP tras superar el preflight obligatorio.
+- `https://app.akhyles.com/` respondio HTTP 200 y sirve `entry-a0e56e14d8a486bfe6326452682dcd08.js`.
+
 ### Captura y correccion del solapamiento de notas - 18 de septiembre de 2026
 
 - Se guardo la captura recibida en `referencias-visuales/Estetica de la app/Bug visual superposicion notas descanso cambio ejercicio.png`.
