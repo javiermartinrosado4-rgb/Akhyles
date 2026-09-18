@@ -1334,3 +1334,10 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Al guardar una corrección histórica se crea un límite de rutina desde el día siguiente: el entrenamiento corregido conserva su peso histórico y la siguiente sesión semanal recibe la nueva carga. Ejemplo verificado: 35 kg pasan a 36,25 kg, no a 70 kg ni a 36,05 kg.
 - Pruebas locales: TypeScript correcto, ESLint correcto en los archivos modificados, 156 pruebas correctas y 2 omitidas, revisión de secretos y `git diff --check` correctos. La comprobación global de ESLint sigue bloqueada por el bundle generado preexistente `dist-verify`, ajeno al cambio.
 - Estado de entrega: corrección implementada en el árbol local; aún no se ha publicado una nueva Web ni una nueva build Android con este arreglo.
+
+### Entrega de progresión histórica corregida — 18 de septiembre de 2026
+
+- Web publicada y verificada en `https://app.akhyles.com/`. El bundle público coincide byte a byte con el export local: `entry-7cd0c0121241411cad13c2f173515fd6.js`, SHA-256 `3FF1A53C82B068DE6EDEEA1117AF6CB82E727F3526153C2296857FC6C63867F1`.
+- Android generado como `1.0.25` / `versionCode 28`, con firma existente verificada. APK SHA-256 `989614C1FFA5E3C2C0BD0B16E01F8256C60EB0261E0E3C102B9A2CE229675284`; AAB SHA-256 `9FE79DDB8FB0979A6668C7847109F04E3BDE3A4A0C8E6219DED87046135E8251`.
+- Play Console: AAB cargado en Prueba cerrada Alpha, notas de versión añadidas y **1 cambio enviado a revisión**. La revisión está pendiente; Producción no iniciada.
+- Git: commit `b96d01a fix: correct historical weight progression` subido a `main`; este registro documenta la publicación completa.
