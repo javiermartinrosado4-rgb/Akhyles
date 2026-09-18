@@ -289,7 +289,7 @@ export function Field({
   const { t } = useLanguage();
   const [focus, setFocus] = useState(false);
   return (
-    <View style={{ gap: 7, flex: multiline ? 0 : 1, alignSelf: multiline ? "stretch" : undefined }}>
+    <View style={{ gap: 7, flex: multiline ? undefined : 1, flexGrow: multiline ? 0 : undefined, flexShrink: multiline ? 0 : undefined, flexBasis: multiline ? "auto" : undefined, alignSelf: multiline ? "stretch" : undefined }}>
       <Txt size={13} weight="600">
         {label}
       </Txt>

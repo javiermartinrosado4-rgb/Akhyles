@@ -1,5 +1,11 @@
 # Diario de Akhyles
 
+### Captura y correccion del solapamiento de notas - 18 de septiembre de 2026
+
+- Se guardo la captura recibida en `referencias-visuales/Estetica de la app/Bug visual superposicion notas descanso cambio ejercicio.png`.
+- La causa era que `Field` asignaba `flex: 0` a los campos multilinea; en Web el contenedor colapsaba y las acciones se pintaban encima del textarea.
+- Los campos multilinea ahora conservan su altura natural (`flexBasis: auto`), evitando el solapamiento.
+
 ### Publicacion web de la correccion del layout de notas - 18 de septiembre de 2026
 
 - Se genero y publico el export Web unicamente por SFTP tras el preflight obligatorio.
