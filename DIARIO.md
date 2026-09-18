@@ -1,5 +1,12 @@
 # Diario de Akhyles
 
+### Publicación web de mejoras de entrenamiento — 18 de septiembre de 2026
+
+- Se exportó y publicó únicamente la Web, sin generar ni publicar Play.
+- Preflight SFTP de Web correcto; se transfirieron 72 archivos y se dejó `index.html` para el final.
+- URL verificada: `https://app.akhyles.com/` HTTP 200, bundle servido `entry-46a4e86b6c9172afd63d667b8266390c.js`.
+- El aviso de versión queda integrado en el cliente; su endpoint API se publicará por separado porque esta operación fue solo Web.
+
 ## APK de prueba publicada en la web (14 de septiembre de 2026)
 
 - Se compiló y verificó la APK Android conectada de **Akhyles 1.0.7** (`versionCode` 9), firmada con la clave de publicación existente.
