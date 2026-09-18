@@ -17,6 +17,7 @@
     "expo-router": "~57.0.20",
     "expo-secure-store": "~57.0.3",
     "expo-splash-screen": "~57.0.8",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.3",
     "google-auth-library": "^11.0.2",

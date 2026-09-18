@@ -1,5 +1,13 @@
 # Diario de Akhyles
 
+### Corrección definitiva del almacenamiento local y pausa de inglés — 18 de septiembre de 2026
+
+- Se sustituyó en Android el estado único de `AsyncStorage` por una base SQLite local (`akhyles-state.db`). La migración lee el estado anterior una sola vez y solo lo elimina después de guardarlo correctamente.
+- Los estados inválidos se conservan en una tabla de recuperación limitada a tres copias y no bloquean el arranque; si SQLite no puede abrirse, la app puede continuar para recuperar la copia cloud.
+- Se dejó `AsyncStorage_db_size_in_MB=50` mediante plugin de configuración para proteger instalaciones antiguas durante la migración.
+- El idioma queda temporalmente fijado en español y se ocultan las opciones de inglés/sistema hasta completar la revisión de traducciones.
+- Requiere una nueva build Android (`1.0.26`, `versionCode 29`); el APK release se compiló correctamente el 18/09/2026 (SHA-256 `E1AE2977A3D37D2B811C84EF312DCE66FEB8F19D4A0BEFBD71344126F760F774`). No se ha publicado Play ni se han hecho cambios externos en esta fase.
+
 ### Publicación web de mejoras de entrenamiento — 18 de septiembre de 2026
 
 - Se exportó y publicó únicamente la Web, sin generar ni publicar Play.

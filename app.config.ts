@@ -8,7 +8,7 @@ if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_P
 const config: ExpoConfig = {
   name: APP.name,
   slug: APP.slug,
-    version: "1.0.25",
+    version: "1.0.26",
   orientation: "portrait",
   scheme: APP.slug,
   userInterfaceStyle: "automatic",
@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 28,
+      versionCode: 29,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
@@ -35,6 +35,8 @@ const config: ExpoConfig = {
     ["expo-localization", { supportedLocales: { ios: ["es", "en"], android: ["es", "en"] } }],
     "expo-router",
     "expo-secure-store",
+    "expo-sqlite",
+    "./plugins/withAsyncStorageDatabaseSize",
     "expo-notifications",
     "./plugins/withAndroidSigning",
     ["expo-splash-screen", { image: "./assets/brand/splash.png", imageWidth: 180, backgroundColor: "#0F1412", dark: { backgroundColor: "#0F1412" } }],
