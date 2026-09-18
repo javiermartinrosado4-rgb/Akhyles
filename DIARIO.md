@@ -1,5 +1,12 @@
 # Diario de Akhyles
 
+### Publicacion Android 1.0.27 y sincronizacion Git/Play - 18 de septiembre de 2026
+
+- Se incremento la version Android a `1.0.27` (`versionCode 30`) y se subio a `main` en el commit `a3f741f`.
+- Se genero el APK/AAB con las URLs publicas de produccion (`https://api.akhyles.com` y `https://api.akhyles.com/community`) y se verificaron firma, manifiesto, permisos y ausencia de endpoints locales.
+- El AAB `akhyles-release.aab` se subio a la prueba cerrada Alpha como `30 (1.0.27)` con lanzamiento al 100%.
+- Google Play mostro unicamente el aviso informativo de que no hay archivo de desofuscacion (no usamos R8/ProGuard). Se envio el cambio a revision; Play confirmo `1 cambio enviado a revision`.
+
 ### Correccion de export Web sin sincronizacion - 18 de septiembre de 2026
 
 - La exportacion anterior habia heredado `.env.local`: faltaba `EXPO_PUBLIC_ACCOUNT_URL` y Comunidad apuntaba a `127.0.0.1:8082`, por lo que la web arrancaba en modo local.
