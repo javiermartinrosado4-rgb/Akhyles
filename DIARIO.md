@@ -1,5 +1,10 @@
 # Diario de Akhyles
 
+### Preparación de entrenamientos sin repeticiones — 18 de septiembre de 2026
+
+- Los entrenamientos futuros ahora se pueden guardar indicando únicamente los pesos; las repeticiones siguen siendo obligatorias al registrar una sesión realizada o editar un histórico.
+- La preparación usa un valor interno temporal solo para completar el flujo y no guarda repeticiones ficticias en el entrenamiento futuro.
+
 ### Publicación de la corrección de almacenamiento — 18 de septiembre de 2026
 
 - La web corregida se publicó en `https://app.akhyles.com/` y se verificó con HTTP 200 sirviendo el bundle `entry-a6acb25bb12100d96934b889d51f7533.js`.

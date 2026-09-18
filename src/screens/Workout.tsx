@@ -322,6 +322,7 @@ export default function Workout() {
   };
 
   const saveExercise = () => {
+    const preparing = !!active.preparing;
     if (!isBodyweight && hasAddedBaseWeight && loadMode !== "total-with-bar" && (!baseWeightText.trim() || !validBarWeight(number(baseWeightText)))) {
       setError("Introduce un peso base entre 0 y 100 kg. Puedes poner 0."); return;
     }
@@ -336,9 +337,15 @@ export default function Workout() {
       const rightReps = sideReps ? number(set.rightReps ?? set.reps) : undefined;
       return {
         weight: isBodyweight && !weighted ? 0 : loadMode === "total-with-bar" ? Math.max(0, enteredWeight - (number(barWeightText) || 0)) : sideSpecific ? enteredWeight * 2 : toStoredLoad(enteredWeight, loadMode),
-        reps: sideReps ? (uneven ? Math.min(leftReps!, rightReps!) : number(set.reps)) : number(set.reps),
+        // A future session only needs its loads. ExerciseRecord still requires
+        // a numeric placeholder because these temporary records are discarded
+        // when the planned workout is saved; completed/history sessions keep
+        // the normal requirement for real repetitions.
+        reps: preparing
+          ? (Number.isInteger(set.reps ? number(set.reps) : NaN) ? number(set.reps) : 1)
+          : sideReps ? (uneven ? Math.min(leftReps!, rightReps!) : number(set.reps)) : number(set.reps),
         ...(sideSpecific ? { leftWeight, rightWeight } : {}),
-        ...(sideReps ? { leftReps, rightReps } : {}),
+        ...(sideReps ? { leftReps: preparing && !Number.isInteger(leftReps) ? undefined : leftReps, rightReps: preparing && !Number.isInteger(rightReps) ? undefined : rightReps } : {}),
       };
     });
     if (
@@ -346,11 +353,9 @@ export default function Workout() {
         (set) =>
           !validWeight(set.weight) ||
           (set.leftWeight !== undefined && (!validWeight(set.leftWeight) || !validWeight(set.rightWeight ?? NaN))) ||
-          (set.leftReps !== undefined && (!Number.isInteger(set.leftReps) || set.leftReps < 1 || set.leftReps > 100)) ||
-          (set.rightReps !== undefined && (!Number.isInteger(set.rightReps) || set.rightReps < 1 || set.rightReps > 100)) ||
-          !Number.isInteger(set.reps) ||
-          set.reps < 1 ||
-          set.reps > 100,
+          (!preparing && ((set.leftReps !== undefined && (!Number.isInteger(set.leftReps) || set.leftReps < 1 || set.leftReps > 100)) ||
+            (set.rightReps !== undefined && (!Number.isInteger(set.rightReps) || set.rightReps < 1 || set.rightReps > 100)) ||
+            !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100)),
       )
     ) {
       setError(messages.Workout.completaCadaSerieConUnPesoValido);
@@ -468,6 +473,7 @@ export default function Workout() {
           <EquipmentPhoto key={entry.exerciseId} exerciseId={entry.exerciseId} exerciseName={displayName(entry.exerciseId, state.preferences)} />
         </View>
         <Txt muted>{t(entry.sets === 1 ? "{value1} serie efectiva · {value2}–{value3} repeticiones" : "{value1} series efectivas · {value2}–{value3} repeticiones", { value1: entry.sets, value2: entry.range[0], value3: entry.range[1] })}</Txt>
+        {active.preparing && <Notice>En un entrenamiento futuro puedes guardar solo los pesos. Las repeticiones se indicarán al realizar la sesión.</Notice>}
       </View>
       {!historical && <Button
         label="Cambiar ejercicio para hoy"
