@@ -1,5 +1,10 @@
 # Diario de Akhyles
 
+### Publicacion web de la correccion del layout de notas - 18 de septiembre de 2026
+
+- Se genero y publico el export Web unicamente por SFTP tras el preflight obligatorio.
+- `https://app.akhyles.com/` respondio HTTP 200 y sirve el bundle `entry-3f854dab3766b5f2e0d6755229235f98.js`.
+
 ### Publicacion web del selector desplegable - 18 de septiembre de 2026
 
 - Se genero el export Web y se publico unicamente por SFTP tras superar el preflight obligatorio.
