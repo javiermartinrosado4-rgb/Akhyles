@@ -1,5 +1,11 @@
 # Diario de Akhyles
 
+### Publicacion web de la pantalla de ejercicio - 18 de septiembre de 2026
+
+- Se exporto la Web y se publico unicamente en IONOS por SFTP, despues del preflight obligatorio de lectura.
+- Se transfirieron 72 archivos y `index.html` quedo estrictamente para el final.
+- `https://app.akhyles.com/` respondio HTTP 200 y sirve el bundle `entry-2048ff1f9bc71bffd1f2a9ce61d0329a.js`.
+
 ### Reordenacion de la pantalla de ejercicio - 18 de septiembre de 2026
 
 - El selector de pesos distintos por lado queda en un unico toggle verde junto a las series efectivas y controla todos los sets del ejercicio.
