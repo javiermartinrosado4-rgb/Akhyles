@@ -15,21 +15,7 @@ export interface StateRepository {
   save(state: AppState): Promise<void>;
 }
 
-type NativeDatabase = { execSync(source: string): void; runSync(source: string, ...params: unknown[]): unknown; getFirstSync<T>(source: string): T | null };
-let nativeDatabase: NativeDatabase | undefined;
-let nativeDatabasePromise: Promise<NativeDatabase | undefined> | undefined;
-async function sqlite() {
-  const isNative = typeof navigator !== "undefined" && navigator.product === "ReactNative";
-  if (!isNative) return undefined;
-  if (nativeDatabase) return nativeDatabase;
-  if (!nativeDatabasePromise) nativeDatabasePromise = import("expo-sqlite").then(({ openDatabaseSync }) => {
-    nativeDatabase = openDatabaseSync("akhyles-state.db") as unknown as NativeDatabase;
-    nativeDatabase.execSync("CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY NOT NULL, payload TEXT NOT NULL); CREATE TABLE IF NOT EXISTS app_recovery (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created INTEGER NOT NULL);");
-    nativeDatabase.runSync("DELETE FROM app_recovery WHERE id NOT IN (SELECT id FROM app_recovery ORDER BY created DESC LIMIT 3)");
-    return nativeDatabase;
-  }).catch(() => { nativeDatabasePromise = undefined; return undefined; });
-  return nativeDatabasePromise;
-}
+import { getNativeDatabase } from './native-sqlite';
 
 /**
  * A stale weekday selection can survive a program import or an earlier app
@@ -221,7 +207,7 @@ export function decodeState(raw: string): AppState {
 }
 export const localRepository: StateRepository = {
   async load() {
-    const db = await sqlite();
+    const db = await getNativeDatabase();
     let raw = db?.getFirstSync<{ payload: string }>("SELECT payload FROM app_state WHERE id=1")?.payload;
     if (!raw) {
       raw = (await AsyncStorage.getItem(APP.storageKey)) ?? undefined;
@@ -265,7 +251,7 @@ export const localRepository: StateRepository = {
   },
   async save(state) {
     const raw = JSON.stringify(state);
-    const db = await sqlite();
+    const db = await getNativeDatabase();
     if (db) db.runSync("INSERT INTO app_state(id,payload) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", raw);
     else await AsyncStorage.setItem(APP.storageKey, raw);
   },
