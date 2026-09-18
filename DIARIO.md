@@ -1,5 +1,11 @@
 # Diario de Akhyles
 
+### Publicación de la corrección de almacenamiento — 18 de septiembre de 2026
+
+- La web corregida se publicó en `https://app.akhyles.com/` y se verificó con HTTP 200 sirviendo el bundle `entry-a6acb25bb12100d96934b889d51f7533.js`.
+- El AAB firmado `1.0.26` (`versionCode 29`) se subió a Prueba cerrada Alpha y se envió a revisión de Google Play. SHA-256: `4A5CD924B97D8F3220E03443628271E7130DCDC6F294C32CDA1BDA671A00CE4D`.
+- Play muestra los cambios en revisión mientras ejecuta sus comprobaciones automáticas; la publicación para testers queda pendiente de que Google complete esas comprobaciones/revisión.
+
 ### Corrección definitiva del almacenamiento local y pausa de inglés — 18 de septiembre de 2026
 
 - Se sustituyó en Android el estado único de `AsyncStorage` por una base SQLite local (`akhyles-state.db`). La migración lee el estado anterior una sola vez y solo lo elimina después de guardarlo correctamente.
