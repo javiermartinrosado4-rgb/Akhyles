@@ -40,8 +40,33 @@ function repairStoredTrainingDays(state: AppState): AppState {
     : state.routineVersions;
   return profile === state.profile && routineVersions === state.routineVersions ? state : { ...state, profile, routineVersions };
 }
+function repairStoredMaps(state: AppState): AppState {
+  const map = (value: unknown) => Array.isArray(value) && value.length === 0 ? {} : value;
+  const preferences = state.preferences && {
+    ...state.preferences,
+    names: map(state.preferences.names),
+    weights: map(state.preferences.weights),
+    ranges: map(state.preferences.ranges),
+    notes: map(state.preferences.notes),
+    loadSteps: map(state.preferences.loadSteps),
+    barWeights: map(state.preferences.barWeights),
+    apparatusWeights: map(state.preferences.apparatusWeights),
+    machineBrands: map(state.preferences.machineBrands),
+    loadModes: map(state.preferences.loadModes),
+  } as AppState["preferences"];
+  const active = state.active && {
+    ...state.active,
+    drafts: map(state.active.drafts),
+    barWeights: map(state.active.barWeights),
+    apparatusWeights: map(state.active.apparatusWeights),
+    machineBrands: map(state.active.machineBrands),
+    weighted: map(state.active.weighted),
+    loadModes: map(state.active.loadModes),
+  } as AppState["active"];
+  return preferences === state.preferences && active === state.active ? state : { ...state, preferences, active };
+}
 export function decodeState(raw: string): AppState {
-  const s = repairStoredTrainingDays(JSON.parse(raw) as AppState);
+  const s = repairStoredMaps(repairStoredTrainingDays(JSON.parse(raw) as AppState));
   if (!validStoredCollections(s)) throw new Error("Invalid stored collections");
   if (
     !s ||

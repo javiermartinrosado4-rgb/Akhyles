@@ -1349,3 +1349,11 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Solución aplicada en local: `localRepository.load()` conserva el payload incompatible bajo una clave de recuperación, retira únicamente la ranura primaria y permite hidratar un estado limpio. Así el inicio de sesión puede continuar y la copia cloud se descarga automáticamente; no se borra silenciosamente el payload original.
 - Limitación: si había entrenamientos locales que nunca llegaron a la nube, el payload de recuperación se conserva técnicamente pero no se fusiona automáticamente con la copia cloud. Debe validarse si hace falta una herramienta de restauración o una migración parcial.
 - Verificación: typecheck correcto, ESLint del repositorio afectado correcto y 156 tests correctos (2 omitidos). La corrección está incluida en la nueva Android `1.0.25` / `versionCode 28`, enviada a revisión Alpha; el dispositivo seguirá afectado hasta instalar esa versión.
+
+### Resolución cloud del error `Invalid stored collections` — 18 de septiembre de 2026
+
+- La misma excepción aparecía también en la Web porque el estado remoto llegaba desde PHP con mapas vacíos serializados como `[]`; el validador del cliente exige objetos (`{}`) para esos diccionarios.
+- Solución definitiva: el cliente normaliza mapas vacíos durante la lectura y la API PHP normaliza también `apparatusWeights`, `machineBrands` y `loadModes` antes de devolver o guardar una copia.
+- API publicada y verificada en `https://api.akhyles.com/community/health`; Web republicada con el bundle `entry-4068f3e80fbc3ead7c22037fa2d7f5bc.js` y verificada con hash coincidente.
+- Verificación manual: tras recargar la Web, la sincronización terminó en **Guardado en el dispositivo y en la nube**. El móvil con la versión anterior también vuelve a acceder y sincronizar, por lo que no se genera otra build ni se modifica el envío de Play.
+- La build Android provisional se detuvo antes de completarse; no se instaló ni se publicó ningún cambio Android adicional.

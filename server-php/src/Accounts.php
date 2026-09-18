@@ -283,7 +283,7 @@ final class Accounts {
     private function normalizeState(array $s): array {
         // json_decode(..., true) maps both {} and [] to PHP arrays. These fields
         // are dictionaries in the app and MUST serialize back as JSON objects.
-        foreach (['names','weights','ranges','notes','loadSteps','barWeights'] as $key)
+        foreach (['names','weights','ranges','notes','loadSteps','barWeights','apparatusWeights','machineBrands','loadModes'] as $key)
             if (array_key_exists($key,$s['preferences'])) $s['preferences'][$key]=(object)$s['preferences'][$key];
         if (isset($s['volumeTargets'])) $s['volumeTargets']=(object)$s['volumeTargets'];
         foreach (['drafts','barWeights','loadModes'] as $key)
