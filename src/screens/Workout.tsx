@@ -2,7 +2,7 @@ import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
 import { useState } from "react";
 import { Redirect, router } from "expo-router";
-import { Pressable, ScrollView, Switch, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
 import {
   Button,
   Card,
@@ -13,6 +13,7 @@ import {
   Row,
   Txt,
   Field,
+  Icon,
 } from "../components/ui";
 import { useStore } from "../state/Store";
 import { allExercises, displayName, getExercise, restSeconds } from "../logic/routine";
@@ -49,6 +50,7 @@ export default function Workout() {
   const [error, setError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
   const [editingExercise, setEditingExercise] = useState(false);
+  const [exerciseMenuOpen, setExerciseMenuOpen] = useState(false);
   const active = state.active;
   if (!state.completed || state.signedOut) return <Redirect href="/" />;
   if (!active) {
@@ -432,17 +434,7 @@ export default function Workout() {
           }}
         />
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 12 }}>
-        {active.day.exercises.map((item, index) => {
-          const done = completed.has(item.id);
-          const skippedItem = skipped.includes(item.id);
-          const current = index === active.index;
-          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Ir a ${displayName(item.exerciseId, state.preferences)}`} onPress={() => goTo(index)} style={{ minWidth: 76, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: current ? colors.accent : done ? colors.done : skippedItem ? colors.soft : colors.accentSoft, opacity: skippedItem ? 0.55 : 1 }}>
-            <Txt size={11} weight="600" numberOfLines={1} translate={false} style={{ color: current || done ? colors.onAccent : colors.accent }}>{index + 1}. {displayName(item.exerciseId, state.preferences)}</Txt>
-          </Pressable>;
-        })}
-      </ScrollView>
-      <Row style={{ justifyContent: "space-between" }}>
+      <Row style={{ gap: 8 }}>
         <Button
           label="Ejercicio anterior"
           compact
@@ -451,6 +443,18 @@ export default function Workout() {
           disabled={active.index === 0}
           onPress={() => goTo(active.index - 1)}
         />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Seleccionar ejercicio"
+          accessibilityState={{ expanded: exerciseMenuOpen }}
+          onPress={() => setExerciseMenuOpen(value => !value)}
+          style={{ flex: 1, minWidth: 0, minHeight: 42, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 14, backgroundColor: colors.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          <Txt size={12} weight="600" numberOfLines={1} translate={false} style={{ color: colors.onAccent, flexShrink: 1, textAlign: "center" }}>
+            {active.index + 1}. {displayName(entry.exerciseId, state.preferences)}
+          </Txt>
+          <Icon name={exerciseMenuOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.onAccent} />
+        </Pressable>
         <Button
           label="Ejercicio siguiente"
           compact
@@ -460,6 +464,24 @@ export default function Workout() {
           onPress={() => goTo(active.index + 1)}
         />
       </Row>
+      {exerciseMenuOpen && <Card style={{ padding: 8, gap: 4 }}>
+        {active.day.exercises.map((item, index) => {
+          const done = completed.has(item.id);
+          const skippedItem = skipped.includes(item.id);
+          const current = index === active.index;
+          return <Pressable
+            key={item.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Ir a ${displayName(item.exerciseId, state.preferences)}`}
+            onPress={() => { setExerciseMenuOpen(false); goTo(index); }}
+            style={{ minHeight: 42, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: current ? colors.accent : done ? colors.done : skippedItem ? colors.soft : colors.accentSoft, opacity: skippedItem ? 0.55 : 1, justifyContent: "center" }}
+          >
+            <Txt size={13} weight="600" numberOfLines={1} translate={false} style={{ color: current || done ? colors.onAccent : colors.accent }}>
+              {index + 1}. {displayName(item.exerciseId, state.preferences)}
+            </Txt>
+          </Pressable>;
+        })}
+      </Card>}
       <View style={{ gap: 12 }}>
         <Txt size={11} weight="600" muted style={{ letterSpacing: 2 }}>{t(active.day.name).toUpperCase()}</Txt>
         <View testID="workout-exercise-heading" style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>

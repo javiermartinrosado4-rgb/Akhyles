@@ -1,5 +1,10 @@
 # Diario de Akhyles
 
+### Selector desplegable de ejercicios - 18 de septiembre de 2026
+
+- Se sustituyo la tira horizontal de ejercicios por un selector entre los botones de ejercicio anterior y siguiente.
+- La flecha despliega verticalmente todos los ejercicios numerados y permite cambiar directamente de ejercicio; al seleccionar uno, el menu se cierra.
+
 ### Publicacion web de la pantalla de ejercicio - 18 de septiembre de 2026
 
 - Se exporto la Web y se publico unicamente en IONOS por SFTP, despues del preflight obligatorio de lectura.
