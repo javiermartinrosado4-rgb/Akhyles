@@ -255,11 +255,6 @@ CREATE TABLE IF NOT EXISTS community_trainer_profiles (
  modalities MEDIUMTEXT NOT NULL, experience_years INT NOT NULL DEFAULT 0, credentials VARCHAR(500) NOT NULL DEFAULT '',
  availability VARCHAR(160) NOT NULL DEFAULT '', pricing VARCHAR(160) NOT NULL DEFAULT '', stats_public TINYINT NOT NULL DEFAULT 0, updated BIGINT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-CREATE TABLE IF NOT EXISTS community_trainer_reviews (
- id CHAR(32) PRIMARY KEY, client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL,
- rating INT NOT NULL, body VARCHAR(800) NOT NULL, created BIGINT NOT NULL, updated BIGINT NOT NULL,
- UNIQUE KEY review_once(client_id, trainer_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS community_coaching_stats_consent (
  client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL, enabled TINYINT NOT NULL, updated BIGINT NOT NULL,
  PRIMARY KEY(client_id, trainer_id)
@@ -267,4 +262,21 @@ CREATE TABLE IF NOT EXISTS community_coaching_stats_consent (
 CREATE TABLE IF NOT EXISTS community_coaching_progress (
  client_id VARCHAR(64) NOT NULL, trainer_id VARCHAR(64) NOT NULL, payload MEDIUMTEXT NOT NULL, updated BIGINT NOT NULL,
  PRIMARY KEY(client_id, trainer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_coaching_permissions (
+ coaching_id CHAR(32) PRIMARY KEY, routine_enabled TINYINT NOT NULL DEFAULT 1,
+ progress_enabled TINYINT NOT NULL DEFAULT 0, aggregate_enabled TINYINT NOT NULL DEFAULT 0,
+ consent_version VARCHAR(32) NOT NULL DEFAULT 'trainer-workspace-v1', updated BIGINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_coaching_notes (
+ id CHAR(32) PRIMARY KEY, coaching_id CHAR(32) NOT NULL, author_id VARCHAR(64) NOT NULL,
+ body VARCHAR(1200) NOT NULL, created BIGINT NOT NULL, updated BIGINT NOT NULL, archived TINYINT NOT NULL DEFAULT 0,
+ INDEX(coaching_id, updated)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_coaching_snapshots (
+ coaching_id CHAR(32) NOT NULL, week_start DATE NOT NULL, adherence DECIMAL(5,2) NULL,
+ strength_percent DECIMAL(8,2) NULL, sessions_completed INT NOT NULL DEFAULT 0,
+ sessions_scheduled INT NOT NULL DEFAULT 0, eligible TINYINT NOT NULL DEFAULT 0,
+ level VARCHAR(24) NOT NULL DEFAULT '', updated BIGINT NOT NULL,
+ PRIMARY KEY(coaching_id, week_start), INDEX(week_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

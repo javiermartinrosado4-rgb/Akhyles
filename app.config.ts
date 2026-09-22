@@ -8,7 +8,7 @@ if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_P
 const config: ExpoConfig = {
   name: APP.name,
   slug: APP.slug,
-    version: "1.0.34",
+    version: "1.0.35",
   orientation: "portrait",
   scheme: APP.slug,
   userInterfaceStyle: "dark",
@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 37,
+      versionCode: 38,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
@@ -28,7 +28,7 @@ const config: ExpoConfig = {
       backgroundColor: "#070A09",
       monochromeImage: "./assets/brand/monochrome.png",
     },
-    blockedPermissions: ["android.permission.SYSTEM_ALERT_WINDOW", "android.permission.RECORD_AUDIO", "android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE"],
+    blockedPermissions: ["android.permission.SYSTEM_ALERT_WINDOW", "android.permission.RECORD_AUDIO"],
     intentFilters: [{ action: "VIEW", autoVerify: true, data: [{ scheme: "https", host: "api.akhyles.com", pathPrefix: "/verify" }], category: ["BROWSABLE", "DEFAULT"] }],
   },
   plugins: [
@@ -48,7 +48,7 @@ const config: ExpoConfig = {
       {
         photosPermission:
           "Selecciona fotografías para tu perfil, publicaciones o la demostración opcional.",
-        cameraPermission: false,
+        cameraPermission: "Graba la primera serie de un ejercicio para revisarla con tu entrenador.",
         microphonePermission: false,
       },
     ],
@@ -59,6 +59,10 @@ const config: ExpoConfig = {
     favicon: "./assets/brand/favicon.png",
   },
   experiments: { typedRoutes: true },
-  extra: { communityLocalTest: localAndroid },
+  extra: {
+    communityLocalTest: localAndroid,
+    // Keep the trainer workspace experimental until it is explicitly enabled for a release.
+    trainerWorkspaceExperiment: process.env.EXPO_PUBLIC_TRAINER_WORKSPACE === "1",
+  },
 };
 export default config;

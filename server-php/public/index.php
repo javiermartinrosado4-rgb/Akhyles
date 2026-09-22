@@ -39,8 +39,11 @@ try {
     $input = [];
     if (in_array($_SERVER['REQUEST_METHOD'],['POST','PATCH','PUT','DELETE'],true)) {
         if (!str_starts_with($_SERVER['CONTENT_TYPE'] ?? '', 'application/json')) throw new \Akhyles\ApiError(415,'Se requiere JSON.');
-        $raw=file_get_contents('php://input',false,null,0,4_500_001);
-        if (strlen($raw)>4_500_000) throw new \Akhyles\ApiError(413,'La copia es demasiado grande.');
+        // Keep enough headroom for legitimate legacy copies while the client
+        // migrates to incremental Sync V2. Multimedia is excluded from the
+        // private copy, and Accounts still applies its own 10 MB state limit.
+        $raw=file_get_contents('php://input',false,null,0,8_000_001);
+        if (strlen($raw)>8_000_000) throw new \Akhyles\ApiError(413,'La copia es demasiado grande.');
         try { $input=json_decode($raw,true,128,JSON_THROW_ON_ERROR); }
         catch (\JsonException) { throw new \Akhyles\ApiError(400,'JSON no válido.'); }
         if (!is_array($input) || !str_starts_with(ltrim($raw),'{')) throw new \Akhyles\ApiError(400,'Datos no válidos.');

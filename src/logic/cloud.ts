@@ -18,10 +18,18 @@ export interface RemoteCopy { revision: number; updated: string; state: AppState
  * must not become a second source of truth either.
  */
 export function cloudState(s: AppState): AppState {
+  // Profile photos are uploaded and owned by Community. They must never be
+  // embedded in the private progress document: a single Base64 photo can be
+  // close to the API request limit and makes conflict resolution fail with
+  // "La copia es demasiado grande". Keep the small built-in avatar ids.
+  const profile = typeof s.profile.avatar === "string" && s.profile.avatar.startsWith("data:image/")
+    ? (() => { const { avatar: _avatar, ...rest } = s.profile; return rest; })()
+    : s.profile;
   return {
-    version: s.version, profile: s.profile,
+    version: s.version, profile,
     preferences: s.preferences, onboardingStep: s.onboardingStep, completed: s.completed,
-    theme: s.theme, volumeTargets: s.volumeTargets, routine: s.routine, history: s.history,
+    theme: s.theme, volumeTargets: s.volumeTargets, routine: s.routine,
+    history: s.history,
     plannedWorkouts: s.plannedWorkouts, skippedWorkoutDates: s.skippedWorkoutDates,
     bodyWeights: s.bodyWeights, routineVersions: s.routineVersions, strengthReferences: s.strengthReferences,
   };

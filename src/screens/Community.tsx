@@ -12,7 +12,7 @@ import { useTheme } from "../theme";
 import { presentationPoints, presentationPointsDelta } from "../logic/achievements";
 import { GoogleSignIn } from "../components/GoogleSignIn";
 import { Avatar, AvatarPhotoPicker } from "../components/Avatar";
-import { exportProgress, exportRoutine } from "../logic/sharing";
+import { exportCoachProgress, exportProgress, exportRoutine } from "../logic/sharing";
 import { SharedProgressView } from "../components/SharedProgressView";
 import { CommunityPrivacyToggle } from "../components/CommunityPrivacyToggle";
 import { TrainingSharingSelect } from "../components/TrainingSharingSelect";
@@ -123,8 +123,8 @@ function CommunityScreen() {
     return () => { alive = false; };
   }, [request, revision, user]);
   useEffect(() => {
-    if (!user || !coaching.some(item => item.status === "active" && item.role === "client" && item.statsConsent)) return;
-    void request("/coaching/progress/me", "PUT", exportProgress(state, true, false)).catch(() => undefined);
+    if (!user || !coaching.some(item => item.status === "active" && item.role === "client")) return;
+    void request("/coaching/progress/me", "PUT", exportCoachProgress(state)).catch(() => undefined);
   }, [coaching, request, state, user]);
 
   const run = async (action: () => Promise<void>) => {
@@ -281,12 +281,11 @@ function CommunityScreen() {
         </>}
         {!mine && <>
           {!relationship && (profile.trainerEnabled || user?.trainerEnabled) && <Button label={profile.trainerEnabled ? "Solicitar colaboración" : "Invitar a colaborar"} icon="user-plus" disabled={busy} onPress={() => void run(async () => {
-            await request("/coaching/requests", "POST", { targetId: profile.id }); await refreshCoaching(); setMessage("Solicitud de colaboración enviada.");
+            await request("/trainer/requests", "POST", { targetId: profile.id }); await refreshCoaching(); setMessage("Solicitud de colaboración enviada.");
           })} />}
           {relationship?.status === "pending" && relationship.requestedByMe && <Notice>Solicitud de colaboración pendiente.</Notice>}
-          {relationship?.status === "active" && relationship.role === "client" && <CommunityPrivacyToggle label="Contribuir a estadísticas agregadas" description="Tu entrenador solo verá resultados globales; nunca tu historial individual en su perfil." value={!!relationship.statsConsent} disabled={busy} onChange={() => void run(async () => { await request(`/coaching/${relationship.id}/stats-consent`, "PUT", { enabled: !relationship.statsConsent }); await refreshCoaching(); if (!relationship.statsConsent) await request("/coaching/progress/me", "PUT", exportProgress(state, true, false)); })} />}
-          {relationship?.status === "pending" && !relationship.requestedByMe && <Card style={{ padding: 12 }}><Txt weight="600">Solicitud de colaboración</Txt><Txt muted>Al aceptarla, la otra persona podrá gestionar la rutina con el permiso que estás concediendo.</Txt><Button label="Aceptar colaboración" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "accept" }); await refreshCoaching(); setRevision(value => value + 1); })} /><Button label="Rechazar" compact variant="ghost" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "decline" }); await refreshCoaching(); })} /></Card>}
-          {relationship?.status === "active" && <Card style={{ padding: 12 }}><Txt weight="600">Colaboración activa</Txt><Txt muted>{relationship.role === "trainer" ? "Puedes revisar y modificar la rutina de esta persona." : "Esta persona puede revisar y modificar tu rutina."}</Txt>{relationship.role === "trainer" ? <Button label="Gestionar su rutina" compact variant="secondary" onPress={() => router.push({ pathname: "/coach-routine", params: { relationship: relationship.id } })} /> : <><Button label="Sincronizar mi rutina con el entrenador" compact variant="secondary" disabled={busy} onPress={() => void run(async () => { await request("/coaching/routine/me", "PUT", exportRoutine(state.routine, state.preferences)); setMessage("Tu rutina está lista para que el entrenador la revise."); })} /><Button label="Revisar rutina gestionada" compact variant="secondary" onPress={() => router.push({ pathname: "/coach-routine", params: { relationship: relationship.id, mode: "client" } })} /></>}<Button label="Revocar colaboración" compact variant="ghost" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "revoke" }); await refreshCoaching(); setRevision(value => value + 1); setMessage("Colaboración revocada."); })} /></Card>}
+          {relationship?.status === "pending" && !relationship.requestedByMe && <Card style={{ padding: 12 }}><Txt weight="600">Solicitud de colaboración</Txt><Txt muted>Al aceptarla, el entrenador tendrá acceso completo a tu historial, rutina y progreso mientras la colaboración esté activa.</Txt><Button label="Aceptar colaboración" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "accept" }); await refreshCoaching(); setRevision(value => value + 1); })} /><Button label="Rechazar" compact variant="ghost" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "decline" }); await refreshCoaching(); })} /></Card>}
+          {relationship?.status === "active" && <Card style={{ padding: 12 }}><Txt weight="600">Colaboración activa</Txt><Txt muted>{relationship.role === "trainer" ? "Tienes acceso completo a su historial, rutina y progreso." : "Tu entrenador tiene acceso completo a tu historial, rutina y progreso mientras esta colaboración siga activa."}</Txt>{relationship.role === "trainer" ? <Button label="Gestionar su rutina" compact variant="secondary" onPress={() => router.push({ pathname: "/coach-routine", params: { relationship: relationship.id, from: "community" } })} /> : <><Button label="Sincronizar mi rutina con el entrenador" compact variant="secondary" disabled={busy} onPress={() => void run(async () => { await request("/coaching/routine/me", "PUT", exportRoutine(state.routine, state.preferences)); setMessage("Tu rutina está sincronizada con el entrenador."); })} /><Button label="Revisar rutina gestionada" compact variant="secondary" onPress={() => router.push({ pathname: "/coach-routine", params: { relationship: relationship.id, mode: "client", from: "community" } })} /></>}<Button label="Revocar colaboración" compact variant="ghost" disabled={busy} onPress={() => void run(async () => { await request(`/coaching/${relationship.id}`, "PATCH", { action: "revoke" }); await refreshCoaching(); setRevision(value => value + 1); setMessage("Colaboración revocada."); })} /></Card>}
           <Txt muted size={12}>{profile.connected ? "Amigos · seguimiento mutuo" : profile.followsYou ? "Te sigue · devuelve el seguimiento para conectar" : "Seguid ambos perfiles para compartir el progreso permitido"}</Txt>
           <Button label={profileOptions ? "Cerrar opciones" : "Más opciones"} icon="more-horizontal" compact variant="ghost" onPress={() => setProfileOptions(value => !value)} />
           {profileOptions && <Card style={{ padding: 12 }}><Button label="Bloquear usuario" compact variant="ghost" disabled={busy} onPress={() => void run(async () => {
@@ -306,7 +305,7 @@ function CommunityScreen() {
           icon="copy"
           compact
           variant="secondary"
-          onPress={() => router.push({ pathname: "/shared-routine", params: { id: profile.routineId! } })}
+          onPress={() => router.push({ pathname: "/shared-routine", params: { id: profile.routineId!, from: "community" } })}
         />}
         {!!profile.progressVisible && (!mine || !!profile.progressPublic) && <Button
           label={sharedProgress ? "Ocultar progreso" : mine ? "Ver mi progreso compartido" : t("Ver progreso de @{value1}", { value1: profile.handle })}

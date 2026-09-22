@@ -1,6 +1,6 @@
 {
   "name": "akhyles",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -32,7 +32,8 @@
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.10.1",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -54,6 +55,7 @@
     "test": "tsx --test tests/*.test.ts",
     "server": "tsx server/index.ts",
     "demo:community": "tsx scripts/start-community-demo.ts",
+    "verify:trainer-demo": "node scripts/verify-trainer-demo.mjs",
     "demo:lucia": "tsx scripts/refresh-lucia-demo.ts",
     "test:e2e": "playwright test",
     "android:apk": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format apk",

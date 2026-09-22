@@ -32,7 +32,7 @@ function Summary({state,label}:{state:AppState;label:string}){
 }
 export default function Account(){
   const {t,locale}=useLanguage();
-  const params=useLocalSearchParams<{mode?:string}>();
+  const params=useLocalSearchParams<{mode?:string;from?:string}>();
   const account=useAccount(); const {state,update}=useStore();
   // Keep the account page usable for account management, but leave it
   // immediately when this screen itself has just completed a sign-in.
@@ -66,7 +66,7 @@ export default function Account(){
   };
   const leave=()=>{update(s=>({...s,signedOut:false}));router.replace(state.completed?"/today":"/onboarding");};
   return <Page>
-    <Button label="Volver" compact variant="ghost" icon="arrow-left" onPress={()=>router.canGoBack()?router.back():router.replace("/")}/>
+    <Button label="Volver" compact variant="ghost" icon="arrow-left" onPress={()=>router.replace(params.from==="profile"?"/profile":state.completed?"/today":"/")}/>
     <Heading title="Tu cuenta Akhyles" subtitle="Tu rutina, tus pesos y tu progreso, contigo."/>
     <LanguageSelector/>
     <NotificationSettings/>

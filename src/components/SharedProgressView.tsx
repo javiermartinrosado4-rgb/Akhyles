@@ -28,15 +28,16 @@ export function sharedExerciseName(id: string, stored: string, language: "es" | 
   return isDefault ? translate(exercise.name, {}, language) : stored;
 }
 
-export function SharedProgressView({ progress, routineId }: { progress: SharedProgress; routineId?: string | null }) {
+export function SharedProgressView({ progress, routineId, initialSection = "summary", showAllExercises = false }: { progress: SharedProgress; routineId?: string | null; initialSection?: Section; showAllExercises?: boolean }) {
   const { t, locale, language } = useLanguage();
   const { colors, dark } = useTheme();
   const { request } = useCommunity();
-  const [section, setSection] = useState<Section>("summary");
+  const [section, setSection] = useState<Section>(initialSection);
   const [period, setPeriod] = useState<"month" | "year" | "all">("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [pointsMode, setPointsMode] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [initialExercisesShown, setInitialExercisesShown] = useState(false);
   const [group, setGroup] = useState<string | null>(null);
   const [routine, setRoutine] = useState<SharedRoutine | null>(null);
   const [routineError, setRoutineError] = useState("");
@@ -53,6 +54,9 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
   const workouts = useMemo(() => [...(progress.workouts ?? [])].sort((a, b) => Date.parse(a.date) - Date.parse(b.date)), [progress.workouts]);
   const names = useMemo(() => new Map(workouts.flatMap(workout => workout.exercises.map(exercise => [exercise.id, sharedExerciseName(exercise.id, exercise.name, language)] as const))), [workouts, language]);
   const ids = [...names.keys()];
+  useEffect(() => {
+    if (showAllExercises && !initialExercisesShown && ids.length) { setSelected(ids); setInitialExercisesShown(true); }
+  }, [ids, initialExercisesShown, showAllExercises]);
   const measurements = [...(progress.bodyWeights ?? []), ...(progress.pointsHistory ?? []), ...workouts.map(workout => ({ date: workout.date, value: 0 }))];
   const now = new Date();
   const minimum = new Date(Math.min(now.getTime(), ...measurements.map(point => Date.parse(point.date)).filter(Number.isFinite)));
@@ -90,7 +94,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
     {section === "summary" && <>
       {!!progress.strengthReferences?.length && <Card style={{ gap: 7 }}><Txt weight="600">Referencias de fuerza</Txt><Txt muted size={12}>Marcas declaradas por esta persona.</Txt>{progress.strengthReferences.map(item => <Row key={item.id} style={{ justifyContent: "space-between" }}><Txt>{item.name}</Txt><Txt weight="600">{item.weight > 0 ? `${item.weight} kg × ${item.reps}` : `${item.reps} rep`} <Txt muted size={11}>· ≈{item.maximum.toLocaleString(locale, { maximumFractionDigits: 1 })} kg</Txt></Txt></Row>)}</Card>}
       {!progress.categories && <Txt muted size={13}>El mapa estará disponible cuando esta persona actualice su progreso compartido.</Txt>}
-      <BodyMap categories={categories} />
+      <BodyMap categories={categories} sex={progress.sex} />
     </>}
     {section === "charts" && <>
       <Row style={{ flexWrap: "wrap" }}>

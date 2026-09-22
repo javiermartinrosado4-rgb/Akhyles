@@ -41,14 +41,11 @@ export function scoreProgress(state: AppState) {
     // Missing historic demographics must not be guessed from today's profile.
     const sex = w.sex ?? [...(state.routineVersions ?? [])]
       .filter(version => version.effectiveFrom !== "1970-01-01" && localDateKey(version.effectiveFrom) <= localDateKey(w.date))
-      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.profile.sex ?? state.profile.sex;
-    // Older local sessions may predate the per-session demographics fields.
-    // Preserve recorded values when present; otherwise use the current profile
-    // as a compatibility fallback so valid historical lifts are not silently
-    // excluded from the muscle map.
-    const profileBodyWeight = Number(state.profile.weight);
-    const bodyWeight = Number.isFinite(w.bodyWeight) ? w.bodyWeight! : profileBodyWeight;
-    if (!Number.isFinite(bodyWeight) || !sex) continue;
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.profile.sex;
+    // Missing historic demographics are never guessed from today's profile.
+    // Demo migrations restore their known per-session values explicitly.
+    const bodyWeight = w.bodyWeight;
+    if (typeof bodyWeight !== "number" || !Number.isFinite(bodyWeight) || !sex) continue;
     const coefficient = wilksCoefficient(bodyWeight, sex);
     if (coefficient === undefined) continue;
     let changed = false;

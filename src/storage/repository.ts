@@ -9,7 +9,7 @@ import { resumeWorkout } from "../logic/workout";
 import { localDateKey } from "../logic/schedule";
 import { validBarWeight } from "../logic/load";
 import { validStoredCollections } from "../logic/storedState";
-import { defaultTrainingDays } from "../data/options";
+import { repairTrainingDays } from "../logic/trainingDays";
 import { validStrengthReference } from "../logic/strengthReferences";
 import { repairSingleStackLoads } from "../logic/loadMigration";
 export interface StateRepository {
@@ -98,16 +98,7 @@ async function ungzipWeb(value: string): Promise<string> {
  * version. Availability is derived metadata, so repair it while reading data
  * instead of blocking a complete workout history or its cloud sync.
  */
-export function repairTrainingDays(profile: AppState["profile"]): AppState["profile"] {
-  const { days, trainingDays } = profile;
-  if (trainingDays === undefined || !Number.isInteger(days) || days < 1 || days > 7) return profile;
-  const valid = Array.isArray(trainingDays)
-    ? [...new Set(trainingDays.filter(day => Number.isInteger(day) && day >= 1 && day <= 7))]
-    : [];
-  if (Array.isArray(trainingDays) && valid.length === days && valid.length === trainingDays.length) return profile;
-  const repaired = [...valid, ...defaultTrainingDays(days).filter(day => !valid.includes(day))].slice(0, days);
-  return { ...profile, trainingDays: repaired };
-}
+export { repairTrainingDays } from "../logic/trainingDays";
 
 function repairStoredTrainingDays(state: AppState): AppState {
   const profile = repairTrainingDays(state.profile);

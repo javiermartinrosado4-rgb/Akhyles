@@ -9,6 +9,7 @@ import { validRange } from "./validation";
 import { weeklyProgressInsight } from "./insights";
 import { personalAchievements } from "./personalAchievements";
 import { scoreStrengthReference } from "./strengthReferences";
+import { localDateKey, scheduledWorkout } from "./schedule";
 
 const onlyKeys = (value: object, allowed: string[]) => Object.keys(value).every(key => allowed.includes(key));
 const safeId = (value: unknown): value is string => typeof value === "string" && /^[\w-]{1,80}$/.test(value) && !["__proto__", "constructor", "prototype"].includes(value);
@@ -37,6 +38,8 @@ export interface SharedRoutine {
 
 export interface SharedProgress {
   version: 1;
+  /** Present only in a private trainer collaboration; never exported publicly. */
+  sex?: "male" | "female";
   sessions: number;
   sets: number;
   /** Latest opt-in Akhyles Points score, never raw body measurements. */
@@ -58,6 +61,8 @@ export interface SharedProgress {
   workouts?: SharedWorkout[];
   pointsHistory?: { date: string; value: number }[];
   bodyWeights?: { date: string; value: number }[];
+  /** Private trainer-only calendar: real results plus the client's current plan. */
+  calendar?: { date: string; name: string; status: "completed" | "planned" | "missed" }[];
 }
 
 export interface SharedWorkout {
@@ -65,7 +70,11 @@ export interface SharedWorkout {
   name: string;
   date: string;
   minutes: number;
-  exercises: { id: string; name: string; barWeight?: number; apparatusWeight?: number; sets: { weight: number; reps: number }[] }[];
+  /** Present only in an explicitly authorised trainer collaboration. */
+  bodyWeight?: number;
+  startedAt?: string;
+  skipped?: string[];
+  exercises: { id: string; name: string; barWeight?: number; apparatusWeight?: number; machineBrand?: string; loadMode?: "total" | "per-side" | "total-with-bar"; targetSets?: number; range?: [number, number]; note?: string; sets: { weight: number; reps: number; leftWeight?: number; rightWeight?: number; leftReps?: number; rightReps?: number }[] }[];
 }
 
 /** Keeps long histories representative without turning Community profiles into oversized backups. */
@@ -214,6 +223,52 @@ export function exportProgress(state: AppState, details = false, bodyWeight = fa
   };
 }
 
+/**
+ * A private collaboration can include the contextual fields a coach needs to
+ * assess a completed session. Public/community progress remains compact.
+ */
+export function exportCoachProgress(state: AppState): SharedProgress {
+  const progress = exportProgress(state, true, true);
+  const workouts = [...state.history].sort((a, b) => a.date.localeCompare(b.date)).slice(-180);
+  const completed = new Map(workouts.map(workout => [localDateKey(workout.date), workout]));
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const calendar = Array.from({ length: 141 }, (_, index) => {
+    const date = new Date(today); date.setDate(today.getDate() + index - 84);
+    const key = localDateKey(date), workout = completed.get(key);
+    if (workout) return { date: key, name: workout.dayName, status: "completed" as const };
+    const plan = scheduledWorkout(state.profile, state.routine, state.plannedWorkouts, date, state.skippedWorkoutDates, state.routineVersions);
+    if (!plan) return null;
+    return { date: key, name: plan.name, status: key < localDateKey(today) ? "missed" as const : "planned" as const };
+  }).filter((item): item is { date: string; name: string; status: "completed" | "planned" | "missed" } => item !== null);
+  return {
+    ...progress,
+    sex: state.profile.sex || undefined,
+    workouts: workouts.map(workout => ({
+      id: workout.id, name: workout.dayName, date: workout.date, minutes: workout.minutes,
+      ...(workout.bodyWeight !== undefined ? { bodyWeight: workout.bodyWeight } : {}),
+      ...(workout.startedAt ? { startedAt: workout.startedAt } : {}),
+      ...(workout.skipped?.length ? { skipped: workout.skipped.slice(0, 40) } : {}),
+      exercises: workout.records.slice(0, 40).map(record => ({
+        id: record.prescription.exerciseId, name: record.name,
+        ...(record.barWeight !== undefined ? { barWeight: record.barWeight } : {}),
+        ...(record.apparatusWeight !== undefined ? { apparatusWeight: record.apparatusWeight } : {}),
+        ...(record.machineBrand ? { machineBrand: record.machineBrand } : {}),
+        ...(record.loadMode ? { loadMode: record.loadMode } : {}),
+        targetSets: record.prescription.sets, range: record.prescription.range,
+        ...(state.preferences.notes?.[record.prescription.exerciseId] ? { note: state.preferences.notes[record.prescription.exerciseId] } : {}),
+        sets: record.sets.slice(0, 20).map(set => ({
+          weight: set.weight, reps: set.reps,
+          ...(set.leftWeight !== undefined ? { leftWeight: set.leftWeight } : {}),
+          ...(set.rightWeight !== undefined ? { rightWeight: set.rightWeight } : {}),
+          ...(set.leftReps !== undefined ? { leftReps: set.leftReps } : {}),
+          ...(set.rightReps !== undefined ? { rightReps: set.rightReps } : {}),
+        })),
+      })),
+    })),
+    calendar,
+  };
+}
+
 export function isSharedProgress(value: unknown): value is SharedProgress {
   if (!value || typeof value !== "object") return false;
   const progress = value as Partial<SharedProgress>;
@@ -223,7 +278,8 @@ export function isSharedProgress(value: unknown): value is SharedProgress {
   const label = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 160;
   const series = (value: unknown, max: number) => Array.isArray(value) && value.length <= 365 && value.every(point =>
     point && keys(point, ["date", "value"]) && date(point.date) && Number.isFinite(point.value) && point.value >= 0 && point.value <= max);
-  if (!keys(progress, ["version", "sessions", "sets", "points", "pointsModel", "pointsCoverage", "pointsReliability", "pointsRankingEligible", "strengthReferences", "categories", "updated", "exercises", "weekly", "achievements", "workouts", "pointsHistory", "bodyWeights"])) return false;
+  if (!keys(progress, ["version", "sex", "sessions", "sets", "points", "pointsModel", "pointsCoverage", "pointsReliability", "pointsRankingEligible", "strengthReferences", "categories", "updated", "exercises", "weekly", "achievements", "workouts", "pointsHistory", "bodyWeights", "calendar"])) return false;
+  if (progress.sex !== undefined && progress.sex !== "male" && progress.sex !== "female") return false;
   if (progress.strengthReferences !== undefined && (!Array.isArray(progress.strengthReferences) || progress.strengthReferences.length > 5 || progress.strengthReferences.some(item => !item || !keys(item, ["id", "name", "weight", "reps", "maximum", "date"]) || !label(item.id) || !label(item.name) || !Number.isFinite(item.weight) || item.weight < 0 || item.weight > 1000 || !Number.isInteger(item.reps) || item.reps < 1 || item.reps > 10 || !Number.isFinite(item.maximum) || item.maximum <= 0 || item.maximum > 1300 || !date(item.date)))) return false;
   if (progress.achievements !== undefined && (!Array.isArray(progress.achievements) || progress.achievements.length > 200 || progress.achievements.some(item => !item || !keys(item, ["id", "title", "description", "unlockedAt", "category"]) || !safeId(item.id) || !label(item.title) || typeof item.description !== "string" || item.description.length > 300 || !date(item.unlockedAt) || !["progress", "consistency", "strength"].includes(item.category)))) return false;
   if (progress.categories !== undefined && (!Array.isArray(progress.categories) || progress.categories.length > 11 ||
@@ -245,14 +301,25 @@ export function isSharedProgress(value: unknown): value is SharedProgress {
   }
   if (progress.pointsHistory !== undefined && !series(progress.pointsHistory, Number.MAX_VALUE)) return false;
   if (progress.bodyWeights !== undefined && !series(progress.bodyWeights, 350)) return false;
+  if (progress.calendar !== undefined && (!Array.isArray(progress.calendar) || progress.calendar.length > 365 || new Set(progress.calendar.map(item => item?.date)).size !== progress.calendar.length || progress.calendar.some(item => !item || !keys(item, ["date", "name", "status"]) || !/^\d{4}-\d{2}-\d{2}$/.test(item.date) || !label(item.name) || !["completed", "planned", "missed"].includes(item.status)))) return false;
   if (progress.workouts !== undefined && (!Array.isArray(progress.workouts) || progress.workouts.length > 180 || progress.workouts.some(workout =>
-    !workout || !keys(workout, ["id", "name", "date", "minutes", "exercises"]) || !label(workout.id) || !label(workout.name) || !date(workout.date) ||
+    !workout || !keys(workout, ["id", "name", "date", "minutes", "bodyWeight", "startedAt", "skipped", "exercises"]) || !label(workout.id) || !label(workout.name) || !date(workout.date) ||
     !Number.isFinite(workout.minutes) || workout.minutes < 0 || workout.minutes > 10080 || !Array.isArray(workout.exercises) || workout.exercises.length > 40 ||
-    workout.exercises.some(exercise => !exercise || !keys(exercise, ["id", "name", "barWeight", "apparatusWeight", "sets"]) || !label(exercise.id) || !label(exercise.name) ||
+    (workout.bodyWeight !== undefined && (!Number.isFinite(workout.bodyWeight) || workout.bodyWeight <= 0 || workout.bodyWeight > 500)) ||
+    (workout.startedAt !== undefined && !date(workout.startedAt)) ||
+    (workout.skipped !== undefined && (!Array.isArray(workout.skipped) || workout.skipped.length > 40 || workout.skipped.some(item => !label(item)))) ||
+    workout.exercises.some(exercise => !exercise || !keys(exercise, ["id", "name", "barWeight", "apparatusWeight", "machineBrand", "loadMode", "targetSets", "range", "note", "sets"]) || !label(exercise.id) || !label(exercise.name) ||
       (exercise.barWeight !== undefined && !validBarWeight(exercise.barWeight)) ||
       (exercise.apparatusWeight !== undefined && !validBarWeight(exercise.apparatusWeight)) ||
-      !Array.isArray(exercise.sets) || exercise.sets.length > 20 || exercise.sets.some(set => !set || !keys(set, ["weight", "reps"]) ||
-        !Number.isFinite(set.weight) || set.weight < 0 || set.weight > 1000 || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100))
+      (exercise.machineBrand !== undefined && (!label(exercise.machineBrand) || exercise.machineBrand.length > 60)) ||
+      (exercise.loadMode !== undefined && !["total", "per-side", "total-with-bar"].includes(exercise.loadMode)) ||
+      (exercise.targetSets !== undefined && (!Number.isInteger(exercise.targetSets) || exercise.targetSets < 1 || exercise.targetSets > 20)) ||
+      (exercise.range !== undefined && (!Array.isArray(exercise.range) || exercise.range.length !== 2 || !exercise.range.every(Number.isInteger) || exercise.range[0] < 1 || exercise.range[1] < exercise.range[0] || exercise.range[1] > 100)) ||
+      (exercise.note !== undefined && (typeof exercise.note !== "string" || exercise.note.length > 1000)) ||
+      !Array.isArray(exercise.sets) || exercise.sets.length > 20 || exercise.sets.some(set => !set || !keys(set, ["weight", "reps", "leftWeight", "rightWeight", "leftReps", "rightReps"]) ||
+        !Number.isFinite(set.weight) || set.weight < 0 || set.weight > 1000 || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100 ||
+        [set.leftWeight, set.rightWeight].some(value => value !== undefined && (!Number.isFinite(value) || value < 0 || value > 1000)) ||
+        [set.leftReps, set.rightReps].some(value => value !== undefined && (!Number.isInteger(value) || value < 1 || value > 100))))
   ))) return false;
   return progress.version === 1 && typeof sessions === "number" && Number.isInteger(sessions) && sessions >= 0 &&
     typeof sets === "number" && Number.isInteger(sets) && sets >= 0 &&

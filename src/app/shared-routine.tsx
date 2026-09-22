@@ -11,7 +11,7 @@ import { sharedExerciseName } from "../components/SharedProgressView";
 
 export default function SharedRoutineScreen() {
   const { t, language } = useLanguage();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, from } = useLocalSearchParams<{ id?: string; from?: string }>();
   const { state, update } = useStore();
   const { user, request } = useCommunity();
   const [published, setPublished] = useState<PublishedRoutine | null>(null);
@@ -54,7 +54,7 @@ export default function SharedRoutineScreen() {
   };
 
   return <Page>
-    <Button label="Volver" compact variant="ghost" icon="arrow-left" onPress={() => router.canGoBack() ? router.back() : router.replace(state.completed ? "/today" : "/")} />
+    <Button label="Volver" compact variant="ghost" icon="arrow-left" onPress={() => router.replace(from === "community" ? "/community" : state.completed ? "/today" : "/")} />
     <Heading eyebrow="Rutina compartida" title="Copia un plan" subtitle="Revisa el contenido antes de sustituir tu rutina actual." />
     {(invalidId || !!error) && <Notice error={true}>{invalidId ? "El enlace de rutina no es válido." : error}</Notice>}
     {!invalidId && !user && <Notice>Inicia sesión en Comunidad. Para abrir una rutina privada, tú y su propietario debéis seguiros mutuamente.</Notice>}

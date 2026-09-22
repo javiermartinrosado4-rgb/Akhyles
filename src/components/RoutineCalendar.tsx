@@ -114,6 +114,96 @@ function PlannedWorkoutEditor({ date, day, existing }: { date: Date; day: Day; e
   </Card>;
 }
 
+/** The trainer uses the same calendar language as the athlete: green is the
+ * selected date, a green check is completed, and red is an uncompleted session. */
+export type TrainerCalendarSession = {
+  date: string;
+  name?: string;
+  status: "completed" | "planned" | "missed" | "skipped";
+  adjusted?: boolean;
+  removedName?: string;
+};
+
+export function TrainerRoutineCalendar({ sessions, onMoveSession, onUpdateSession, onPrepareSession, onSelectDate, readOnly = false }: {
+  sessions: TrainerCalendarSession[];
+  onMoveSession?: (sourceDate: string, targetDate: string) => void;
+  onUpdateSession?: (session: TrainerCalendarSession) => void;
+  onPrepareSession?: (date: string) => void;
+  onSelectDate?: (date: string, session?: TrainerCalendarSession) => void;
+  readOnly?: boolean;
+}) {
+  const { locale } = useLanguage();
+  const { colors } = useTheme();
+  const [now, setNow] = useState(() => new Date());
+  const [cursor, setCursor] = useState(now);
+  const [selected, setSelected] = useState(now);
+  const [pickerMode, setPickerMode] = useState<"month" | "year" | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
+  const [editingPast, setEditingPast] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [coachNote, setCoachNote] = useState("");
+  useEffect(() => {
+    const timer = setInterval(() => setNow(current => localDateKey(current) === localDateKey(new Date()) ? current : new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const weekdayLabels = Array.from({ length: 7 }, (_, index) => new Date(2024, 0, 1 + index).toLocaleDateString(locale, { weekday: "short" }));
+  const dates = datesForMonth(cursor);
+  const selectedKey = localDateKey(selected);
+  const selectedSession = sessions.find(session => session.date === selectedKey);
+  const monthOptions = Array.from({ length: 12 }, (_, month) => new Date(cursor.getFullYear(), month, 1));
+  const yearOptions = Array.from({ length: 21 }, (_, index) => now.getFullYear() - 10 + index);
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7)); weekStart.setHours(0, 0, 0, 0);
+  const thisWeek = sessions.filter(session => { const date = new Date(`${session.date}T12:00:00`); return date >= weekStart && date <= now && !!session.name; });
+  const completedThisWeek = thisWeek.filter(session => session.status === "completed").length;
+  const chooseMonthYear = (year: number, month: number) => { const target = new Date(year, month, 1); setCursor(target); setSelected(target); setPickerMode(null); };
+  const moveHere = () => {
+    if (!moving || moving === selectedKey || selectedSession?.name || selectedKey < localDateKey(now)) return;
+    const target = selectedKey;
+    onMoveSession?.(moving, target);
+    setSelected(new Date(`${target}T12:00:00`));
+    setMoving(null);
+  };
+  const isPast = selectedKey < localDateKey(now);
+  const addSession = (name: string) => { onUpdateSession?.({ date: selectedKey, name, status: "planned", adjusted: true }); setAdding(false); };
+  return <Card style={{ gap: 10 }}>
+    <Txt weight="600" size={20}>Calendario de entrenamiento</Txt>
+    <Row style={{ alignItems: "center", gap: 10 }}><Txt size={28}>⚡</Txt><View style={{ flex: 1 }}><Txt weight="600">Seguimiento del plan</Txt><Txt muted size={12}>Esta semana: {completedThisWeek}/{thisWeek.length} sesiones.</Txt></View></Row>
+    <Row style={{ alignItems: "flex-start", gap: 16 }}>
+      <View style={{ flex: 1, alignItems: "center", gap: 6 }}>
+        <Button label="Mes anterior" compact variant="ghost" icon="arrow-left" onPress={() => setCursor(current => moveMonth(current, -1))} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Elegir mes" onPress={() => setPickerMode(value => value === "month" ? null : "month")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: pickerMode === "month" ? colors.selectionHighlight : colors.border, backgroundColor: pickerMode === "month" ? colors.selection : colors.surface, position: "relative", overflow: "hidden" }}>{pickerMode === "month" && <EmeraldSurface />}<Txt size={13} weight="600" style={{ textTransform: "capitalize", color: pickerMode === "month" ? "#F4FFF9" : colors.text }}>{cursor.toLocaleDateString(locale, { month: "long" })}</Txt></Pressable>
+        {pickerMode === "month" && <Card style={{ padding: 10, gap: 5, width: "100%", backgroundColor: colors.accentSoft }}>{monthOptions.map((date, month) => <Pressable key={month} onPress={() => chooseMonthYear(cursor.getFullYear(), month)} style={{ padding: 8, borderRadius: 9, backgroundColor: month === cursor.getMonth() ? colors.selection : colors.surface }}><Txt size={12} style={{ color: month === cursor.getMonth() ? "#F4FFF9" : colors.text, textTransform: "capitalize" }}>{date.toLocaleDateString(locale, { month: "long" })}</Txt></Pressable>)}</Card>}
+      </View>
+      <View style={{ flex: 1, alignItems: "center", gap: 6 }}>
+        <Button label="Mes siguiente" compact variant="ghost" icon="arrow-right" onPress={() => setCursor(current => moveMonth(current, 1))} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Elegir año" onPress={() => setPickerMode(value => value === "year" ? null : "year")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: pickerMode === "year" ? colors.selectionHighlight : colors.border, backgroundColor: pickerMode === "year" ? colors.selection : colors.surface, position: "relative", overflow: "hidden" }}>{pickerMode === "year" && <EmeraldSurface />}<Txt size={12} style={{ color: pickerMode === "year" ? "#F4FFF9" : colors.muted }}>{cursor.getFullYear()}</Txt></Pressable>
+        {pickerMode === "year" && <Card style={{ padding: 10, gap: 5, width: "100%", backgroundColor: colors.accentSoft }}>{yearOptions.map(year => <Pressable key={year} onPress={() => chooseMonthYear(year, cursor.getMonth())} style={{ padding: 8, borderRadius: 9, backgroundColor: year === cursor.getFullYear() ? colors.selection : colors.surface }}><Txt size={12} style={{ color: year === cursor.getFullYear() ? "#F4FFF9" : colors.text }}>{year}</Txt></Pressable>)}</Card>}
+      </View>
+    </Row>
+    <View style={{ flexDirection: "row" }}>{weekdayLabels.map(label => <Txt key={label} size={11} muted weight="600" style={{ width: "13.85%", textAlign: "center" }}>{label}</Txt>)}</View>
+    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>{dates.map(date => {
+      const key = localDateKey(date); const session = sessions.find(item => item.date === key); const isSelected = key === selectedKey; const muted = date.getMonth() !== cursor.getMonth();
+      const statusColor = session?.status === "completed" ? colors.done : session?.status === "missed" ? colors.error : undefined;
+      return <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: isSelected }} onPress={() => { setSelected(date); onSelectDate?.(key, session); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: isSelected ? colors.selection : statusColor ? `${statusColor}20` : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 1 : statusColor ? 1 : 0, borderColor: isSelected ? colors.selectionHighlight : statusColor, opacity: muted ? 0.38 : 1, position: "relative", overflow: "hidden" })}>
+        {isSelected && <EmeraldSurface />}<Txt size={12} weight={key === localDateKey(now) ? "600" : "400"} style={{ textAlign: "center", color: isSelected ? "#F4FFF9" : colors.text }}>{date.getDate()}</Txt>
+        {!!session?.name && <Txt translate={false} size={10} weight={session.status === "completed" ? "700" : "400"} numberOfLines={1} ellipsizeMode="tail" style={{ color: isSelected ? "#D5F5E6" : statusColor ?? colors.text }}>{session.name}</Txt>}
+        {session?.status === "completed" && <Txt size={10} style={{ color: isSelected ? "#D5F5E6" : colors.done }}>✓</Txt>}{session?.status === "missed" && <Txt size={10} style={{ color: isSelected ? "#D5F5E6" : colors.error }}>✕</Txt>}{session?.adjusted && <Txt size={9} style={{ color: isSelected ? "#D5F5E6" : colors.muted }}>ajustada</Txt>}
+      </Pressable>;
+    })}</View>
+    <Txt weight="600">{selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Txt>
+    {selectedSession?.name ? <Card style={{ gap: 7, backgroundColor: colors.accentSoft }}>
+      <Txt weight="600">{selectedSession.name}</Txt>
+      <Txt muted size={12}>{selectedSession.status === "completed" ? "Sesión completada. Consulta el informe completo justo debajo del calendario." : selectedSession.status === "missed" ? "Sesión no cumplida." : "Sesión prevista en el plan."}</Txt>
+      {!readOnly && selectedSession.status === "completed" && <Button label="Editar sesión" compact variant="ghost" icon="edit" onPress={() => setEditingPast(value => !value)} />}
+      {!readOnly && selectedSession.status === "missed" && isPast && <Button label={editingPast ? "Cerrar edición" : "Editar entrenamiento pasado"} compact tone="green" variant="secondary" icon="edit" onPress={() => setEditingPast(value => !value)} />}
+      {!readOnly && !isPast && selectedSession.status !== "completed" && <Row style={{ gap: 8, flexWrap: "wrap" }}><Button label="Preparar esta sesión" compact tone="green" variant="secondary" icon="play" onPress={() => onPrepareSession?.(selectedKey)} /><Button label={moving === selectedKey ? "Elige una fecha libre" : "Mover esta sesión"} compact variant="ghost" icon="arrow-right" onPress={() => setMoving(current => current === selectedKey ? null : selectedKey)} /></Row>}
+      {!readOnly && selectedSession.status !== "completed" && <Button label="Quitar sesión del calendario" compact variant="ghost" tone="danger" onPress={() => onUpdateSession?.({ ...selectedSession, name: undefined, removedName: selectedSession.name, status: "skipped", adjusted: true })} />}
+    </Card> : selectedSession?.status === "skipped" && selectedSession.removedName ? <Card style={{ gap: 8 }}><Txt muted>Sesión quitada del calendario.</Txt>{!readOnly && <Button label="Restaurar sesión programada" compact tone="green" variant="secondary" onPress={() => onUpdateSession?.({ ...selectedSession, name: selectedSession.removedName, removedName: undefined, status: "planned", adjusted: true })} />}</Card> : <View style={{ gap: 8 }}><Txt muted size={13}>{moving ? "Selecciona una fecha futura libre para mover la sesión." : isPast ? "No hay un entrenamiento registrado este día." : "Día de descanso en el calendario."}</Txt>{!readOnly && !isPast && !adding && <Button label="Añadir sesión al calendario" compact tone="green" variant="secondary" icon="plus" onPress={() => setAdding(true)} />}{!readOnly && adding && <Card style={{ gap: 7 }}><Txt weight="600">Elige la sesión que quieres añadir</Txt>{["Torso A", "Pierna A", "Torso B", "Pierna B"].map(name => <Button key={name} label={`Añadir ${name}`} compact variant="secondary" onPress={() => addSession(name)} />)}<Button label="Cancelar" compact variant="ghost" onPress={() => setAdding(false)} /></Card>}</View>}
+    {!readOnly && editingPast && selectedSession?.name && <Card style={{ gap: 8 }}><Txt weight="600">Editar entrenamiento pasado</Txt><Txt muted size={12}>Los ajustes quedan vinculados a esta fecha y no cambian las demás sesiones del plan.</Txt><Field label="Nota para el deportista" value={coachNote} onChangeText={setCoachNote} placeholder="Ej. bajar una serie y mantener la técnica" /><Button label="Guardar revisión" compact tone="green" onPress={() => setEditingPast(false)} /></Card>}
+    {!readOnly && moving && !selectedSession?.name && selectedKey >= localDateKey(now) && <Button label="Mover aquí" compact tone="green" onPress={moveHere} />}{!readOnly && moving && <Button label="Cancelar movimiento" compact variant="ghost" onPress={() => setMoving(null)} />}
+  </Card>;
+}
+
 export function RoutineCalendar() {
   const { t, locale } = useLanguage();
   const { state, update } = useStore();
@@ -281,20 +371,16 @@ export function RoutineCalendar() {
           if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
             setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
         };
-        if (isSelected) return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(locale)} accessibilityState={{ selected: true }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, position: "relative", overflow: "hidden", backgroundColor: colors.selection, borderWidth: 1, borderColor: colors.selectionHighlight, opacity: muted ? 0.38 : pressed ? 0.78 : 1 })}>
+        if (isSelected) return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(locale)} accessibilityState={{ selected: true }} onLongPress={startMovingHere} delayLongPress={350} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, position: "relative", overflow: "hidden", backgroundColor: colors.selection, borderWidth: 1, borderColor: colors.selectionHighlight, opacity: muted ? 0.38 : pressed ? 0.78 : 1 })}>
           <EmeraldSurface />
-          <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
-            <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center", color: "#F4FFF9" }}>{date.getDate()}</Txt>
-          </Pressable>
+          <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center", color: "#F4FFF9" }}>{date.getDate()}</Txt>
           {history.length ? <Txt translate={false} size={10} weight="700" numberOfLines={1} ellipsizeMode="tail" style={{ color: "#D5F5E6" }}>{history[0].dayName}</Txt> : planned ? <Txt translate={false} size={10} numberOfLines={1} ellipsizeMode="tail" style={{ color: "#F4FFF9" }}>{planned.name}</Txt> : null}
           {!!statusColor && <Txt size={10} style={{ color: "#D5F5E6" }}>{history.length ? "✓" : "×"}</Txt>}
           {overridden && !history.length && <Txt size={9} style={{ color: "#D5F5E6" }}>ajustada</Txt>}
           {skipped && !history.length && <Txt size={9} style={{ color: "#D5F5E6" }}>quitada</Txt>}
         </Pressable>;
-        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
-          <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
-            <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
-          </Pressable>
+        return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onLongPress={startMovingHere} delayLongPress={350} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
+          <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
           {history.length ? <Txt translate={false} size={10} weight="700" numberOfLines={1} ellipsizeMode="tail" style={{ color: colors.done }}>{history[0].dayName}</Txt> : planned ? <Txt translate={false} size={10} numberOfLines={1} ellipsizeMode="tail" style={{ color: missed ? colors.error : colors.text }}>{planned.name}</Txt> : null}
           {!!statusColor && <Txt size={10} style={{ color: statusColor }}>{history.length ? "✓" : "✕"}</Txt>}
           {overridden && !history.length && <Txt size={9} muted>ajustada</Txt>}

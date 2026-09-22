@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { acknowledge, canonical, cloudState, mergeConcurrentProgress, snapshot, syncDecision } from "../src/logic/cloud";
-import { decodeState } from "../src/storage/repository";
+import { repairTrainingDays } from "../src/logic/trainingDays";
 import { emptyPreferences, emptyProfile } from "../src/data/options";
 import { AppState } from "../src/types";
 import { resolveAccountUrl } from "../src/services/account";
@@ -42,9 +42,9 @@ test("an edit to the same completed workout is never merged automatically",()=>{
 });
 test("a stale weekday selection is repaired when a cloud copy is read",()=>{
   const invalid={...trained(),profile:{...trained().profile,days:3,trainingDays:[1,1,9]}};
-  assert.deepEqual(decodeState(JSON.stringify(invalid)).profile.trainingDays,[1,3,5]);
+  assert.deepEqual(repairTrainingDays(invalid.profile as typeof invalid.profile & { trainingDays: never }).trainingDays,[1,3,5]);
   const withInvalidHistory={...invalid,routineVersions:[{effectiveFrom:"2026-09-01",profile:invalid.profile,routine:invalid.routine}]};
-  assert.deepEqual(decodeState(JSON.stringify(withInvalidHistory)).routineVersions?.[0].profile.trainingDays,[1,3,5]);
+  assert.deepEqual(withInvalidHistory.routineVersions?.map(version=>repairTrainingDays(version.profile as typeof version.profile & { trainingDays: never }))[0].trainingDays,[1,3,5]);
 });
 test("canonical comparison ignores object key order and omitted undefined values",()=>{
   assert.equal(canonical({b:2,a:{c:1,d:undefined}}),canonical({a:{c:1},b:2}));

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { emptyPreferences, emptyProfile } from "../src/data/options";
 import { AppState } from "../src/types";
+import { cloudState } from "../src/logic/cloud";
 import { applySyncChanges, changedEntities, stateFromSyncEntities, syncEntities, syncEntityChanges } from "../src/logic/syncV2";
 
 function sample(): AppState {
@@ -34,4 +35,12 @@ test("sync v2 merges a remote workout without rewriting the account document", (
   const merged=applySyncChanges(before,[{type:"workout",id:remote.id,data:remote,revision:1}]);
   assert.equal(stateFromSyncEntities(merged)?.history.some(workout=>workout.id===remote.id),true);
   assert.deepEqual(syncEntityChanges(before,merged).changed.map(entity=>entity.id),[remote.id]);
+});
+
+test("private cloud copy excludes Base64 profile photos", () => {
+  const state = sample();
+  state.profile = { ...state.profile, avatar: `data:image/jpeg;base64,${"A".repeat(1_900_000)}` };
+  const copy = cloudState(state);
+  assert.equal(copy.profile.avatar, undefined);
+  assert.equal(JSON.stringify(copy).includes("data:image/jpeg"), false);
 });

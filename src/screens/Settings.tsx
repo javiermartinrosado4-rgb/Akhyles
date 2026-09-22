@@ -11,7 +11,7 @@ export default function Settings() {
     // avoids Expo restoring the root route (Entrenamiento) on a shallow stack.
     if (from === "profile") return router.replace("/profile");
     if (from === "account") return router.replace("/account");
-    return router.canGoBack() ? router.back() : router.replace("/profile");
+    return router.replace("/profile");
   };
   return (
     <Page>

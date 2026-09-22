@@ -195,8 +195,8 @@ const entries: Exercise[] = [
     "cable",
   ),
   e("shrug-smith", "Encogimiento Trapecios en multipower", "back", 3, "beginner", "isolation", "smith", ["shoulders"]),
-  e("shrug-barbell", "Encogimiento Trapecios con barra", "back", 3.1, "beginner", "isolation", "free", ["shoulders"]),
-  e("shrug-dumbbell", "Encogimiento Trapecios con mancuernas", "back", 3.2, "beginner", "isolation", "free", ["shoulders"]),
+  e("shrug-barbell", "Encogimiento Trapecios con barra", "back", 3.1, "intermediate", "isolation", "free", ["shoulders"]),
+  e("shrug-dumbbell", "Encogimiento Trapecios con mancuernas", "back", 3.2, "intermediate", "isolation", "free", ["shoulders"]),
   e(
     "lateral-cable",
     "Laterales en cable unilateral",

@@ -1,5 +1,77 @@
 # Diario de Akhyles
 
+### Cierre de entrega web de entrenador — 22 de septiembre de 2026
+
+- La vista mensual de gráficas ya ocupa exactamente el mes elegido; se elimina el punto contextual del mes previo que desplazaba visualmente el inicio del periodo.
+- La navegación web muestra el logo de Akhyles en la barra lateral y traslada el acceso al perfil al extremo derecho de la cabecera.
+- Se retiraron por completo los flujos de vídeos técnicos y reseñas profesionales del cliente, contrato de Comunidad y configuración de API. Las tablas históricas se conservan sin uso para no borrar datos existentes de forma irreversible.
+- Verificado: TypeScript, 172 pruebas activas, auditoría de dependencias y exportación web de producción.
+
+### Integración real del espacio de entrenador — 22 de septiembre de 2026
+
+- El progreso privado del cliente se sincroniza automáticamente con todos sus entrenadores activos, sin depender de las opciones públicas de Comunidad.
+- El calendario del expediente combina el plan real del cliente con sus entrenamientos guardados. Solo los días completados con un registro persistido abren el informe detallado; los previstos y no realizados no inventan series ni resultados.
+- Se retiraron las ediciones locales no persistentes del calendario de entrenador. Al revocar la colaboración se elimina además la copia privada de progreso de ese entrenador.
+- Se alinearon las API Node local y PHP de producción para devolver expedientes, agenda, solicitudes y métricas de entrenador basados en los mismos datos reales.
+- Verificado: TypeScript, 21 pruebas específicas activas, prueba integrada de sincronización/revocación y recorrido local hasta Hugo > Calendario > sesión del 15 de septiembre.
+
+### Retornos de navegación por contexto — 22 de septiembre de 2026
+
+- Los botones **Volver** ya no dependen del historial ambiguo de las pestañas. Entrenador, ficha del deportista, plan gestionado, Comunidad, rutina compartida, cuenta, logros y ajustes regresan explícitamente a su pantalla de origen.
+- El recorrido `Entrenador → Deportista → Plan/Calendario → Volver` conserva tanto el deportista como la sección que estaba abierta, sin caer en Entrenamiento.
+- Verificado: TypeScript correcto y navegación local de vuelta desde ficha y rutina gestionada.
+
+### Expediente de entrenador: acceso completo, calendario e indicadores — 22 de septiembre de 2026
+
+- Una colaboración activa de entrenador pasa a ser de acceso deportivo completo: historial, rutina, sesiones, peso corporal, A-Points, mapa y notas se sincronizan automáticamente; revocar la colaboración elimina el acceso. Se mantienen las tablas antiguas de permisos solo por compatibilidad de migración.
+- El expediente se simplifica a **Resumen**, **Plan**, **Calendario** y **Evolución**. Se retiran Sesiones como pestaña separada, Revisiones y todo el flujo visible de vídeos técnicos.
+- Calendario integra el informe completo de la sesión seleccionada. Las comparaciones de cada ejercicio usan exclusivamente la primera serie de referencia e incluyen carga, repeticiones y porcentaje de rendimiento; todas las series permanecen desplegables.
+- El Resumen muestra fecha de inicio, días de seguimiento, última actividad, evolución de A-Points desde la línea base, adherencia, fuerza y una acción prioritaria.
+- La demo local incluye anatomía femenina y puntuaciones musculares coloreadas para Lucía, además de una rutina disponible para cada cliente.
+- Verificado: TypeScript, pruebas específicas de comparativas/espacio de entrenador y recorrido local hasta Calendario con informe de sesión y mapa muscular.
+
+### Informe completo de sesiones para entrenadores — 22 de septiembre de 2026
+
+- Añadida la pestaña **Sesiones** al expediente del deportista. Ofrece selector de sesiones completas, resumen de duración, peso corporal autorizado, ejercicios, series, repeticiones y volumen registrado.
+- Cada ejercicio se puede desplegar para ver todas las series, cargas y repeticiones por lado, carga de barra o máquina, marca de máquina, rango y series previstas, y la nota compartida del ejercicio.
+- Se muestran comparaciones con la última sesión que contiene el ejercicio y con la semana previa: fuerza estimada, repeticiones y volumen. La lectura rápida se mantiene en la cabecera de cada tarjeta; el detalle queda bajo demanda.
+- La sincronización privada de una colaboración ahora envía el contexto ampliado de sesión solo cuando el deportista autoriza el permiso de progreso. Las instantáneas públicas de Comunidad siguen siendo compactas y no reciben esos campos.
+- Verificado: TypeScript, ESLint de los archivos modificados, 17 pruebas activas de Comunidad y recorrido local Web hasta Entrenador > Clientes > Sesiones. No se ha publicado en Web, Android ni API de producción.
+
+### Android 1.0.35 y corrección de iconos web — 22 de septiembre de 2026
+
+- Generado AAB release firmado de `1.0.35` (`versionCode 38`), con la corrección de fuentes Feather/FontAwesome en web, exclusión de fotos Base64 del estado privado y límite HTTP JSON de 8 MB.
+- Verificado localmente: `release-doctor` correcto, firma y empaquetado del AAB válidos; SHA-256 del AAB: `69011C8891F93D1F6F1D0373BA3131740A46CD6636214618EFE4B72BD6D252A7`.
+- La comprobación `verify-android.mjs` queda pendiente de actualizar porque marca `CAMERA`, permiso ya existente y necesario en la app, como inesperado; no indica un fallo de firma ni de compilación.
+- La web se publicó y se verificó visualmente en `https://app.akhyles.com/`: los iconos ya se muestran correctamente.
+- Google Play Console recibió la versión `38 (1.0.35)` en **Prueba cerrada — Alpha** y muestra `1 cambio enviado a revisión`. No se inició Producción. La comprobación en un móvil físico sigue pendiente de que el tester reciba esta versión.
+
+### Corrección inicial de copias grandes en sincronización — 22 de septiembre de 2026
+
+- Se confirmó que «La copia es demasiado grande» procede del límite de 4.500.000 bytes del cuerpo JSON en `server-php/public/index.php`, no de la condición de carrera de la versión 1.0.32.
+- La causa más probable era que `cloudState()` conservaba la foto de perfil Base64 dentro de la copia privada; una sola foto podía acercar la petición al límite junto con el historial.
+- `cloudState()` ya elimina las fotos `data:image/...` del documento privado. Los avatares pequeños integrados se conservan; las fotos pertenecen a Comunidad y no se pierden.
+- Añadida regresión en `tests/sync-v2.test.ts`: una foto Base64 de 1,9 MB no puede entrar en la copia privada.
+- Verificado: `npm.cmd run typecheck` correcto y 4 pruebas de Sync V2 correctas.
+- Pendiente: conectar el cliente Android/web al Sync V2 incremental ya preparado en servidor y probarlo en una nueva APK. La comprobación real en el teléfono requiere distribuir esa actualización.
+- Aumentado el límite de lectura del cuerpo JSON de la API de 4,5 MB a 8 MB como margen de compatibilidad para copias antiguas. El límite interno de estado sigue siendo 10 MB y el Sync V2 mantiene 250 KB por entidad.
+- Nota de despliegue: al publicar hay que comprobar que `post_max_size` de PHP/IONOS no sea inferior a 8 MB; cambiar solo `index.php` no puede superar un límite impuesto antes por PHP.
+
+### Espacio de entrenador (prueba local) — 22 de septiembre de 2026
+
+- Creado el espacio de Entrenador experimental: pestaña exclusiva para perfiles de entrenador, panel de deportistas, solicitudes recibidas, indicadores de adherencia/evolución y acceso al detalle de cada colaboración.
+- El perfil deja de ocupar una pestaña: se abre desde el avatar, arriba a la derecha, tanto en móvil como en web.
+- Las colaboraciones ahora distinguen quién inicia la solicitud y el cliente puede autorizar o retirar de forma independiente la gestión de rutina, el seguimiento privado y el uso anónimo en estadísticas agregadas.
+- Añadidas rutas y tablas de servidor para permisos, solicitudes bidireccionales, detalles de cliente y métricas profesionales públicas con umbral mínimo de muestra. La función sigue limitada a desarrollo local hasta activarla expresamente para una futura prueba.
+- Verificado TypeScript y las pruebas nuevas de métricas del espacio de entrenador. No se ha publicado nada en web, Android ni Google Play.
+
+### Rotación completa de frases motivacionales — 22 de septiembre de 2026
+
+- Se integraron las 8 frases que estaban en la lista antigua en la rotación activa del entrenamiento: ahora hay 21 frases disponibles.
+- La selección diaria usa una semilla basada en la fecha: cambia cada día, permanece estable durante ese día y coincide con la frase de los recordatorios.
+- Se revisaron posibles atribuciones. Se conservaron las ya conocidas de Javi, Dalinar Kholin/Brandon Sanderson, Marco Aurelio y Yoda; se identificaron como posibles atribuciones Kratos, el proverbio yiddish y John Sanei. Las restantes quedan sin autor para no atribuirlas sin confirmación.
+- No se ha publicado esta modificación en la web ni en Android; queda preparada únicamente en local hasta nueva indicación.
+
 ### Envío de Android 1.0.33 a revisión — 22 de septiembre de 2026
 
 - La versión `1.0.33` (`versionCode 36`) se subió a **Prueba cerrada Alpha** y se envió a revisión en Google Play.
@@ -1648,6 +1720,13 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Se cargÃ³ `assets/play/icon-512.png` en la ficha predeterminada de Akhyles.
 - Se retirÃ³ el icono anterior, se dejÃ³ Ãºnicamente el nuevo icono circular y Play Console confirmÃ³ el guardado sin errores de validaciÃ³n.
 - El cambio queda publicado como recurso de la ficha; no se modificÃ³ el binario Android ni la configuraciÃ³n del logo web.
+### Actualizaciones pendientes antes de la siguiente release - 2026-09-22
+
+- Pendiente: terminar e integrar la sincronización incremental móvil-web de forma permanente. Debe sustituir la subida completa de copias, conservar la copia local durante la migración y resolver automáticamente los cambios entre dispositivos.
+- Pendiente: completar y validar el espacio de entrenador y la gestión de clientes antes de publicarlo en Android o Web.
+- Pendiente: integrar las frases motivacionales aleatorias diarias cuando se autorice su publicación; por ahora no se actualizan ni la app ni la Web con ese contenido.
+- Recordatorio obligatorio antes de cualquier nueva release: revisar estos tres puntos y confirmar cuáles están listos, en pruebas o siguen aplazados.
+
 ### Release Android 1.0.30 / versionCode 33 preparada en Alpha - 2026-09-21
 
 - Se incrementó la versión de la app a `1.0.30` y `versionCode` `33`.
@@ -1658,3 +1737,10 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - No se pudo realizar la instalación en dispositivo físico porque no había ningún dispositivo Android conectado por ADB.
 - La suite tiene 151 pruebas correctas y 5 fallos heredados no relacionados con este bump; quedan documentados para su tratamiento separado.
 - Tras la confirmación del propietario, la versión se envió a revisión de Google Play; el Resumen de publicación muestra `1 cambio enviado a revisión`.
+
+### Agenda de seguimiento para entrenadores — 22 de septiembre de 2026
+
+- Se integró una pestaña **Agenda** en el espacio de entrenador. Complementa «Hoy» y concentra planificación sin convertir cada sesión en una notificación.
+- La Agenda ofrece **Hoy**, **Ayer**, **Próximos 7 días** y **Calendario**. Cada sesión abre el expediente del deportista, desde donde se accede al calendario compartido con sus acciones de resultados, edición, reprogramación y plan.
+- La intención de alertas queda definida: solo excepciones configurables — vídeo técnico nuevo, incumplimiento relevante, inactividad prolongada, solicitud nueva o plan que requiere ajuste —. Se deberán agrupar en un resumen diario opcional y respetar horas silenciosas; una sesión prevista o completada nunca generará un aviso individual.
+- La interfaz usa la simulación local existente de calendarios de clientes. Para datos reales queda pendiente exponer un feed de agenda autorizado en el backend a partir del calendario compartido antes de publicar esta función en Web o Android.

@@ -26,7 +26,7 @@ export default function Achievements() {
   }).sort((a, b) => rarityOrder(a.remote?.rarity, `local:${a.item.id}`) - rarityOrder(b.remote?.rarity, `local:${b.item.id}`) || b.item.unlockedAt.localeCompare(a.item.unlockedAt) || a.item.title.localeCompare(b.item.title)), [personal, shared]);
   return <Page>
     <Row style={{ alignItems: "center", gap: 10 }}><LaurelCrown size={28} /><Heading eyebrow="Perfil" title="Mis logros" subtitle="Tu historial completo, ordenado por exclusividad." /></Row>
-    <Button label="Volver al perfil" compact variant="ghost" icon="arrow-left" onPress={() => router.back()} />
+    <Button label="Volver al perfil" compact variant="ghost" icon="arrow-left" onPress={() => router.replace("/profile")} />
     {!!error && <Card><Txt muted>{error}</Txt></Card>}
     <Card><Txt weight="600">{cards.length} {cards.length === 1 ? "logro desbloqueado" : "logros desbloqueados"}</Txt><Txt muted size={13}>Los logros privados siguen contando para su rareza, pero solo se publican si tú lo permites.</Txt></Card>
     {cards.length === 0 ? <Card><Icon name="award" size={28} /><Txt weight="600">Tu colección empieza con el primer entrenamiento</Txt><Txt muted>Registra una sesión para desbloquear Primer paso.</Txt></Card> : cards.map(({ item, remote }) => <Card key={item.id} style={{ gap: 7 }}>

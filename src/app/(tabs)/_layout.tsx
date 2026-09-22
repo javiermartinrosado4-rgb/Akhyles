@@ -1,27 +1,31 @@
 import { Redirect, Slot, router, usePathname } from "expo-router";
 import { useState } from "react";
-import { Platform, Pressable, useWindowDimensions, View } from "react-native";
+import { Image, Platform, Pressable, useWindowDimensions, View } from "react-native";
 import { useStore } from "../../state/Store";
 import { useTheme } from "../../theme";
-import { Icon, Txt } from "../../components/ui";
+import { Icon, Row, Txt } from "../../components/ui";
 import { useLanguage } from "../../i18n";
 import { useAccount } from "../../state/Account";
-const tabs = [
+import { useCommunity } from "../../state/Community";
+import { Avatar } from "../../components/Avatar";
+import { trainerWorkspaceEnabled } from "../../logic/trainerWorkspace";
+const coreTabs = [
   { path: "/today", name: "Entrenamiento", icon: "sun" },
   { path: "/routine", name: "Calendario", icon: "grid" },
   { path: "/progress", name: "Progreso", icon: "bar-chart-2" },
   { path: "/community", name: "Comunidad", icon: "users" },
-  { path: "/profile", name: "Perfil", icon: "user" },
 ] as const;
 export default function TabsLayout() {
   const { t } = useLanguage();
   const { state } = useStore();
   const account = useAccount();
+  const community = useCommunity();
   const path = usePathname();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = Platform.OS === "web" && width >= 840;
   const [focused, setFocused] = useState<string | null>(null);
+  const tabs = [...coreTabs, ...(community.user?.trainerEnabled && trainerWorkspaceEnabled() ? [{ path: "/trainer", name: "Entrenador", icon: "briefcase" }] : [])];
   if (!state.completed || state.signedOut) return <Redirect href="/" />;
   const navigation = (
       <View
@@ -36,10 +40,7 @@ export default function TabsLayout() {
           backgroundColor: desktop ? colors.surface : colors.marble,
         }}
       >
-        {desktop && <View style={{ paddingHorizontal: 10, paddingBottom: 22, gap: 5 }}>
-          <Txt size={22} weight="600">Akhyles</Txt>
-          <Txt size={12} muted>Tu espacio de entrenamiento</Txt>
-        </View>}
+        {desktop && <View style={{ paddingHorizontal: 10, paddingBottom: 22 }}><Row style={{ alignItems: "center", gap: 10 }}><Image source={require("../../../assets/brand/icon.png")} style={{ width: 32, height: 32, borderRadius: 8 }} accessibilityLabel="Akhyles" /><Txt size={22} weight="600">Akhyles</Txt></Row></View>}
         {tabs.map((tab) => (
           <Pressable
             key={tab.path}
@@ -49,7 +50,7 @@ export default function TabsLayout() {
             aria-current={path === tab.path ? "page" : undefined}
             onFocus={() => setFocused(tab.path)}
             onBlur={() => setFocused(null)}
-            onPress={() => router.replace(tab.path)}
+            onPress={() => router.replace(tab.path as never)}
             style={({ pressed }) => ({
               flex: desktop ? undefined : 1,
               minHeight: desktop ? 52 : 58,
@@ -69,7 +70,7 @@ export default function TabsLayout() {
             })}
           >
             <Icon
-              name={tab.icon}
+              name={tab.icon as never}
               size={20}
               color={path === tab.path ? colors.accent : desktop ? colors.muted : "#D5E0D5"}
             />
@@ -117,7 +118,11 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1, flexDirection: desktop ? "row" : "column" }}>
       {desktop && navigation}
-      <View style={{ flex: 1, minWidth: 0 }}><Slot /></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {desktop && <View style={{ minHeight: 66, paddingHorizontal: 28, alignItems: "flex-end", justifyContent: "center", backgroundColor: colors.background }}><Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={() => router.push("/profile")} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 10, opacity: pressed ? 0.7 : 1 })}><View style={{ alignItems: "flex-end" }}><Txt weight="600" size={13} numberOfLines={1} translate={false}>{community.user?.name ?? state.profile.name ?? "Perfil"}</Txt><Txt muted size={11}>Perfil</Txt></View><Avatar id={community.user?.avatar ?? state.profile.avatar} size={38} /></Pressable></View>}
+        {!desktop && <View style={{ minHeight: 56, paddingHorizontal: 16, paddingVertical: 8, alignItems: "flex-end", justifyContent: "center", backgroundColor: colors.background }}><Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={() => router.push("/profile")} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}><Avatar id={community.user?.avatar ?? state.profile.avatar} size={38} /></Pressable></View>}
+        <Slot />
+      </View>
       {!desktop && navigation}
     </View>
   );

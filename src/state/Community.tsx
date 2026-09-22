@@ -2,7 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, u
 import { communityRequest, CommunityError, CommunityUser } from "../services/community";
 import { useStore } from "./Store";
 import { useAccount } from "./Account";
-import { exportProgress, exportRoutine } from "../logic/sharing";
+import { exportCoachProgress, exportProgress, exportRoutine } from "../logic/sharing";
 
 interface CommunityContext {
   token: string | null;
@@ -43,8 +43,9 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; currentToken.current = null; };
   }, [accountUser?.id, setSessionToken]);
   useEffect(() => {
-    if (accountUser || !__DEV__ || typeof window === "undefined" || !new URLSearchParams(window.location.search).has("demo")) return;
+    if (!__DEV__ || typeof window === "undefined" || !new URLSearchParams(window.location.search).has("demo")) return;
     let alive = true;
+    setUser(null);
     void communityRequest<{ token: string; user: CommunityUser }>("/auth/login", undefined, "POST", { handle: "marcos_avanza", password: "Akhyles-demo-local-2026" })
       .then(session => { if (alive) { demoSession.current = true; setSessionToken(session.token); setUser(session.user); setError(""); } })
       .catch(error => { if (alive) setError(error.message); });
@@ -106,6 +107,18 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     if (!storeReady || state.signedOut || !token || !(user?.progressPublic || user?.rankingPublic)) return;
     return scheduleUpload(token, () => request("/progress/me", "PUT", exportProgress(state, !!user?.detailsPublic && !!user?.progressPublic, !!user?.bodyWeightPublic && !!user?.progressPublic)));
   }, [state, storeReady, token, user?.progressPublic, user?.detailsPublic, user?.bodyWeightPublic, user?.rankingPublic, scheduleUpload, request]);
+  // A coaching relationship is deliberately independent from public Community
+  // privacy. Every active trainer receives the complete sporting record.
+  useEffect(() => {
+    if (!storeReady || state.signedOut || !token) return;
+    let alive = true;
+    void request<{ status: string; role: string }[]>("/coaching").then(relationships => {
+      if (alive && relationships.some(item => item.status === "active" && item.role === "client"))
+        return request("/coaching/progress/me", "PUT", exportCoachProgress(state));
+      return undefined;
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [storeReady, state, state.signedOut, token, request]);
   useEffect(() => {
     if (!storeReady || state.signedOut || !token || !user?.routinePublic || !state.routine.length) return;
     return scheduleUpload(token, () => request("/routines/me", "PUT", exportRoutine(state.routine, state.preferences)));

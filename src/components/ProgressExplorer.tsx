@@ -152,13 +152,9 @@ export function ProgressExplorer() {
     : period === "year"
       ? { start: yearStart(cursor).getTime(), end: shift(yearStart(cursor), "year", 1).getTime() }
       : { start: -Infinity, end: Infinity };
-  const contextStart = period === "month" ? shift(monthStart(cursor), "month", -1).getTime() : bounds.start;
-  const filter = (points: ChartPoint[]) => {
-    const filtered = periodProgress(points, bounds.start, bounds.end, period === "month");
-    // Keep only the immediately preceding calendar month as chart context.
-    // An isolated old record should never stretch a monthly view by years.
-    return period === "month" ? filtered.filter(point => Date.parse(point.date) >= contextStart) : filtered;
-  };
+  // A selected month occupies the whole chart. Showing an older baseline here
+  // made the current month look as though it began halfway across the graph.
+  const filter = (points: ChartPoint[]) => periodProgress(points, bounds.start, bounds.end, false);
   const series: ChartSeries[] = [
     { id: "body", name: t("Peso corporal"), color: colors.text, primary: true, width: 0.75, opacity: 0.38, pointRadius: 1.25, points: filter(bodyPoints) },
     ...selected.map(id => ({ id, name: displayName(id, state.preferences), color: palette[ids.indexOf(id) % palette.length], points: filter(exerciseProgress(state.history, id, state.preferences.apparatusWeights)) })),
@@ -170,14 +166,13 @@ export function ProgressExplorer() {
   const periodLabel = period === "month"
     ? titleCase(cursor.toLocaleDateString(locale, { month: "long", year: "numeric" }))
     : period === "year" ? String(cursor.getFullYear()) : "Todo el historial";
-  const hasMonthlyContext = period === "month" && series.some(item => item.points.some(point => Date.parse(point.date) < bounds.start));
 
   return <>
     <View style={{ gap: 4 }}><Txt weight="600" size={22}>Gráficas</Txt><Txt muted size={13}>Explora tu evolución por un mes concreto, por año o desde tu primer registro.</Txt></View>
     <PeriodSelector mode={period} onMode={setPeriod} cursor={cursor} onCursor={setCursor} minimum={minimum} maximum={now} />
     <Card><Txt weight="600">Registrar peso corporal</Txt><Field label="Peso corporal de hoy" value={weight} onChangeText={value => { setWeight(value); setError(""); setMessage(""); }} numeric suffix="kg" error={error} /><Button label="Guardar peso corporal" variant="secondary" onPress={() => { const value = number(weight); if (!Number.isFinite(value) || value < 30 || value > 350) { setError("Introduce un peso entre 30 y 350 kg."); return; } update(current => ({ ...current, profile: { ...current.profile, weight }, bodyWeights: [...(current.bodyWeights ?? []), { date: new Date().toISOString(), weight: value }] })); setMessage("Peso corporal guardado."); }} />{!!message && <Notice>{message}</Notice>}</Card>
     <Row style={{ justifyContent: "flex-end", alignItems: "center", gap: 8 }}><Image source={require("../../assets/brand/icon.png")} style={{ width: 18, height: 18, borderRadius: 4, opacity: 0.82 }} accessibilityLabel="Akhyles" /><Button label="A-Points" compact tight variant={pointsMode ? "primary" : "ghost"} onPress={() => setPointsMode(value => !value)} /></Row>
-    <LineChart key={period + "-" + bounds.start + "-" + pointsMode} title={t(pointsMode ? "Peso y A-Points · {period}" : "Peso corporal y cargas · {period}", { period: t(periodLabel) })} unit={pointsMode ? "kg / pts" : "kg"} series={chartSeries} domainStart={Number.isFinite(bounds.start) ? hasMonthlyContext ? contextStart : bounds.start : undefined} domainEnd={Number.isFinite(bounds.end) ? bounds.end : undefined} contextBoundary={hasMonthlyContext ? bounds.start : undefined} />
+    <LineChart key={period + "-" + bounds.start + "-" + pointsMode} title={t(pointsMode ? "Peso y A-Points · {period}" : "Peso corporal y cargas · {period}", { period: t(periodLabel) })} unit={pointsMode ? "kg / pts" : "kg"} series={chartSeries} domainStart={Number.isFinite(bounds.start) ? bounds.start : undefined} domainEnd={Number.isFinite(bounds.end) ? bounds.end : undefined} />
     <Card><Txt weight="600">Ejercicios por grupo muscular</Txt><Txt muted size={13}>El peso corporal permanece como referencia tenue. Elige las cargas que quieras comparar.</Txt>{muscles.filter(muscle => muscle.id !== "balanced").map(muscle => { const group = ids.filter(id => exercises.find(exercise => exercise.id === id)?.muscle === muscle.id); const expanded = expandedGroup === muscle.id; return group.length ? <View key={muscle.id} style={{ gap: 8 }}><Pressable accessibilityRole="button" accessibilityLabel={t(expanded ? "Ocultar ejercicios de {name}" : "Mostrar ejercicios de {name}", { name: t(muscle.name) })} onPress={() => setExpandedGroup(value => value === muscle.id ? null : muscle.id)} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}><Txt weight="600">{muscle.name}</Txt><Txt muted>{expanded ? "−" : "+"}</Txt></Pressable>{expanded && group.map(id => <Choice key={id} title={displayName(id, state.preferences)} translateTitle={false} description={exerciseProgress(state.history, id, state.preferences.apparatusWeights).length ? "Carga máxima registrada · kg" : "Todavía sin registros"} selected={selected.includes(id)} onPress={() => setSelected(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id])} multiple />)}</View> : null; })}{!!selected.length && <Button label="Ocultar todos los ejercicios" compact variant="ghost" onPress={() => setSelected([])} />}</Card>
   </>;
 }

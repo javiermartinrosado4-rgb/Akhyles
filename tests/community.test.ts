@@ -11,7 +11,7 @@ import { demoProfile, emptyPreferences } from "../src/data/options";
 import { generateRoutine } from "../src/logic/routine";
 import { startWorkout } from "../src/logic/workout";
 import { createDemoScenario } from "../src/data/demoScenarios";
-import { exportProgress, isSharedProgress, isSharedRoutine } from "../src/logic/sharing";
+import { exportCoachProgress, exportProgress, isSharedProgress, isSharedRoutine } from "../src/logic/sharing";
 
 const DAY = 86_400_000;
 const now = Date.now();
@@ -258,6 +258,26 @@ test("detailed histories, measurements and ranking require opt-in and blocking r
   } finally { await f.close(); }
 });
 
+test("trainer progress includes authorised session context without changing public snapshots", () => {
+  const state = createDemoScenario(true, new Date(2026, 8, 11, 12));
+  const latest = state.history.at(-1)!;
+  latest.bodyWeight = 82.4;
+  latest.skipped = [latest.records[0].prescription.id];
+  latest.records[0].machineBrand = "Akhyles Demo";
+  latest.records[0].sets[0].leftWeight = 20;
+  latest.records[0].sets[0].rightWeight = 22;
+  state.preferences.notes = { [latest.records[0].prescription.exerciseId]: "Mantener recorrido completo." };
+  const coach = exportCoachProgress(state);
+  const workout = coach.workouts!.find(item => item.id === latest.id)!;
+  assert.equal(isSharedProgress(coach), true);
+  assert.equal(workout.bodyWeight, 82.4);
+  assert.equal(workout.skipped?.length, 1);
+  assert.equal(workout.exercises[0].machineBrand, "Akhyles Demo");
+  assert.equal(workout.exercises[0].sets[0].leftWeight, 20);
+  assert.equal(workout.exercises[0].note, "Mantener recorrido completo.");
+  assert.equal(exportProgress(state, true, true).workouts![0].bodyWeight, undefined);
+});
+
 test.skip("two real accounts publish, follow, like, report and enforce ownership and sessions", async () => {
   const f = await fixture();
   try {
@@ -399,5 +419,27 @@ test("coaching requires consent, isolates managed routines and prevents stale tr
     assert.equal((await f.call(`/coaching/${requested.data.id}/routine`, "PUT", { routine, revision: managed.data.revision }, trainer.token)).status, 409);
     assert.equal((await f.call(`/coaching/${requested.data.id}`, "PATCH", { action: "revoke" }, athlete.token)).status, 200);
     assert.equal((await f.call(`/coaching/${requested.data.id}/routine`, "GET", undefined, trainer.token)).status, 404);
+  } finally { await f.close(); }
+});
+
+test("active coaches receive real sessions and calendar data, then lose it on revocation", async () => {
+  const f = await fixture();
+  try {
+    const trainer = await f.register("calendar_trainer"), athlete = await f.register("calendar_athlete");
+    await f.call("/me", "PATCH", { name: "Trainer", bio: "", level: "intermediate", trainerEnabled: true }, trainer.token);
+    const relationship = await f.call("/coaching/requests", "POST", { targetId: trainer.user.id }, athlete.token);
+    await f.call(`/coaching/${relationship.data.id}`, "PATCH", { action: "accept" }, trainer.token);
+    const progress = exportCoachProgress(createDemoScenario(true, new Date(2026, 8, 22, 12)));
+    assert.ok(progress.calendar?.some(item => item.status === "completed"));
+    assert.equal((await f.call("/coaching/progress/me", "PUT", progress, athlete.token)).status, 200);
+    const dashboard = await f.call("/trainer/dashboard", "GET", undefined, trainer.token);
+    assert.equal(dashboard.status, 200);
+    assert.equal(dashboard.data.clients[0].progress.workouts.length, progress.workouts?.length);
+    assert.ok(dashboard.data.clients[0].progress.calendar.some((item: { status: string }) => item.status === "completed"));
+    const client = await f.call(`/trainer/clients/${relationship.data.id}`, "GET", undefined, trainer.token);
+    assert.equal(client.status, 200);
+    assert.equal(client.data.progress.calendar.length, progress.calendar?.length);
+    assert.equal((await f.call(`/coaching/${relationship.data.id}`, "PATCH", { action: "revoke" }, athlete.token)).status, 200);
+    assert.equal((await f.call(`/trainer/clients/${relationship.data.id}`, "GET", undefined, trainer.token)).status, 404);
   } finally { await f.close(); }
 });

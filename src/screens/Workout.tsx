@@ -13,7 +13,6 @@ import {
   Row,
   Txt,
   Field,
-  GoldSurface,
   Icon,
 } from "../components/ui";
 import { useStore } from "../state/Store";

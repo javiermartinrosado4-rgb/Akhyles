@@ -115,7 +115,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     CREATE TABLE IF NOT EXISTS coaching_relationships (
       id TEXT PRIMARY KEY, client_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       trainer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, requested_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      status TEXT NOT NULL CHECK(status IN ('pending', 'active')), created TEXT NOT NULL, updated TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending', 'active')), created TEXT NOT NULL, accepted_at TEXT, updated TEXT NOT NULL,
       UNIQUE(client_id, trainer_id)
     );
     CREATE TABLE IF NOT EXISTS managed_routines (
@@ -173,6 +173,8 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
   const insertChain = db.prepare("INSERT INTO gym_chains (id, name, sort_order, status) VALUES (?, ?, ?, 'active') ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order, status = 'active'");
   for (const chain of INITIAL_GYM_CHAINS) insertChain.run(chain.id, chain.name, chain.sortOrder);
   const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  const coachingColumns = db.prepare("PRAGMA table_info(coaching_relationships)").all() as { name: string }[];
+  if (!coachingColumns.some(column => column.name === "accepted_at")) db.exec("ALTER TABLE coaching_relationships ADD COLUMN accepted_at TEXT");
   const gymColumns = db.prepare("PRAGMA table_info(gyms)").all() as { name: string }[];
   if (!gymColumns.some(column => column.name === "chain_id")) db.exec("ALTER TABLE gyms ADD COLUMN chain_id TEXT");
   if (!gymColumns.some(column => column.name === "province")) db.exec("ALTER TABLE gyms ADD COLUMN province TEXT NOT NULL DEFAULT ''");
@@ -233,27 +235,54 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     return sharing.achievements === 1 && (visibility === "public" || (visibility === "friends" && mutual(owner, viewer))) && !blocked(owner, viewer);
   }
   function coaching(id: string) {
-    return db.prepare("SELECT * FROM coaching_relationships WHERE id = ?").get(id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; updated: string } | undefined;
+    return db.prepare("SELECT * FROM coaching_relationships WHERE id = ?").get(id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; accepted_at?: string; updated: string } | undefined;
   }
-  function coachingView(row: { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; updated: string }, viewer: string) {
+  function coachingView(row: { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; accepted_at?: string; updated: string }, viewer: string) {
     const otherId = row.client_id === viewer ? row.trainer_id : row.client_id;
     const other = getUser(otherId)!;
-    const consent = db.prepare("SELECT enabled FROM coaching_stats_consent WHERE client_id = ? AND trainer_id = ?").get(row.client_id, row.trainer_id) as { enabled: number } | undefined;
-    return { id: row.id, status: row.status, role: row.client_id === viewer ? "client" : "trainer", requestedByMe: row.requested_by === viewer, statsConsent: consent?.enabled === 1,
-      created: row.created, updated: row.updated, person: { id: other.id, handle: other.handle, name: other.name, avatar: (db.prepare("SELECT avatar FROM user_avatars WHERE user_id = ?").get(other.id) as { avatar: string } | undefined)?.avatar ?? "mountain" } };
+    return { id: row.id, status: row.status, role: row.client_id === viewer ? "client" : "trainer", requestedByMe: row.requested_by === viewer,
+      created: row.created, acceptedAt: row.status === "active" ? ((row as { accepted_at?: string }).accepted_at ?? row.updated) : undefined, updated: row.updated, person: { id: other.id, handle: other.handle, name: other.name, avatar: (db.prepare("SELECT avatar FROM user_avatars WHERE user_id = ?").get(other.id) as { avatar: string } | undefined)?.avatar ?? "mountain" } };
   }
   const profileCommentsAudience = (id: string) => (db.prepare("SELECT audience FROM profile_comment_settings WHERE user_id = ?").get(id) as { audience: "everyone" | "friends" | "none" } | undefined)?.audience ?? "friends";
   const canComment = (author: string, profile: string) => author === profile || (profileCommentsAudience(profile) === "everyone" || (profileCommentsAudience(profile) === "friends" && mutual(author, profile)));
   function trainerStats(trainerId: string) {
     const active = (db.prepare("SELECT count(*) total FROM coaching_relationships WHERE trainer_id = ? AND status = 'active'").get(trainerId) as { total: number }).total;
-    const rows = db.prepare(`SELECT p.data FROM coaching_progress p JOIN coaching_stats_consent c ON c.client_id=p.client_id AND c.trainer_id=p.trainer_id
-      JOIN coaching_relationships r ON r.client_id=p.client_id AND r.trainer_id=p.trainer_id WHERE p.trainer_id = ? AND c.enabled = 1 AND r.status = 'active'`).all(trainerId) as { data: string }[];
+    const rows = db.prepare(`SELECT p.data FROM coaching_progress p JOIN coaching_relationships r ON r.client_id=p.client_id AND r.trainer_id=p.trainer_id WHERE p.trainer_id = ? AND r.status = 'active'`).all(trainerId) as { data: string }[];
     const sessions = rows.map(row => { try { const progress = JSON.parse(row.data) as { workouts?: { date: string }[] }; return (progress.workouts ?? []).filter(workout => Date.parse(workout.date) >= Date.now() - 90 * 86_400_000).length; } catch { return 0; } });
     const eligible = sessions.length;
     return { clientsActive: active, clientsSupported: (db.prepare("SELECT count(DISTINCT client_id) total FROM coaching_relationships WHERE trainer_id = ?").get(trainerId) as { total: number }).total,
       eligibleClients: eligible, sampleSufficient: eligible >= 5,
       ...(eligible >= 5 ? { averageSessions90Days: Math.round(sessions.reduce((sum, value) => sum + value, 0) / eligible * 10) / 10, consistencyRate: Math.round(100 * sessions.filter(value => value >= 8).length / eligible) } : {}) };
   }
+  function trainerClient(row: { id: string; client_id: string; trainer_id: string; accepted_at?: string; updated: string }) {
+    const client = getUser(row.client_id)!;
+    const stored = db.prepare("SELECT data, updated FROM coaching_progress WHERE client_id = ? AND trainer_id = ?").get(row.client_id, row.trainer_id) as { data: string; updated: string } | undefined;
+    let progress: { weekly?: { adherence?: number; strengthPercent?: number; completed?: number; scheduled?: number }; points?: number; updated?: string; workouts?: { date: string }[] } | null = null;
+    try { progress = stored ? JSON.parse(stored.data) : null; } catch { progress = null; }
+    const routine = db.prepare("SELECT author_id FROM managed_routines WHERE client_id = ?").get(row.client_id) as { author_id: string } | undefined;
+    const weekly = progress?.weekly;
+    const adherence = typeof weekly?.adherence === "number" ? Math.round(weekly.adherence * 10) / 10 : null;
+    const strengthPercent = typeof weekly?.strengthPercent === "number" ? Math.round(weekly.strengthPercent * 10) / 10 : null;
+    const latestWorkout = [...(progress?.workouts ?? [])].sort((left, right) => right.date.localeCompare(left.date))[0]?.date;
+    const lastActivity = latestWorkout ?? progress?.updated ?? stored?.updated;
+    const routineStatus = !routine ? "none" : routine.author_id === row.trainer_id ? "sent" : "applied";
+    const attention = routineStatus === "sent" ? "routine-pending" : adherence !== null && adherence < 55 ? "needs-review" : lastActivity && Date.now() - Date.parse(lastActivity) > 7 * 86_400_000 ? "inactive" : "on-track";
+    return { relationshipId: row.id, id: client.id, name: client.name, handle: client.handle,
+      avatar: (db.prepare("SELECT avatar FROM user_avatars WHERE user_id = ?").get(client.id) as { avatar: string } | undefined)?.avatar ?? "mountain",
+      level: client.level, activeSince: row.accepted_at ?? row.updated, lastActivity,
+      scheduled: weekly?.scheduled ?? 0, completed: weekly?.completed ?? 0, adherence, strengthPercent,
+      points: typeof progress?.points === "number" ? progress.points : null, progress, routineStatus, attention };
+  }
+  function trainerClients(trainerId: string) {
+    const rows = db.prepare("SELECT * FROM coaching_relationships WHERE trainer_id = ? AND status = 'active' ORDER BY updated DESC").all(trainerId) as { id: string; client_id: string; trainer_id: string; accepted_at?: string; updated: string }[];
+    return rows.map(trainerClient);
+  }
+  const trainerMedian = (values: (number | null)[]) => {
+    const sorted = values.filter((value): value is number => typeof value === "number").sort((left, right) => left - right);
+    if (!sorted.length) return null;
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) * 5) / 10;
+  };
   if (!userColumns.some(column => column.name === "city")) db.exec("ALTER TABLE users ADD COLUMN city TEXT NOT NULL DEFAULT ''");
   const sharingColumns = db.prepare("PRAGMA table_info(sharing_options)").all() as { name: string }[];
   if (!sharingColumns.some(column => column.name === "achievements")) db.exec("ALTER TABLE sharing_options ADD COLUMN achievements INTEGER NOT NULL DEFAULT 0");
@@ -505,6 +534,32 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         if (!profile || (!profile.public && target.id !== user.id)) fail(404, "Perfil profesional no disponible.");
         json(200, { public: profile.public === 1, specialties: JSON.parse(profile.specialties), modalities: JSON.parse(profile.modalities), experienceYears: profile.experience_years, credentials: profile.credentials, availability: profile.availability, pricing: profile.pricing, statsPublic: profile.stats_public === 1, updated: profile.updated, ...(profile.stats_public === 1 || target.id === user.id ? { stats: trainerStats(target.id) } : {}) }); return;
       }
+      if (path === "/trainer/dashboard" && method === "GET") {
+        if (user.trainer_enabled !== 1) fail(403, "Activa tu perfil de entrenador para abrir este espacio.");
+        const clients = trainerClients(user.id);
+        json(200, { activeClients: clients.length,
+          pendingRequests: (db.prepare("SELECT count(*) total FROM coaching_relationships WHERE trainer_id = ? AND status = 'pending' AND requested_by <> ?").get(user.id, user.id) as { total: number }).total,
+          routinesPending: clients.filter(client => client.routineStatus === "sent").length,
+          needsAttention: clients.filter(client => client.attention !== "on-track").length,
+          medianAdherence: trainerMedian(clients.map(client => client.adherence)), medianStrengthChange: trainerMedian(clients.map(client => client.strengthPercent)),
+          eligibleClients: clients.filter(client => client.progress).length, sampleSufficient: clients.filter(client => client.progress).length >= 5, clients }); return;
+      }
+      if (path === "/trainer/requests" && method === "GET") {
+        const rows = db.prepare("SELECT * FROM coaching_relationships WHERE trainer_id = ? AND status = 'pending' AND requested_by <> ? ORDER BY updated DESC").all(user.id, user.id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending"; created: string; updated: string }[];
+        json(200, rows.map(row => coachingView(row, user.id))); return;
+      }
+      if (/^\/trainer\/requests\/[\w-]+$/.test(path) && method === "PATCH") {
+        const data = await body(req), row = coaching(path.split("/")[3]);
+        if (!row || row.trainer_id !== user.id || row.status !== "pending" || row.requested_by === user.id || !["accept", "decline"].includes(String(data.action))) fail(404, "Solicitud no disponible.");
+        if (data.action === "decline") { db.prepare("DELETE FROM coaching_relationships WHERE id = ?").run(row.id); json(200, { ok: true }); return; }
+        const now = new Date().toISOString(); db.prepare("UPDATE coaching_relationships SET status = 'active', accepted_at = ?, updated = ? WHERE id = ?").run(now, now, row.id);
+        json(200, coachingView({ ...row, status: "active", accepted_at: now, updated: now }, user.id)); return;
+      }
+      if (/^\/trainer\/clients\/[\w-]+$/.test(path) && method === "GET") {
+        const row = coaching(path.split("/")[3]);
+        if (!row || row.trainer_id !== user.id || row.status !== "active") fail(404, "Deportista no disponible.");
+        json(200, trainerClient(row)); return;
+      }
       if (/^\/coaching\/[\w-]+\/stats-consent$/.test(path) && method === "PUT") {
         const row = coaching(path.split("/")[2]); const data = await body(req);
         if (!row || row.client_id !== user.id || row.status !== "active" || typeof data.enabled !== "boolean") fail(400, "No se puede actualizar este consentimiento.");
@@ -515,7 +570,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       if (path === "/coaching/progress/me" && method === "PUT") {
         const data = await body(req);
         if (!isSharedProgress(data)) fail(400, "El progreso no es válido.");
-        const trainers = db.prepare(`SELECT r.trainer_id FROM coaching_relationships r JOIN coaching_stats_consent c ON c.client_id=r.client_id AND c.trainer_id=r.trainer_id WHERE r.client_id=? AND r.status='active' AND c.enabled=1`).all(user.id) as { trainer_id: string }[];
+        const trainers = db.prepare("SELECT trainer_id FROM coaching_relationships WHERE client_id=? AND status='active'").all(user.id) as { trainer_id: string }[];
         const now = new Date().toISOString();
         for (const trainer of trainers) db.prepare(`INSERT INTO coaching_progress VALUES (?, ?, ?, ?) ON CONFLICT(client_id, trainer_id) DO UPDATE SET data=excluded.data, updated=excluded.updated`).run(user.id, trainer.trainer_id, JSON.stringify(data), now);
         json(200, { sharedWith: trainers.length }); return;
@@ -558,7 +613,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         json(200, { id, status, reviewNote }); return;
       }
       if (path === "/coaching" && method === "GET") {
-        const rows = db.prepare("SELECT * FROM coaching_relationships WHERE client_id = ? OR trainer_id = ? ORDER BY updated DESC").all(user.id, user.id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; updated: string }[];
+        const rows = db.prepare("SELECT * FROM coaching_relationships WHERE client_id = ? OR trainer_id = ? ORDER BY updated DESC").all(user.id, user.id) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; accepted_at?: string; updated: string }[];
         json(200, rows.filter(row => !blocked(user.id, row.client_id === user.id ? row.trainer_id : row.client_id)).map(row => coachingView(row, user.id))); return;
       }
       if (path === "/coaching/requests" && method === "POST") {
@@ -569,12 +624,12 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         const trainerId = user.trainer_enabled === 1 ? user.id : target.trainer_enabled === 1 ? target.id : null;
         if (!trainerId) fail(400, "Esta persona no ofrece entrenamiento.");
         const clientId = trainerId === user.id ? target.id : user.id;
-        const existing = db.prepare("SELECT * FROM coaching_relationships WHERE client_id = ? AND trainer_id = ?").get(clientId, trainerId) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; updated: string } | undefined;
+        const existing = db.prepare("SELECT * FROM coaching_relationships WHERE client_id = ? AND trainer_id = ?").get(clientId, trainerId) as { id: string; client_id: string; trainer_id: string; requested_by: string; status: "pending" | "active"; created: string; accepted_at?: string; updated: string } | undefined;
         if (existing?.status === "active") fail(409, "Ya tenÃ©is una colaboraciÃ³n activa.");
         const now = new Date().toISOString();
         const row = existing ?? { id: randomUUID(), client_id: clientId, trainer_id: trainerId, requested_by: user.id, status: "pending" as const, created: now, updated: now };
         if (existing) db.prepare("UPDATE coaching_relationships SET requested_by = ?, status = 'pending', updated = ? WHERE id = ?").run(user.id, now, existing.id);
-        else db.prepare("INSERT INTO coaching_relationships VALUES (?, ?, ?, ?, ?, ?, ?)").run(row.id, row.client_id, row.trainer_id, row.requested_by, row.status, row.created, row.updated);
+        else db.prepare("INSERT INTO coaching_relationships (id, client_id, trainer_id, requested_by, status, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?)").run(row.id, row.client_id, row.trainer_id, row.requested_by, row.status, row.created, row.updated);
         json(201, coachingView({ ...row, requested_by: user.id, updated: now }, user.id)); return;
       }
       if (/^\/coaching\/[\w-]+$/.test(path) && method === "PATCH") {
@@ -582,12 +637,12 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
         const row = coaching(path.split("/")[2]);
         if (!row || (row.client_id !== user.id && row.trainer_id !== user.id) || blocked(user.id, row.client_id === user.id ? row.trainer_id : row.client_id)) fail(404, "ColaboraciÃ³n no disponible.");
         const action = String(data.action);
-        if (action === "revoke") { db.prepare("DELETE FROM coaching_relationships WHERE id = ?").run(row.id); json(200, { ok: true }); return; }
+        if (action === "revoke") { db.prepare("DELETE FROM coaching_progress WHERE client_id = ? AND trainer_id = ?").run(row.client_id, row.trainer_id); db.prepare("DELETE FROM coaching_relationships WHERE id = ?").run(row.id); json(200, { ok: true }); return; }
         if (row.status !== "pending" || row.requested_by === user.id || !["accept", "decline"].includes(action)) fail(400, "No puedes completar esta solicitud.");
         if (action === "decline") { db.prepare("DELETE FROM coaching_relationships WHERE id = ?").run(row.id); json(200, { ok: true }); return; }
         const now = new Date().toISOString();
-        db.prepare("UPDATE coaching_relationships SET status = 'active', updated = ? WHERE id = ?").run(now, row.id);
-        json(200, coachingView({ ...row, status: "active", updated: now }, user.id)); return;
+        db.prepare("UPDATE coaching_relationships SET status = 'active', accepted_at = ?, updated = ? WHERE id = ?").run(now, now, row.id);
+        json(200, coachingView({ ...row, status: "active", accepted_at: now, updated: now }, user.id)); return;
       }
       if (path === "/coaching/routine/me" && method === "PUT") {
         const data = await body(req);

@@ -4,6 +4,7 @@ import { resolveCommunityUrl } from "../logic/endpoints";
 import { Level } from "../types";
 import { SharedProgress, SharedRoutine } from "../logic/sharing";
 import { AchievementDetails, AchievementKind } from "../logic/achievementCatalog";
+import { TrainerDashboard, TrainerPublicStats } from "../logic/trainerWorkspace";
 
 function configuredCommunityUrl() { try { return resolveCommunityUrl(
   process.env.EXPO_PUBLIC_COMMUNITY_URL,
@@ -20,10 +21,10 @@ export interface AchievementRarityInfo { tier: AchievementRarity; holders: numbe
 export interface CommunityAchievement { id: string; userId: string; handle: string; name: string; type: "tier" | "personal_best" | "personal"; kind?: AchievementKind | "personal"; tierId?: string; exerciseId?: string; exerciseName?: string; definitionId?: string; details?: AchievementDetails & { title?: string; description?: string; category?: string }; created: string; likes: number; liked: boolean; rarity?: AchievementRarityInfo }
 export interface AchievementPage { achievements: CommunityAchievement[]; next: number | null }
 export interface PublishedRoutine { id: string; owner: Pick<CommunityUser, "handle" | "name">; routine: SharedRoutine; updated: string }
-export interface CoachingRelationship { id: string; status: "pending" | "active"; role: "client" | "trainer"; requestedByMe: boolean; statsConsent?: boolean; created: string; updated: string; person: Pick<CommunityUser, "id" | "handle" | "name" | "avatar">; }
+export interface CoachingRelationship { id: string; status: "pending" | "active" | "declined" | "revoked" | "expired"; role: "client" | "trainer"; requestedByMe: boolean; created: string; acceptedAt?: string; endedAt?: string; updated: string; person: Pick<CommunityUser, "id" | "handle" | "name" | "avatar">; }
 export interface ManagedRoutine { routine: SharedRoutine; revision: number; updated: string; author: Pick<CommunityUser, "id" | "handle" | "name">; }
 export interface TrainerProfile { public: boolean; specialties: string[]; modalities: string[]; experienceYears: number; credentials: string; availability: string; pricing: string; statsPublic: boolean; updated?: string; stats?: { clientsActive: number; clientsSupported: number; eligibleClients: number; sampleSufficient: boolean; averageSessions90Days?: number; consistencyRate?: number }; }
-export interface TrainerReview { id: string; rating: number; communication: number; adaptation: number; followUp: number; body: string; created: string; author: Pick<CommunityUser, "handle" | "name">; }
+export type { TrainerDashboard, TrainerPublicStats };
 export type PublishedProgress = SharedProgress;
 export class CommunityError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function communityRequest<T>(path: string, token?: string, method = "GET", data?: unknown): Promise<T> {

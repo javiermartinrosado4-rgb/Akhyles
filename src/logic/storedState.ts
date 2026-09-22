@@ -16,7 +16,6 @@ const day = (d: Day) => object(d) && text(d.id) && text(d.name) && list(d.exerci
 const record = (r: ExerciseRecord) => object(r) && prescription(r.prescription) && text(r.name) && ["compound", "isolation"].includes(r.type) &&
   (r.loadMode === undefined || ["total", "per-side", "total-with-bar"].includes(r.loadMode)) && (r.barWeight === undefined || validBarWeight(r.barWeight)) && (r.apparatusWeight === undefined || validBarWeight(r.apparatusWeight)) && (r.machineBrand === undefined || (text(r.machineBrand) && r.machineBrand.length <= 60)) && list(r.sets, (s: { weight: number; reps: number; leftReps?: number; rightReps?: number }) => object(s) && validWeight(s.weight) && Number.isInteger(s.reps) && s.reps >= 1 && s.reps <= 100 && (s.leftReps === undefined || (Number.isInteger(s.leftReps) && s.leftReps >= 1 && s.leftReps <= 100)) && (s.rightReps === undefined || (Number.isInteger(s.rightReps) && s.rightReps >= 1 && s.rightReps <= 100)));
 const draft = (v: unknown) => list(v, (s: { weight: string; reps: string; leftReps?: unknown; rightReps?: unknown }) => object(s) && text(s.weight) && text(s.reps) && optionalText(s.leftReps) && optionalText(s.rightReps));
-
 /** Check nested collections before hydration or a cloud response can reach render code. */
 export function validStoredCollections(s: AppState): boolean {
   if (!object(s) || !object(s.profile) || !object(s.preferences)) return false;

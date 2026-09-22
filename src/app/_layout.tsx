@@ -16,6 +16,7 @@ import { LanguageProvider, useLanguage } from "../i18n";
 import { accountUrl, latestAppVersion } from "../services/account";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
 import { KintsugiIntroPreview } from "../components/KintsugiIntroPreview";
 export { ErrorBoundary } from "../components/RouteError";
 function Frame() {
@@ -99,11 +100,16 @@ function ProfileCommunity() {
   return <CommunityProvider key={ready ? state.cloud?.owner ?? "guest" : "hydrating"}><Frame /></CommunityProvider>;
 }
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Feather: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf"),
+    FontAwesome: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf"),
+  });
   React.useEffect(() => {
     // The native splash is only a colour-matched handoff. Closing it explicitly
     // prevents a blank frame before the kintsugi intro is mounted.
     void SplashScreen.hideAsync().catch(() => undefined);
   }, []);
+  if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
       <LanguageProvider>
