@@ -3,6 +3,7 @@ import { ExpoConfig } from "expo/config";
 import APP from "./brand.json";
 import { requirePublicHttps } from "./src/logic/endpoints";
 const localAndroid = process.env.AKHYLES_ANDROID_LOCAL === "1";
+const googleIosUrlScheme = process.env.AKHYLES_GOOGLE_IOS_URL_SCHEME;
 if (!localAndroid && process.env.EXPO_PUBLIC_COMMUNITY_URL) requirePublicHttps(process.env.EXPO_PUBLIC_COMMUNITY_URL);
 if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_PUBLIC_ACCOUNT_URL) requirePublicHttps(process.env.EXPO_PUBLIC_ACCOUNT_URL);
 const config: ExpoConfig = {
@@ -44,6 +45,7 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     "expo-sqlite",
+    ...(googleIosUrlScheme ? [["react-native-nitro-google-signin", { iosUrlScheme: googleIosUrlScheme }]] : []),
     "./plugins/withAsyncStorageDatabaseSize",
     ["expo-notifications", { icon: "./assets/brand/notification-icon.png", color: "#C39850" }],
     "./plugins/withAndroidSigning",

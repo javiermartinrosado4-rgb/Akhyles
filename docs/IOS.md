@@ -24,6 +24,10 @@ Estado de preparación: 16 de septiembre de 2026.
 - Crear el App ID y la ficha de Akhyles en App Store Connect.
 - Vincular la cuenta con EAS y configurar certificados/perfiles de firma.
 - Crear y probar el cliente OAuth de Google para iOS.
+- Configurar `AKHYLES_GOOGLE_IOS_URL_SCHEME` en el entorno EAS de producción
+  con el valor `REVERSED_CLIENT_ID` del cliente OAuth iOS. La configuración de
+  Expo añade el esquema de retorno requerido por Google Sign-In; el identificador
+  es público y no se debe guardar ningún archivo de credenciales en Git.
 - Resolver la estrategia de acceso con Apple antes de revisión: la app ofrece
   acceso social con Google y la directriz 4.8 puede exigir una opción equivalente
   de Sign in with Apple.
@@ -43,6 +47,10 @@ Estado de preparación: 16 de septiembre de 2026.
 4. Probar en iPhones reales Perfil, avatar, campana, Comunidad, ranking,
    logros, login, fotografías y recordatorios.
 5. Corregir incidencias de dispositivo y enviar la build a App Review.
+
+La app ya dispone de componentes nativos para Google en iOS, tanto para Comunidad
+como para Cuentas. El inicio de sesión requiere el cliente OAuth iOS y su esquema
+de retorno configurados antes de generar el binario de TestFlight.
 
 ## Carpeta `ios/`
 
