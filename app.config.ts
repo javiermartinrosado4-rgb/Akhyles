@@ -12,7 +12,7 @@ if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_P
 const config: ExpoConfig = {
   name: APP.name,
   slug: APP.slug,
-    version: "1.0.37",
+    version: "1.0.38",
   orientation: "portrait",
   scheme: APP.slug,
   userInterfaceStyle: "dark",
@@ -24,7 +24,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 40,
+      versionCode: 41,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {

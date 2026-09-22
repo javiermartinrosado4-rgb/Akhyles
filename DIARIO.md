@@ -2,14 +2,30 @@
 
 ## Estado vigente — 22 de septiembre de 2026
 
-Este resumen se ha contrastado con el repositorio en `main`. Las entradas fechadas que siguen registran lo ocurrido en cada fase; sus frases «pendiente» o «no publicado» describen aquel momento y pueden haber sido superadas por entregas posteriores.
+Este resumen se ha contrastado con el repositorio en `main` y con el estado visible de Play Console. Las entradas fechadas que siguen registran lo ocurrido en cada fase; las referencias a estados pendientes corresponden al momento de cada entrada.
 
-- **Código y versiones:** Expo SDK 57, app `1.0.36`, Android `versionCode 39` e iOS `buildNumber 1` en `app.config.ts`. El proyecto está vinculado al EAS project ID `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`.
-- **Android:** la AAB `39 (1.0.36)` se subió a Prueba cerrada — Alpha y el último estado anotado en Play fue «cambios enviados a revisión». No consta aprobación de Google, instalación de esta versión en un teléfono ni publicación en Producción. El AAB se generó después de los cambios de entrenador y de frases.
-- **Web y API:** la API PHP y la Web se actualizaron el 22/09 con las rutas de colaboración. Ambas URLs públicas respondieron correctamente y la Web sirve el bundle nuevo. En el código actual, la pestaña Entrenador depende de `trainerWorkspaceEnabled()`, que solo devuelve verdadero en desarrollo: la pestaña no se habilita en builds de producción. Falta comprobar con una sesión real la invitación, aceptación y sincronización de una colaboración.
-- **Frases:** hay 21 frases y una selección diaria estable en `src/content/motivation.ts`. Esos cambios preceden tanto al despliegue web registrado como a la AAB 1.0.36; no consta una prueba de la versión Android en un dispositivo físico.
-- **Sincronización:** `/sync/revision` y el flujo actual de copia completa están implementados. Sync V2 tiene entidades, outbox y servidor preparados, pero el cliente aún no usa sus operaciones incrementales como vía principal; la activación por cuenta y la migración siguen pendientes.
-- **iOS:** están definidos bundle ID, configuración EAS y componentes nativos de Google. No consta compilación iOS, TestFlight ni publicación en App Store. Falta configurar y probar el cliente OAuth iOS y su esquema de retorno, verificar firma/Apple Developer y resolver el acceso con Apple si App Review lo exige.
+- **Código y versiones:** Expo SDK 57, app `1.0.38`, Android `versionCode 41` e iOS `buildNumber 1` en `app.config.ts`. Proyecto EAS `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`.
+- **Android / Google Play:** AAB `41 (1.0.38)` subida y guardada como borrador de Prueba cerrada — Alpha, con notas en es-ES. Play muestra la versión `39 (1.0.36)` como la última publicada del canal. La nueva versión no se ha enviado a revisión ni a Producción. No había dispositivo Android conectado para instalar y probar esta build.
+- **AAB actual:** `artifacts/android/akhyles-release.aab`, 71.098.905 bytes, SHA-256 `5DE1208313F739954D79406B28B9B241BED386701BF3ACF993F68F70290BD9EA`. Firma original comprobada, certificado SHA-1 `040ea0afd797f22730198cdb4295c4763ab86ab7`, paquete correcto, `versionCode 41`, manifiesto seguro y permisos revisados. APK acompañante SHA-256 `8D0C12F8894FA9F58C9E76FA3EA56311842BD7FCF76AFB21FC081DE4A9948B11`.
+- **Responsividad de entrenamiento:** commit `5f111a6` desacopla los campos de peso, repeticiones y notas del estado global durante la escritura. La persistencia se agrupa con 350 ms y se fuerza al perder foco, cambiar de ejercicio, salir, desmontar la pantalla o pasar a segundo plano. TypeScript y ESLint pasaron. No se midió todavía el comportamiento en dispositivo físico.
+- **Web y API:** la API PHP y la Web se actualizaron el 22/09 con las rutas de colaboración. Las URLs públicas respondieron correctamente y la Web sirve el bundle nuevo. La pestaña Entrenador sigue detrás de la condición de habilitación de producción descrita en el código; falta probar con dos cuentas reales invitación, aceptación y sincronización.
+- **Frases:** hay 21 frases y una selección diaria estable en `src/content/motivation.ts`.
+- **Sincronización:** `/sync/revision` y el flujo de copia completa están implementados. Sync V2 tiene entidades, outbox y servidor preparados, pero el cliente aún no usa las operaciones incrementales como vía principal; activación por cuenta y migración siguen pendientes.
+- **iOS:** la última entrada del diario indica que el envío de `1.0.36 (1)` estaba en cola en Expo. No consta envío a App Store Connect, TestFlight ni publicación en App Store. Verificar el estado de esa cola antes de iniciar otra build iOS.
+
+### Android 1.0.38 / versionCode 41 — borrador Alpha — 22 de septiembre de 2026
+
+- Incrementadas la versión de Android desde `1.0.37 / 40` a `1.0.38 / 41`, manteniendo el paquete y la firma Android existentes.
+- Las comprobaciones de HTTPS/DNS de Cuentas y Comunidad, `release:doctor -- android` y el análisis de dependencias pasaron; este último no detectó vulnerabilidades altas o críticas.
+- Generadas APK y AAB release con URLs de producción. La compilación Gradle terminó correctamente para ARM64 y x86_64. `verify-android.mjs` confirmó firma, certificado, paquete, versión, permisos y manifiesto.
+- Subida la AAB a **Prueba cerrada — Alpha**. Play reconoció `41 (1.0.38)`; se guardó como borrador con las notas: "Mejoras en la respuesta al registrar entrenamientos y en el guardado de tus datos. Correcciones y ajustes internos."
+- El borrador no se envió a revisión: el protocolo pide instalación y prueba en un Android físico, y `adb devices` no mostró ningún dispositivo conectado. No se inició Producción.
+
+### Responsividad al editar entrenamientos — 22 de septiembre de 2026
+
+- Se identificó que cada tecla llamaba a `update()` del Store, recalculaba datos derivados, actualizaba el estado global y encolaba el guardado completo.
+- Los campos de series, carga base y notas ahora conservan el borrador local mientras se escribe. Se persiste agrupado tras 350 ms y al perder foco, cambiar de ejercicio, salir de la pantalla, desmontarla o enviar la app a segundo plano.
+- Los cambios se publicaron en el commit `5f111a6 perf: defer workout input persistence`. `npm.cmd run typecheck` y `npm.cmd run lint` finalizaron correctamente. Pendiente medir input lag en un móvil físico con la versión Alpha.
 
 ### Actualización de API y Web para colaboraciones — 22 de septiembre de 2026
 
@@ -1778,3 +1794,10 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - La Agenda ofrece **Hoy**, **Ayer**, **Próximos 7 días** y **Calendario**. Cada sesión abre el expediente del deportista y su calendario de lectura; el plan gestionado se abre desde allí. La Agenda no edita ni reprograma sesiones directamente.
 - La propuesta inicial de alertas contemplaba excepciones configurables y un resumen diario opcional. Ese sistema de avisos no está implementado; el flujo visible de vídeos técnicos se retiró después.
 - En esta primera fase la Agenda usaba calendarios simulados. La integración posterior añadió datos autorizados de clientes a las API Node y PHP y sustituyó las ediciones locales no persistentes; la comprobación funcional de producción sigue pendiente.
+
+### Envío iOS 1.0.36 (1) en cola de Expo — 2026-09-22
+
+- La compilación de producción de iOS quedó preparada y el envío a App Store está en estado `Queued`, dentro de la cola gratuita de Expo.
+- La versión asociada es `1.0.36 (1)`, con SDK `57.0.0` y commit `7e2bbb0`.
+- El envío todavía no ha comenzado: no hay logs disponibles y aún no se ha enviado a App Store Connect ni está publicado en la App Store.
+- Expo indica que para ver los detalles de App Store Connect en futuras subidas hay que conectar la app de App Store Connect en la configuración del proyecto.
