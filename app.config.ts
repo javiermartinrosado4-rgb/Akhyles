@@ -8,7 +8,7 @@ if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_P
 const config: ExpoConfig = {
   name: APP.name,
   slug: APP.slug,
-    version: "1.0.35",
+    version: "1.0.36",
   orientation: "portrait",
   scheme: APP.slug,
   userInterfaceStyle: "dark",
@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 38,
+      versionCode: 39,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
@@ -28,7 +28,15 @@ const config: ExpoConfig = {
       backgroundColor: "#070A09",
       monochromeImage: "./assets/brand/monochrome.png",
     },
-    blockedPermissions: ["android.permission.SYSTEM_ALERT_WINDOW", "android.permission.RECORD_AUDIO"],
+    blockedPermissions: [
+      "android.permission.CAMERA",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_MEDIA_VIDEO",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.RECORD_AUDIO",
+    ],
     intentFilters: [{ action: "VIEW", autoVerify: true, data: [{ scheme: "https", host: "api.akhyles.com", pathPrefix: "/verify" }], category: ["BROWSABLE", "DEFAULT"] }],
   },
   plugins: [

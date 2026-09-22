@@ -1,5 +1,12 @@
 # Diario de Akhyles
 
+### Preparación Android 1.0.36 / versionCode 39 — 22 de septiembre de 2026
+
+- Incrementada la versión desde `1.0.35 / 38` a `1.0.36 / 39`, sin reutilizar el código de Play.
+- Generados los artefactos release conectados con `https://api.akhyles.com` y `https://api.akhyles.com/community`: [AAB](../artifacts/android/akhyles-release.aab) y APK.
+- Verificado: `release:doctor -- android`, firma SHA-1 original `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`, manifest seguro, cleartext desactivado y sin cámara, micrófono ni permisos de almacenamiento. AAB SHA-256 `7039BA072E512CFE8C2560164C6235ADEC2FC84257AEFDA34B66776684E00FEA`; APK SHA-256 `277DF4AF9DBD94CBE06745B3BC0024811CE8DF987E38640AA7024BAA1024059C`.
+- El dispositivo real no estaba conectado (`adb devices` sin dispositivos). Por protocolo, la prueba de instalación, actualización, sesión, offline y sincronización queda pendiente; no se ha subido todavía a Google Play.
+
 ### Cierre de entrega web de entrenador — 22 de septiembre de 2026
 
 - La vista mensual de gráficas ya ocupa exactamente el mes elegido; se elimina el punto contextual del mes previo que desplazaba visualmente el inicio del periodo.
