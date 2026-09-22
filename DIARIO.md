@@ -1,5 +1,16 @@
 # Diario de Akhyles
 
+## Estado vigente — 22 de septiembre de 2026
+
+Este resumen se ha contrastado con el repositorio en `main` (`f9a2b97`). Las entradas fechadas que siguen registran lo ocurrido en cada fase; sus frases «pendiente» o «no publicado» describen aquel momento y pueden haber sido superadas por entregas posteriores.
+
+- **Código y versiones:** Expo SDK 57, app `1.0.36`, Android `versionCode 39` e iOS `buildNumber 1` en `app.config.ts`. El proyecto está vinculado al EAS project ID `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`.
+- **Android:** la AAB `39 (1.0.36)` se subió a Prueba cerrada — Alpha y el último estado anotado en Play fue «cambios enviados a revisión». No consta aprobación de Google, instalación de esta versión en un teléfono ni publicación en Producción. El AAB se generó después de los cambios de entrenador y de frases.
+- **Web y API:** el diario registra el despliegue del 22/09 de la web y la integración PHP del espacio de entrenador. En el código actual, la pestaña Entrenador depende de `trainerWorkspaceEnabled()`, que solo devuelve verdadero en desarrollo: la pestaña no se habilita en builds de producción. La ficha, los datos y las rutas de entrenador requieren una comprobación funcional en producción antes de dar por completado ese lanzamiento.
+- **Frases:** hay 21 frases y una selección diaria estable en `src/content/motivation.ts`. Esos cambios preceden tanto al despliegue web registrado como a la AAB 1.0.36; no consta una prueba de la versión Android en un dispositivo físico.
+- **Sincronización:** `/sync/revision` y el flujo actual de copia completa están implementados. Sync V2 tiene entidades, outbox y servidor preparados, pero el cliente aún no usa sus operaciones incrementales como vía principal; la activación por cuenta y la migración siguen pendientes.
+- **iOS:** están definidos bundle ID, configuración EAS y componentes nativos de Google. No consta compilación iOS, TestFlight ni publicación en App Store. Falta configurar y probar el cliente OAuth iOS y su esquema de retorno, verificar firma/Apple Developer y resolver el acceso con Apple si App Review lo exige.
+
 ### Vinculación inicial con Expo EAS — 22 de septiembre de 2026
 
 - Creada la organización/proyecto EAS desde Expo y guardado su identificador en `app.config.ts` (`extra.eas.projectId`).
@@ -18,17 +29,17 @@
 ### Preparación Android 1.0.36 / versionCode 39 — 22 de septiembre de 2026
 
 - Incrementada la versión desde `1.0.35 / 38` a `1.0.36 / 39`, sin reutilizar el código de Play.
-- Generados los artefactos release conectados con `https://api.akhyles.com` y `https://api.akhyles.com/community`: [AAB](../artifacts/android/akhyles-release.aab) y APK.
+- Generados los artefactos release conectados con `https://api.akhyles.com` y `https://api.akhyles.com/community`: [AAB](artifacts/android/akhyles-release.aab) y APK.
 - Verificado: `release:doctor -- android`, firma SHA-1 original `04:0E:A0:AF:D7:97:F2:27:30:19:8C:DB:42:95:C4:76:3A:B8:6A:B7`, manifest seguro, cleartext desactivado y sin cámara, micrófono ni permisos de almacenamiento. AAB SHA-256 `7039BA072E512CFE8C2560164C6235ADEC2FC84257AEFDA34B66776684E00FEA`; APK SHA-256 `277DF4AF9DBD94CBE06745B3BC0024811CE8DF987E38640AA7024BAA1024059C`.
-- El dispositivo real no estaba conectado (`adb devices` sin dispositivos). Por protocolo, la prueba de instalación, actualización, sesión, offline y sincronización queda pendiente; no se ha subido todavía a Google Play.
+- El dispositivo real no estaba conectado (`adb devices` sin dispositivos). Por protocolo, la prueba de instalación, actualización, sesión, offline y sincronización queda pendiente. La subida posterior a Google Play Alpha está registrada en la entrada anterior.
 
-### Cierre de entrega web de entrenador — 22 de septiembre de 2026
+### Entrega web de cambios de entrenador y navegación — 22 de septiembre de 2026
 
 - La vista mensual de gráficas ya ocupa exactamente el mes elegido; se elimina el punto contextual del mes previo que desplazaba visualmente el inicio del periodo.
 - La navegación web muestra el logo de Akhyles en la barra lateral y traslada el acceso al perfil al extremo derecho de la cabecera.
 - Se retiraron por completo los flujos de vídeos técnicos y reseñas profesionales del cliente, contrato de Comunidad y configuración de API. Las tablas históricas se conservan sin uso para no borrar datos existentes de forma irreversible.
 - Verificado: TypeScript, 172 pruebas activas, auditoría de dependencias y exportación web de producción.
-- Publicado en `https://app.akhyles.com/` tras preflight SFTP y verificación automática del bundle nuevo.
+- Publicado el bundle en `https://app.akhyles.com/` tras preflight SFTP y verificación automática. La pestaña Entrenador sigue oculta en builds de producción.
 
 ### Integración real del espacio de entrenador — 22 de septiembre de 2026
 
@@ -59,13 +70,13 @@
 - Cada ejercicio se puede desplegar para ver todas las series, cargas y repeticiones por lado, carga de barra o máquina, marca de máquina, rango y series previstas, y la nota compartida del ejercicio.
 - Se muestran comparaciones con la última sesión que contiene el ejercicio y con la semana previa: fuerza estimada, repeticiones y volumen. La lectura rápida se mantiene en la cabecera de cada tarjeta; el detalle queda bajo demanda.
 - La sincronización privada de una colaboración ahora envía el contexto ampliado de sesión solo cuando el deportista autoriza el permiso de progreso. Las instantáneas públicas de Comunidad siguen siendo compactas y no reciben esos campos.
-- Verificado: TypeScript, ESLint de los archivos modificados, 17 pruebas activas de Comunidad y recorrido local Web hasta Entrenador > Clientes > Sesiones. No se ha publicado en Web, Android ni API de producción.
+- Verificado en esta fase: TypeScript, ESLint de los archivos modificados, 17 pruebas activas de Comunidad y recorrido local Web hasta Entrenador > Clientes > Sesiones. La pestaña separada Sesiones fue retirada después y el informe quedó integrado en Calendario.
 
 ### Android 1.0.35 y corrección de iconos web — 22 de septiembre de 2026
 
 - Generado AAB release firmado de `1.0.35` (`versionCode 38`), con la corrección de fuentes Feather/FontAwesome en web, exclusión de fotos Base64 del estado privado y límite HTTP JSON de 8 MB.
 - Verificado localmente: `release-doctor` correcto, firma y empaquetado del AAB válidos; SHA-256 del AAB: `69011C8891F93D1F6F1D0373BA3131740A46CD6636214618EFE4B72BD6D252A7`.
-- La comprobación `verify-android.mjs` queda pendiente de actualizar porque marca `CAMERA`, permiso ya existente y necesario en la app, como inesperado; no indica un fallo de firma ni de compilación.
+- En esta build, `verify-android.mjs` marcó `CAMERA` como inesperado. La configuración actual de 1.0.36 bloquea expresamente ese permiso y la comprobación posterior del manifest no lo encontró.
 - La web se publicó y se verificó visualmente en `https://app.akhyles.com/`: los iconos ya se muestran correctamente.
 - Google Play Console recibió la versión `38 (1.0.35)` en **Prueba cerrada — Alpha** y muestra `1 cambio enviado a revisión`. No se inició Producción. La comprobación en un móvil físico sigue pendiente de que el tester reciba esta versión.
 
@@ -85,15 +96,15 @@
 - Creado el espacio de Entrenador experimental: pestaña exclusiva para perfiles de entrenador, panel de deportistas, solicitudes recibidas, indicadores de adherencia/evolución y acceso al detalle de cada colaboración.
 - El perfil deja de ocupar una pestaña: se abre desde el avatar, arriba a la derecha, tanto en móvil como en web.
 - Las colaboraciones ahora distinguen quién inicia la solicitud y el cliente puede autorizar o retirar de forma independiente la gestión de rutina, el seguimiento privado y el uso anónimo en estadísticas agregadas.
-- Añadidas rutas y tablas de servidor para permisos, solicitudes bidireccionales, detalles de cliente y métricas profesionales públicas con umbral mínimo de muestra. La función sigue limitada a desarrollo local hasta activarla expresamente para una futura prueba.
-- Verificado TypeScript y las pruebas nuevas de métricas del espacio de entrenador. No se ha publicado nada en web, Android ni Google Play.
+- Añadidas rutas y tablas de servidor para permisos, solicitudes bidireccionales, detalles de cliente y métricas profesionales públicas con umbral mínimo de muestra. En esta fase la pestaña de entrenador estaba limitada a desarrollo local; sigue oculta en builds de producción por `trainerWorkspaceEnabled()`.
+- Verificado en esta fase: TypeScript y las pruebas nuevas de métricas del espacio de entrenador. La web y la AAB se entregaron después; la activación funcional de la pestaña en producción sigue pendiente.
 
 ### Rotación completa de frases motivacionales — 22 de septiembre de 2026
 
 - Se integraron las 8 frases que estaban en la lista antigua en la rotación activa del entrenamiento: ahora hay 21 frases disponibles.
 - La selección diaria usa una semilla basada en la fecha: cambia cada día, permanece estable durante ese día y coincide con la frase de los recordatorios.
 - Se revisaron posibles atribuciones. Se conservaron las ya conocidas de Javi, Dalinar Kholin/Brandon Sanderson, Marco Aurelio y Yoda; se identificaron como posibles atribuciones Kratos, el proverbio yiddish y John Sanei. Las restantes quedan sin autor para no atribuirlas sin confirmación.
-- No se ha publicado esta modificación en la web ni en Android; queda preparada únicamente en local hasta nueva indicación.
+- Esta era la situación al implementar la rotación. La web se desplegó después y la AAB 1.0.36 se generó y subió posteriormente a Alpha con este código; falta comprobarlo en un Android físico.
 
 ### Envío de Android 1.0.33 a revisión — 22 de septiembre de 2026
 
@@ -321,7 +332,7 @@ Esta sección prevalece sobre cualquier nota anterior del diario relativa a la w
 - Servidores locales restaurados en 8081/8082/8083 y 8090/8091; Comunidad demo
   en 9010 con Álex y Lucía. No se han borrado datos de las pestañas del usuario.
 
-## Estado vigente — cuentas y nube, 11 de septiembre
+## Estado registrado — cuentas y nube, 11 de septiembre
 
 Esta sección prevalece sobre las entradas históricas inferiores.
 
@@ -1743,13 +1754,6 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Se cargÃ³ `assets/play/icon-512.png` en la ficha predeterminada de Akhyles.
 - Se retirÃ³ el icono anterior, se dejÃ³ Ãºnicamente el nuevo icono circular y Play Console confirmÃ³ el guardado sin errores de validaciÃ³n.
 - El cambio queda publicado como recurso de la ficha; no se modificÃ³ el binario Android ni la configuraciÃ³n del logo web.
-### Actualizaciones pendientes antes de la siguiente release - 2026-09-22
-
-- Pendiente: terminar e integrar la sincronización incremental móvil-web de forma permanente. Debe sustituir la subida completa de copias, conservar la copia local durante la migración y resolver automáticamente los cambios entre dispositivos.
-- Pendiente: completar y validar el espacio de entrenador y la gestión de clientes antes de publicarlo en Android o Web.
-- Pendiente: integrar las frases motivacionales aleatorias diarias cuando se autorice su publicación; por ahora no se actualizan ni la app ni la Web con ese contenido.
-- Recordatorio obligatorio antes de cualquier nueva release: revisar estos tres puntos y confirmar cuáles están listos, en pruebas o siguen aplazados.
-
 ### Release Android 1.0.30 / versionCode 33 preparada en Alpha - 2026-09-21
 
 - Se incrementó la versión de la app a `1.0.30` y `versionCode` `33`.
@@ -1764,6 +1768,6 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 ### Agenda de seguimiento para entrenadores — 22 de septiembre de 2026
 
 - Se integró una pestaña **Agenda** en el espacio de entrenador. Complementa «Hoy» y concentra planificación sin convertir cada sesión en una notificación.
-- La Agenda ofrece **Hoy**, **Ayer**, **Próximos 7 días** y **Calendario**. Cada sesión abre el expediente del deportista, desde donde se accede al calendario compartido con sus acciones de resultados, edición, reprogramación y plan.
-- La intención de alertas queda definida: solo excepciones configurables — vídeo técnico nuevo, incumplimiento relevante, inactividad prolongada, solicitud nueva o plan que requiere ajuste —. Se deberán agrupar en un resumen diario opcional y respetar horas silenciosas; una sesión prevista o completada nunca generará un aviso individual.
-- La interfaz usa la simulación local existente de calendarios de clientes. Para datos reales queda pendiente exponer un feed de agenda autorizado en el backend a partir del calendario compartido antes de publicar esta función en Web o Android.
+- La Agenda ofrece **Hoy**, **Ayer**, **Próximos 7 días** y **Calendario**. Cada sesión abre el expediente del deportista y su calendario de lectura; el plan gestionado se abre desde allí. La Agenda no edita ni reprograma sesiones directamente.
+- La propuesta inicial de alertas contemplaba excepciones configurables y un resumen diario opcional. Ese sistema de avisos no está implementado; el flujo visible de vídeos técnicos se retiró después.
+- En esta primera fase la Agenda usaba calendarios simulados. La integración posterior añadió datos autorizados de clientes a las API Node y PHP y sustituyó las ediciones locales no persistentes; la comprobación funcional de producción sigue pendiente.
