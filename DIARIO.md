@@ -5,7 +5,7 @@
 Este resumen se ha contrastado con el repositorio en `main` y con el estado visible de Play Console. Las entradas fechadas que siguen registran lo ocurrido en cada fase; las referencias a estados pendientes corresponden al momento de cada entrada.
 
 - **Código y versiones:** Expo SDK 57, app `1.0.38`, Android `versionCode 41` e iOS `buildNumber 1` en `app.config.ts`. Proyecto EAS `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`.
-- **Android / Google Play:** AAB `41 (1.0.38)` subida y guardada como borrador de Prueba cerrada — Alpha, con notas en es-ES. Play muestra la versión `39 (1.0.36)` como la última publicada del canal. La nueva versión no se ha enviado a revisión ni a Producción. No había dispositivo Android conectado para instalar y probar esta build.
+- **Android / Google Play:** AAB `41 (1.0.38)` subida y enviada a revisión desde Prueba cerrada — Alpha. Play Console muestra "Cambios en revisión" mientras ejecuta comprobaciones automáticas previas; indica que la revisión formal comenzará cuando terminen correctamente. Producción no iniciada. La prueba en dispositivo Android físico sigue pendiente.
 - **AAB actual:** `artifacts/android/akhyles-release.aab`, 71.098.905 bytes, SHA-256 `5DE1208313F739954D79406B28B9B241BED386701BF3ACF993F68F70290BD9EA`. Firma original comprobada, certificado SHA-1 `040ea0afd797f22730198cdb4295c4763ab86ab7`, paquete correcto, `versionCode 41`, manifiesto seguro y permisos revisados. APK acompañante SHA-256 `8D0C12F8894FA9F58C9E76FA3EA56311842BD7FCF76AFB21FC081DE4A9948B11`.
 - **Responsividad de entrenamiento:** commit `5f111a6` desacopla los campos de peso, repeticiones y notas del estado global durante la escritura. La persistencia se agrupa con 350 ms y se fuerza al perder foco, cambiar de ejercicio, salir, desmontar la pantalla o pasar a segundo plano. TypeScript y ESLint pasaron. No se midió todavía el comportamiento en dispositivo físico.
 - **Web y API:** la API PHP y la Web se actualizaron el 22/09 con las rutas de colaboración. Las URLs públicas respondieron correctamente y la Web sirve el bundle nuevo. La pestaña Entrenador sigue detrás de la condición de habilitación de producción descrita en el código; falta probar con dos cuentas reales invitación, aceptación y sincronización.
@@ -18,8 +18,8 @@ Este resumen se ha contrastado con el repositorio en `main` y con el estado visi
 - Incrementadas la versión de Android desde `1.0.37 / 40` a `1.0.38 / 41`, manteniendo el paquete y la firma Android existentes.
 - Las comprobaciones de HTTPS/DNS de Cuentas y Comunidad, `release:doctor -- android` y el análisis de dependencias pasaron; este último no detectó vulnerabilidades altas o críticas.
 - Generadas APK y AAB release con URLs de producción. La compilación Gradle terminó correctamente para ARM64 y x86_64. `verify-android.mjs` confirmó firma, certificado, paquete, versión, permisos y manifiesto.
-- Subida la AAB a **Prueba cerrada — Alpha**. Play reconoció `41 (1.0.38)`; se guardó como borrador con las notas: "Mejoras en la respuesta al registrar entrenamientos y en el guardado de tus datos. Correcciones y ajustes internos."
-- El borrador no se envió a revisión: el protocolo pide instalación y prueba en un Android físico, y `adb devices` no mostró ningún dispositivo conectado. No se inició Producción.
+- Subida la AAB a **Prueba cerrada — Alpha** y enviada a revisión desde Resumen de publicación. Play muestra **Cambios en revisión** mientras ejecuta sus comprobaciones automáticas previas (estimación indicada: hasta 14 minutos); después pasará a revisión formal si se completan correctamente. Producción no iniciada.
+- La prueba en un Android físico sigue pendiente: `adb devices` no mostró ningún dispositivo conectado. El titular pidió enviar el cambio a revisión pese a quedar esta comprobación física pendiente. No se inició Producción.
 
 ### Responsividad al editar entrenamientos — 22 de septiembre de 2026
 
