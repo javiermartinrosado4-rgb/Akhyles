@@ -6,6 +6,7 @@
 - La navegación web muestra el logo de Akhyles en la barra lateral y traslada el acceso al perfil al extremo derecho de la cabecera.
 - Se retiraron por completo los flujos de vídeos técnicos y reseñas profesionales del cliente, contrato de Comunidad y configuración de API. Las tablas históricas se conservan sin uso para no borrar datos existentes de forma irreversible.
 - Verificado: TypeScript, 172 pruebas activas, auditoría de dependencias y exportación web de producción.
+- Publicado en `https://app.akhyles.com/` tras preflight SFTP y verificación automática del bundle nuevo.
 
 ### Integración real del espacio de entrenador — 22 de septiembre de 2026
 
