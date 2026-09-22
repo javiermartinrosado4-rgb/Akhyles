@@ -1,5 +1,12 @@
 # Diario de Akhyles
 
+### Google Play Alpha: version 1.0.36 / versionCode 39 - 22 de septiembre de 2026
+
+- Subida y procesada correctamente en el canal **Prueba cerrada - Alpha** la AAB `akhyles-release.aab`.
+- Google Play reconoce `39 (1.0.36)` y las notas de version en `es-ES`.
+- El cambio queda guardado en **Resumen de publicacion**, pendiente de enviar a revision. Produccion no se ha modificado.
+- Play muestra unicamente la advertencia de mapa de desofuscacion no adjunto; no bloquea el borrador. La prueba en dispositivo fisico sigue pendiente porque `adb devices` no detecto ningun dispositivo.
+
 ### Preparación Android 1.0.36 / versionCode 39 — 22 de septiembre de 2026
 
 - Incrementada la versión desde `1.0.35 / 38` a `1.0.36 / 39`, sin reutilizar el código de Play.
