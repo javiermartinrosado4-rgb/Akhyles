@@ -70,6 +70,7 @@ const config: ExpoConfig = {
   },
   experiments: { typedRoutes: true },
   extra: {
+    eas: { projectId: "0d55315c-62ca-4ecf-a9d1-736ba51ea21d" },
     communityLocalTest: localAndroid,
     // Keep the trainer workspace experimental until it is explicitly enabled for a release.
     trainerWorkspaceExperiment: process.env.EXPO_PUBLIC_TRAINER_WORKSPACE === "1",
