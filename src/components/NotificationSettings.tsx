@@ -9,7 +9,7 @@ function Option({ label, description, value, onChange, disabled = false }: { lab
   const { colors } = useTheme();
   return <View style={{ flexDirection: "row", gap: 12, alignItems: "center", minHeight: 58 }}>
     <View style={{ flex: 1 }}><Txt weight="600" size={14}>{label}</Txt><Txt muted size={12}>{description}</Txt></View>
-    <Switch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: colors.border, true: colors.accent }} />
+    <Switch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: colors.border, true: colors.selection }} />
   </View>;
 }
 
