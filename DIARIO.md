@@ -2,14 +2,21 @@
 
 ## Estado vigente — 22 de septiembre de 2026
 
-Este resumen se ha contrastado con el repositorio en `main` (`f9a2b97`). Las entradas fechadas que siguen registran lo ocurrido en cada fase; sus frases «pendiente» o «no publicado» describen aquel momento y pueden haber sido superadas por entregas posteriores.
+Este resumen se ha contrastado con el repositorio en `main`. Las entradas fechadas que siguen registran lo ocurrido en cada fase; sus frases «pendiente» o «no publicado» describen aquel momento y pueden haber sido superadas por entregas posteriores.
 
 - **Código y versiones:** Expo SDK 57, app `1.0.36`, Android `versionCode 39` e iOS `buildNumber 1` en `app.config.ts`. El proyecto está vinculado al EAS project ID `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`.
 - **Android:** la AAB `39 (1.0.36)` se subió a Prueba cerrada — Alpha y el último estado anotado en Play fue «cambios enviados a revisión». No consta aprobación de Google, instalación de esta versión en un teléfono ni publicación en Producción. El AAB se generó después de los cambios de entrenador y de frases.
-- **Web y API:** el diario registra el despliegue del 22/09 de la web y la integración PHP del espacio de entrenador. En el código actual, la pestaña Entrenador depende de `trainerWorkspaceEnabled()`, que solo devuelve verdadero en desarrollo: la pestaña no se habilita en builds de producción. La ficha, los datos y las rutas de entrenador requieren una comprobación funcional en producción antes de dar por completado ese lanzamiento.
+- **Web y API:** la API PHP y la Web se actualizaron el 22/09 con las rutas de colaboración. Ambas URLs públicas respondieron correctamente y la Web sirve el bundle nuevo. En el código actual, la pestaña Entrenador depende de `trainerWorkspaceEnabled()`, que solo devuelve verdadero en desarrollo: la pestaña no se habilita en builds de producción. Falta comprobar con una sesión real la invitación, aceptación y sincronización de una colaboración.
 - **Frases:** hay 21 frases y una selección diaria estable en `src/content/motivation.ts`. Esos cambios preceden tanto al despliegue web registrado como a la AAB 1.0.36; no consta una prueba de la versión Android en un dispositivo físico.
 - **Sincronización:** `/sync/revision` y el flujo actual de copia completa están implementados. Sync V2 tiene entidades, outbox y servidor preparados, pero el cliente aún no usa sus operaciones incrementales como vía principal; la activación por cuenta y la migración siguen pendientes.
 - **iOS:** están definidos bundle ID, configuración EAS y componentes nativos de Google. No consta compilación iOS, TestFlight ni publicación en App Store. Falta configurar y probar el cliente OAuth iOS y su esquema de retorno, verificar firma/Apple Developer y resolver el acceso con Apple si App Review lo exige.
+
+### Actualización de API y Web para colaboraciones — 22 de septiembre de 2026
+
+- Corregida la tipificación del plugin opcional de Google para iOS en `app.config.ts`; `npm.cmd run typecheck` y `npm.cmd run release:doctor -- api` finalizaron correctamente. La auditoría de dependencias no detectó vulnerabilidades altas ni críticas.
+- Publicada la API PHP mediante SFTP tras superar su preflight de solo lectura. `https://api.akhyles.com/community/health` respondió `200` con `ok: true`. Al iniciar la API, la migración aditiva de `community_coaching` añade las columnas necesarias para las solicitudes de colaboración.
+- Exportada y publicada la Web con las URLs de producción. `npm.cmd run release:doctor -- web` fue correcto; `https://app.akhyles.com/` respondió `200` y sirve `entry-efa2fd66b7eddac7dab5ed347e7fa6e5.js`.
+- Pendiente: comprobar autenticado el recorrido de invitar, aceptar y revocar una colaboración con dos cuentas reales. No se creó ninguna relación de prueba en cuentas reales durante el despliegue.
 
 ### Vinculación inicial con Expo EAS — 22 de septiembre de 2026
 
