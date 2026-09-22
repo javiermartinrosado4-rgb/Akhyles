@@ -4,8 +4,8 @@
 
 - Subida y procesada correctamente en el canal **Prueba cerrada - Alpha** la AAB `akhyles-release.aab`.
 - Google Play reconoce `39 (1.0.36)` y las notas de version en `es-ES`.
-- El cambio queda guardado en **Resumen de publicacion**, pendiente de enviar a revision. Produccion no se ha modificado.
-- Play muestra unicamente la advertencia de mapa de desofuscacion no adjunto; no bloquea el borrador. La prueba en dispositivo fisico sigue pendiente porque `adb devices` no detecto ningun dispositivo.
+- El cambio se envio a revision desde **Resumen de publicacion**. Produccion no se ha modificado.
+- Play muestra unicamente la advertencia de mapa de desofuscacion no adjunto; no bloquea el envio. La prueba en dispositivo fisico sigue pendiente porque `adb devices` no detecto ningun dispositivo.
 
 ### Preparación Android 1.0.36 / versionCode 39 — 22 de septiembre de 2026
 
