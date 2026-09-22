@@ -96,3 +96,12 @@ El 17 de septiembre de 2026 a las 12:51 CEST se confirmó el envío 11 a **Prueb
 - AAB SHA-256: `C69853DB56618EA35BD8601FF328A0A78F99F199A178667E98613BA5F8F5A573`.
 - Uploaded to **Closed Alpha** with synchronization, visual, logo, achievements and startup-animation changes.
 - Submitted to Google Play review on 22 September 2026. Current status: **Changes under review**. Production was not started.
+
+## Entrega enviada a revisión - 1.0.33 / versionCode 36
+
+- Fixes a mobile sync conflict that could leave a completed workout local and pending after choosing the device copy.
+- Signed APK and AAB generated and verified locally; AAB SHA-256: `4C2FF22CE4130AC73BC057428E4454EE43E3EAB80003F53B713D5CFD84FC26FD`.
+- Subido a **Prueba cerrada Alpha** y enviado a revisión el 22 de septiembre de 2026.
+- Play Console muestra **Cambios en revisión** y confirma `1 cambio enviado a revisión`.
+- La advertencia de desofuscación es no bloqueante; la build no usa R8/ProGuard.
+- Producción no iniciada. La prueba en un Android físico queda pendiente hasta que Google apruebe y distribuya la versión a los testers.

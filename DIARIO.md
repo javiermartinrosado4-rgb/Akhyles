@@ -1,5 +1,23 @@
 # Diario de Akhyles
 
+### Envío de Android 1.0.33 a revisión — 22 de septiembre de 2026
+
+- La versión `1.0.33` (`versionCode 36`) se subió a **Prueba cerrada Alpha** y se envió a revisión en Google Play.
+- Play Console muestra **Cambios en revisión** y confirma `1 cambio enviado a revisión`; Producción no iniciada.
+- AAB SHA-256: `4C2FF22CE4130AC73BC057428E4454EE43E3EAB80003F53B713D5CFD84FC26FD`.
+- La advertencia de desofuscación es no bloqueante. La prueba en Android físico queda pendiente hasta la aprobación y distribución a testers.
+
+### Sincronización casi instantánea móvil-web — 22 de septiembre de 2026
+
+- Se añadió una señal autenticada y ligera de revisión (`GET /sync/revision`) que no devuelve el progreso privado. La web visible la consulta cada segundo y solo descarga el estado completo cuando la revisión cambia; se conserva la sincronización periódica y por foco como respaldo.
+- Al elegir «la copia de este dispositivo» en un conflicto, Akhyles vuelve a leer la nube y comprueba tanto la revisión como el contenido exacto antes de marcar la copia como guardada.
+- Se añadió una prueba de dos clientes abiertos y un verificador reproducible. En la ejecución local, el segundo cliente recibió el entrenamiento sin recarga en 353 ms.
+- Verificado: TypeScript y lint de los archivos modificados correctos; 45 aserciones de integración PHP correctas; export web de producción sin endpoints locales. La batería global conserva fallos anteriores ajenos en mapas/fuerza y una incompatibilidad de `tsx` con `react-native` bajo Node 24.
+- API y web publicadas tras superar ambos preflight SFTP. `https://api.akhyles.com/sync/revision` responde 401 sin autenticación (ruta activa y protegida) y `https://app.akhyles.com/` sirve `entry-6b937cff85eb68700e7597890f0b5aa2.js`, que contiene la nueva señal de revisión y la API de producción.
+- La comprobación posterior con el teléfono real mostró que la versión 1.0.32 podía conservar el entrenamiento local y quedar en «sincronización pendiente» cuando la revisión cambiaba al resolver un conflicto. La nube y la web seguían en la copia del 21/9, por lo que el fallo se delimitó al envío móvil, no al receptor web.
+- Android 1.0.33 (`versionCode 36`) reintenta inmediatamente una revisión concurrente y no cierra «usar este dispositivo» hasta volver a descargar y comparar exactamente la copia publicada. La prueba provocó una segunda revisión entre la elección y el envío: el reintento conservó la copia local y el receptor abierto la obtuvo en 261 ms.
+- APK y AAB firmados de 1.0.33 generados y verificados localmente. SHA-256: APK `142AF9856757A812C6B7375397FD6235A087B6770979BF3A867AC738EBC5FDAE`; AAB `4C2FF22CE4130AC73BC057428E4454EE43E3EAB80003F53B713D5CFD84FC26FD`. No se han subido a Google Play ni enviado a revisión; falta la prueba en un Android físico.
+
 ### Rediseño visual de Akhyles — 21 de septiembre de 2026
 
 - Se trasladaron las referencias visuales aprobadas a `referencias-visuales/Estetica de la app/Nuevo Diseño Akhyles/`.

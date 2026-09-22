@@ -220,7 +220,7 @@ export function BodyMap({ categories, sex }: { categories: MuscleScore[]; sex?: 
         {categories.map(category => {
           const look = muscleAppearance(category.value, dark);
           return <Pressable key={category.id} accessibilityRole="checkbox" accessibilityLabel={t("{name}: {score}. {level}", { name: t(category.name), score: hasMuscleScore(category.value) ? t("{n} puntos", { n: number(category.value) }) : t("Sin datos"), level: t(look.label) })} accessibilityState={{ checked: !excluded.has(category.id) }} aria-checked={!excluded.has(category.id)} onPress={() => select(category.id)}
-            style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 7, minHeight: 44, paddingHorizontal: 11, borderRadius: 10, borderWidth: 1, borderColor: !excluded.has(category.id) ? colors.accent : colors.border, backgroundColor: !excluded.has(category.id) ? colors.accentSoft : "transparent", opacity: pressed ? 0.65 : 1 })}>
+            style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 7, minHeight: 44, paddingHorizontal: 11, borderRadius: 10, borderWidth: 1, borderColor: !excluded.has(category.id) ? colors.selectionHighlight : colors.border, backgroundColor: !excluded.has(category.id) ? colors.accentSoft : "transparent", opacity: pressed ? 0.65 : 1 })}>
             <Icon name={!excluded.has(category.id) ? "check-square" : "square"} size={14} color={colors.muted} />
             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: look.color }} />
             <Txt size={12} weight={!excluded.has(category.id) ? "600" : "400"}>{category.name}</Txt>

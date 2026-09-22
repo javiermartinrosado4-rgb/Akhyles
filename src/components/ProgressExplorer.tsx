@@ -8,7 +8,7 @@ import { allExercises, displayName } from "../logic/routine";
 import { bodyWeightProgress, ChartPoint, exerciseProgress, periodProgress, scoreProgress } from "../logic/progress";
 import { presentationPoints } from "../logic/achievements";
 import { number } from "../logic/validation";
-import { Button, Card, Choice, Field, GoldSurface, Icon, Notice, Row, Txt } from "./ui";
+import { Button, Card, Choice, Field, Icon, Notice, Row, Txt } from "./ui";
 import { ChartSeries, LineChart } from "./LineChart";
 
 type PeriodMode = "month" | "year" | "all";
@@ -40,14 +40,13 @@ function PeriodChip({ label, selected, disabled, onPress }: { label: string; sel
       justifyContent: "center",
       borderRadius: 13,
       borderWidth: 1,
-      borderColor: selected ? colors.accent : colors.border,
-      backgroundColor: selected ? colors.accent : colors.surface,
+      borderColor: selected ? colors.selectionHighlight : colors.border,
+      backgroundColor: selected ? colors.selection : colors.surface,
       position: "relative",
       overflow: "hidden",
       opacity: disabled ? 0.35 : pressed ? 0.76 : 1,
     })}
   >
-    {selected && <GoldSurface />}
     <Txt size={13} weight="600" style={{ color: selected ? colors.onAccent : colors.text }}>{label}</Txt>
   </Pressable>;
 }

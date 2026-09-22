@@ -13,7 +13,7 @@ import { PublishedRoutine } from "../services/community";
 import { BodyMap } from "./BodyMap";
 import { PeriodSelector } from "./ProgressExplorer";
 import { LineChart, ChartSeries } from "./LineChart";
-import { Button, Card, Choice, GoldSurface, Icon, Row, Txt } from "./ui";
+import { Button, Card, Choice, Icon, Row, Txt } from "./ui";
 import { presentationPoints } from "../logic/achievements";
 
 type Section = "summary" | "charts" | "sessions";
@@ -124,7 +124,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
     {section === "sessions" && <>
       {!routineId ? <Txt muted>Esta persona no ha compartido su rutina contigo.</Txt> : routineError ? <><Txt muted>{routineError}</Txt><Button label="Reintentar" onPress={() => setRetry(value => value + 1)} /></> : !routine ? <Txt muted>Cargando rutina…</Txt> : <>
         <Card><Txt weight="600">Su semana</Txt><Row style={{ flexWrap: "wrap" }}>
-          {routine.days.map((day, index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={day.name} accessibilityState={{ selected: dayIndex === index }} onPress={() => setDayIndex(dayIndex === index ? null : index)} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, overflow: "hidden", position: "relative", justifyContent: "center", backgroundColor: dayIndex === index ? colors.accent : colors.accentSoft, opacity: pressed ? 0.78 : 1 })}>{dayIndex === index && <GoldSurface />}<Txt translate={false} size={13} weight="600" style={{ color: dayIndex === index ? colors.onAccent : colors.accent }}>{day.name}</Txt></Pressable>)}
+          {routine.days.map((day, index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={day.name} accessibilityState={{ selected: dayIndex === index }} onPress={() => setDayIndex(dayIndex === index ? null : index)} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, overflow: "hidden", position: "relative", justifyContent: "center", backgroundColor: dayIndex === index ? colors.selection : colors.accentSoft, opacity: pressed ? 0.78 : 1 })}><Txt translate={false} size={13} weight="600" style={{ color: dayIndex === index ? colors.onAccent : colors.accent }}>{day.name}</Txt></Pressable>)}
         </Row></Card>
         {dayIndex !== null && routine.days[dayIndex] && <Card style={{ backgroundColor: colors.accentSoft }}>
           <Txt muted size={12}>RUTINA COMPARTIDA</Txt>

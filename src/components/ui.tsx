@@ -275,7 +275,7 @@ export function Choice({
         borderColor: focus
           ? colors.text
           : selected
-            ? colors.accent
+            ? colors.selection
             : colors.border,
         backgroundColor: selected ? colors.accentSoft : colors.surface,
         flexDirection: "row",
@@ -300,8 +300,8 @@ export function Choice({
           height: 20,
           borderRadius: 10,
           borderWidth: 1.5,
-          borderColor: selected ? colors.accent : colors.muted,
-          backgroundColor: selected ? colors.accent : "transparent",
+          borderColor: selected ? colors.selectionHighlight : colors.muted,
+          backgroundColor: selected ? colors.selection : "transparent",
           alignItems: "center",
           justifyContent: "center",
         }}

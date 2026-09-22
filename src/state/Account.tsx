@@ -128,7 +128,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (active()) setStatus(snapshot(getState())===getState().cloud?.base ? "saved" : "pending");
     } catch(e) {
       if (!active()) return;
-      if (e instanceof AccountError && e.status===409) { setStatus("pending"); setError("La nube ha cambiado. Vamos a revisar la nueva copia."); }
+      if (e instanceof AccountError && e.status===409) {
+        setStatus("pending"); setError("La nube ha cambiado. Vamos a revisar la nueva copia."); rerun.current=true;
+      }
       else report(e);
     } finally {
       busy.current=false;
@@ -138,7 +140,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     }
   },[getState,persist,report,showConflict,storeReady]);
-  syncRef.current=sync;
+  useEffect(() => { syncRef.current=sync; },[sync]);
   const accept = useCallback(async (result: AccountSession) => {
     generation.current++;
     const local=getState();
@@ -202,6 +204,23 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     };
   },[sync]);
+  useEffect(() => {
+    if (!ready || !storeReady || !session || state.signedOut) return;
+    let stopped=false, polling=false;
+    const visible=()=>Platform.OS!=="web" || typeof document==="undefined" || document.visibilityState==="visible";
+    const poll=async()=>{
+      if(stopped || polling || !visible()) return;
+      polling=true;
+      try {
+        const remote=await accountRequest<{revision:number;updated:string}>("/sync/revision",session.token);
+        if(!stopped && Number.isSafeInteger(remote.revision) && remote.revision!==getState().cloud?.revision) await syncRef.current();
+      } catch { /* The regular sync path reports persistent connectivity failures. */ }
+      finally { polling=false; }
+    };
+    void poll();
+    const timer=setInterval(()=>void poll(),Platform.OS==="web"?1000:2000);
+    return()=>{stopped=true;clearInterval(timer);};
+  },[ready,storeReady,session,state.signedOut,getState]);
   const resolve = useCallback(async (choice:"local"|"cloud") => {
     const c=conflictRef.current, s=current.current;
     if (!c || !s || busy.current) return;
@@ -215,11 +234,31 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         if (snapshot(getState())!==snapshot(local)) throw new Error("Has editado tu progreso. Revisa la elección de nuevo.");
         await persist(v=>acknowledge({...v,...cloudState(c.remote.state!),signedOut:false},s.user.id,c.remote.revision,snapshot(c.remote.state!),c.remote.updated));
       } else {
-        const result=await accountRequest<{revision:number;updated:string}>("/sync",s.token,"PUT",{revision:c.remote.revision,state:cloudState(local)});
-        if (epoch!==generation.current) return;
-        await persist(v=>acknowledge(v,s.user.id,result.revision,snapshot(local),result.updated));
+        const sent=snapshot(local);
+        let revision=c.remote.revision, confirmed:RemoteCopy|null=null;
+        for(let attempt=0;attempt<3&&!confirmed;attempt++) {
+          if(epoch!==generation.current) return;
+          if(snapshot(getState())!==sent) throw new Error("Has editado tu progreso. Revisa la elección de nuevo.");
+          try {
+            const result=await accountRequest<{revision:number;updated:string}>("/sync",s.token,"PUT",{revision,state:cloudState(local)});
+            if(epoch!==generation.current) return;
+            const check=await accountRequest<RemoteCopy>("/sync",s.token);
+            if(epoch!==generation.current) return;
+            if(check.revision===result.revision && check.state && snapshot(decodeState(JSON.stringify(cloudState(check.state))))===sent) confirmed=check;
+            else revision=check.revision;
+          } catch(e) {
+            if(!(e instanceof AccountError) || e.status!==409) throw e;
+            const latest=await accountRequest<RemoteCopy>("/sync",s.token);
+            if(epoch!==generation.current) return;
+            revision=latest.revision;
+          }
+        }
+        if(!confirmed) throw new Error("La nube ha seguido cambiando y no ha confirmado la copia de este dispositivo. Tus datos locales se conservan; vuelve a intentarlo.");
+        await persist(v=>acknowledge(v,s.user.id,confirmed!.revision,sent,confirmed!.updated));
       }
-      showConflict(null); setError(""); setStatus("pending");
+      showConflict(null); setError("");
+      setStatus(snapshot(getState())===getState().cloud?.base ? "saved" : "pending");
+      if(snapshot(getState())!==getState().cloud?.base) setTimeout(()=>void syncRef.current(),0);
     } catch(e) {
       if (e instanceof AccountError && e.status===409) { showConflict(null); setStatus("pending"); }
       else report(e);

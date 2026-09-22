@@ -29,6 +29,7 @@ $bob=register('bob@example.test');
 $state=['version'=>1,'profile'=>['weight'=>'80'],'preferences'=>[],'onboardingStep'=>0,'completed'=>true,'theme'=>'system','routine'=>[],'history'=>[['id'=>'workout-1','records'=>[]]]];
 $state['routineVersions']=[['effectiveFrom'=>'2026-08-01','profile'=>['weight'=>'80','sex'=>'male','days'=>4],'routine'=>[]]];
 $saved=call('PUT','/sync',['revision'=>0,'state'=>$state],$alice['token']);check($saved['revision']===1,'first progress upload');
+$revision=call('GET','/sync/revision',[],$alice['token']);check($revision['revision']===1&&!array_key_exists('state',$revision),'lightweight revision signal omits private progress payload');
 $v2status=call('GET','/sync/v2/status',[],$alice['token']);check($v2status['enabled']===false,'sync v2 is disabled by default');
 $db->prepare('UPDATE account_sync_meta SET v2_enabled=1 WHERE user_id=?')->execute([$alice['user']['id']]);
 $op=['opId'=>'sync2-test-operation-0001','type'=>'state','id'=>'primary','baseRevision'=>0,'data'=>['version'=>1,'marker'=>'v2-private']];

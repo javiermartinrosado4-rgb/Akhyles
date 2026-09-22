@@ -43,6 +43,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(state.profile);
   const [prefs, setPrefs] = useState(state.preferences);
   const [strengthReferences, setStrengthReferences] = useState<StrengthReference[]>(state.strengthReferences ?? []);
+  const [confirmTrainerDisable, setConfirmTrainerDisable] = useState(false);
   const [communityProfile, setCommunityProfile] = useState<CommunityUser | null>(user);
   const [communityDraft, setCommunityDraft] = useState<CommunityUser | null>(user);
   const [achievementCount, setAchievementCount] = useState(0);
@@ -83,7 +84,7 @@ export default function Profile() {
     if (communityDraft) setCommunityDraft(value => value ? { ...value, avatar } : value);
   };
   const openEditor = () => {
-    setProfile(state.profile); setPrefs(state.preferences); setStrengthReferences(state.strengthReferences ?? []); setCommunityDraft(communityProfile ?? user); setErrors({}); setMessage(""); setSection(null); setEditing(true);
+    setProfile(state.profile); setPrefs(state.preferences); setStrengthReferences(state.strengthReferences ?? []); setCommunityDraft(communityProfile ?? user); setConfirmTrainerDisable(false); setErrors({}); setMessage(""); setSection(null); setEditing(true);
   };
   const save = async () => {
     const found = profileErrors(profile);
@@ -170,7 +171,7 @@ export default function Profile() {
     <View style={{ gap: 8 }}>
       {([
         ["training", "Entrenamiento", "activity"], ["community", "Comunidad", "users"], ["app", "App y cuenta", "settings"],
-      ] as const).map(([id, label, icon]) => <Pressable key={id} accessibilityRole="button" accessibilityState={{ expanded: section === id }} onPress={() => setSection(value => value === id ? null : id)} style={({ pressed }) => ({ minHeight: 62, paddingHorizontal: 16, borderRadius: 15, borderWidth: 1, borderColor: section === id ? colors.accent : colors.border, backgroundColor: section === id ? colors.accentSoft : colors.surface, flexDirection: "row", alignItems: "center", gap: 12, opacity: pressed ? 0.75 : 1 })}>
+      ] as const).map(([id, label, icon]) => <Pressable key={id} accessibilityRole="button" accessibilityState={{ expanded: section === id }} onPress={() => setSection(value => value === id ? null : id)} style={({ pressed }) => ({ minHeight: 62, paddingHorizontal: 16, borderRadius: 15, borderWidth: 1, borderColor: section === id ? colors.selectionHighlight : colors.border, backgroundColor: section === id ? colors.selection : colors.surface, flexDirection: "row", alignItems: "center", gap: 12, opacity: pressed ? 0.75 : 1 })}>
         <Icon name={icon} /><Txt weight="600" style={{ flex: 1 }}>{label}</Txt><Icon name={section === id ? "chevron-up" : "chevron-down"} size={18} />
       </Pressable>)}
     </View>
@@ -195,6 +196,18 @@ export default function Profile() {
         <Field label="Ciudad" value={communityDraft.city ?? ""} onChangeText={city => setCommunityDraft(value => value ? { ...value, city } : value)} maxLength={80} />
         <TrainingSharingSelect value={communityDraft.trainingVisibility ?? communityDraft.progressVisibility ?? "private"} disabled={busy} onChange={value => void updateTrainingVisibility(value)} />
         <CommunityPrivacyToggle label="Participar en rankings" description="Muestra A-Points y cobertura de grupos" value={!!communityDraft.rankingPublic} disabled={busy} onChange={() => void updatePrivacy({ rankingPublic: !communityDraft.rankingPublic })} />
+        <CommunityPrivacyToggle label="Ofrezco entrenamiento" description="Las personas podrán solicitar una colaboración contigo" value={!!communityDraft.trainerEnabled} disabled={busy} onChange={() => {
+          if (communityDraft.trainerEnabled) setConfirmTrainerDisable(true);
+          else setCommunityDraft(value => value ? { ...value, trainerEnabled: true } : value);
+        }} />
+        {confirmTrainerDisable && <Card style={{ backgroundColor: colors.accentSoft, borderColor: colors.selectionHighlight }}>
+          <Txt weight="600">¿Desactivar el perfil de entrenador?</Txt>
+          <Txt muted size={13}>Dejarás de aparecer como entrenador y no podrán solicitar nuevas colaboraciones. Las colaboraciones activas no se borrarán.</Txt>
+          <Row>
+            <Button label="Confirmar desactivación" compact onPress={() => { setCommunityDraft(value => value ? { ...value, trainerEnabled: false } : value); setConfirmTrainerDisable(false); }} />
+            <Button label="Cancelar" compact variant="ghost" onPress={() => setConfirmTrainerDisable(false)} />
+          </Row>
+        </Card>}
       </> : <><Txt muted>Conecta tu cuenta para configurar tu perfil social y su privacidad.</Txt><Button label="Conectar Comunidad" icon="users" variant="secondary" onPress={() => router.push("/community")} /></>}
     </Card>}
     {section === "app" && <>

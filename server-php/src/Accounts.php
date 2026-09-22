@@ -365,6 +365,10 @@ final class Accounts {
             return ['ok'=>true,'manifest'=>$manifest];
         }
         if ($path === '/sync/v2/batch' && $method === 'POST') return $this->syncV2Batch($uid,$data);
+        if ($path === '/sync/revision' && $method === 'GET') {
+            $p = $this->one('SELECT revision,updated FROM account_progress WHERE user_id=?',[$uid]);
+            return ['revision'=>(int)$p['revision'],'updated'=>$p['updated']];
+        }
         if ($path === '/sync' && $method === 'GET') {
             $p = $this->one('SELECT * FROM account_progress WHERE user_id=?',[$uid]);
             return ['revision'=>(int)$p['revision'],'updated'=>$p['updated'],'state'=>$p['payload'] ? $this->normalizeState($this->decrypt($p['payload'],'progress:'.$uid)) : null];

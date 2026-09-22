@@ -1,7 +1,7 @@
 import { Modal, Pressable, View } from "react-native";
 import { useMemo, useState } from "react";
 import { useLanguage } from "../i18n";
-import { Button, Card, GoldSurface, Txt } from "./ui";
+import { Button, Card, Txt } from "./ui";
 import { useTheme } from "../theme";
 
 const atNoon = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12);
@@ -42,7 +42,7 @@ export function BirthDatePicker({ value, error, onChange }: { value?: string; er
           <View style={{ flexDirection: "row" }}>{Array.from({ length: 7 }, (_, index) => <Txt key={index} size={11} muted style={{ width: "14.285%", textAlign: "center" }}>{new Date(2024, 0, index + 1).toLocaleDateString(locale, { weekday: "narrow" })}</Txt>)}</View>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>{days.map(date => {
             const sameMonth = date.getMonth() === cursor.getMonth(), picked = !!selected && dateKey(date) === dateKey(selected), disabled = date > maximum;
-            return <Pressable key={dateKey(date)} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(locale)} disabled={disabled} onPress={() => choose(date)} style={({ pressed }) => ({ width: "14.285%", minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 9, overflow: "hidden", position: "relative", opacity: !sameMonth || disabled ? 0.32 : pressed ? 0.72 : 1, backgroundColor: picked ? colors.accent : "transparent" })}>{picked && <GoldSurface />}<Txt weight={picked ? "600" : "400"} style={{ color: picked ? colors.onAccent : colors.text }}>{date.getDate()}</Txt></Pressable>;
+            return <Pressable key={dateKey(date)} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(locale)} disabled={disabled} onPress={() => choose(date)} style={({ pressed }) => ({ width: "14.285%", minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 9, overflow: "hidden", position: "relative", opacity: !sameMonth || disabled ? 0.32 : pressed ? 0.72 : 1, backgroundColor: picked ? colors.selection : "transparent" })}><Txt weight={picked ? "600" : "400"} style={{ color: picked ? colors.onAccent : colors.text }}>{date.getDate()}</Txt></Pressable>;
           })}</View>
           <Button label="Cerrar" compact variant="ghost" onPress={() => setOpen(false)} />
         </Card>
