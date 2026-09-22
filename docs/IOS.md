@@ -30,6 +30,8 @@ Estado de preparación: 22 de septiembre de 2026.
   relevante para el vendedor visible en la App Store.
 - Crear el App ID y la ficha de Akhyles en App Store Connect.
 - Vincular la cuenta con EAS y configurar certificados/perfiles de firma.
+- Iniciar sesión en EAS CLI con la cuenta propietaria y comprobar `eas project:info`
+  antes de solicitar la primera build.
 - Crear y probar el cliente OAuth de Google para iOS.
 - Configurar `AKHYLES_GOOGLE_IOS_URL_SCHEME` en el entorno EAS de producción
   con el valor `REVERSED_CLIENT_ID` del cliente OAuth iOS. La configuración de
