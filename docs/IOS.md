@@ -1,6 +1,6 @@
 # Publicación de Akhyles en iOS
 
-Estado de preparación: 16 de septiembre de 2026.
+Estado de preparación: 22 de septiembre de 2026.
 
 ## Ya preparado
 
@@ -9,6 +9,8 @@ Estado de preparación: 16 de septiembre de 2026.
   `com.javiermartinrosado.akhyles` y el primer `buildNumber` (`1`).
 - El perfil `production` de `eas.json` permite generar la build iOS en EAS sin
   mantener una carpeta `ios/` en el repositorio.
+- El repositorio está vinculado al proyecto EAS `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`
+  desde `extra.eas.projectId` en `app.config.ts`.
 - Icono, splash, localización español/inglés, selector de fotografías y
   notificaciones están declarados mediante la configuración de Expo.
 - Las URLs de producción de Cuentas y Comunidad se validan como HTTPS antes de

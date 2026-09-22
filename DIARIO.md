@@ -1,5 +1,12 @@
 # Diario de Akhyles
 
+### Vinculación inicial con Expo EAS — 22 de septiembre de 2026
+
+- Creada la organización/proyecto EAS desde Expo y guardado su identificador en `app.config.ts` (`extra.eas.projectId`).
+- Instalado el complemento oficial de Expo para Codex en el perfil local de este equipo; no forma parte del repositorio y cada Mac puede instalarlo si lo desea.
+- Verificada la configuración Expo de producción con bundle ID `com.javiermartinrosado.akhyles`, versión `1.0.36`, EAS project ID correcto, modo de Comunidad local desactivado y sin tráfico cleartext.
+- La CLI EAS no terminó de descargarse en este equipo; la comprobación de acceso del propietario y de la asociación remota con `eas project:info` queda pendiente en el Mac antes de compilar.
+
 ### Google Play Alpha: version 1.0.36 / versionCode 39 - 22 de septiembre de 2026
 
 - Subida y procesada correctamente en el canal **Prueba cerrada - Alpha** la AAB `akhyles-release.aab`.
