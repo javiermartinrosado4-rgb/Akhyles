@@ -1,8 +1,8 @@
 import { useLanguage } from "../i18n";
 import { messages } from "../content/es";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Redirect, router } from "expo-router";
-import { Pressable, Switch, View } from "react-native";
+import { AppState as NativeAppState, Pressable, Switch, View } from "react-native";
 import {
   Button,
   Card,
@@ -20,7 +20,7 @@ import { useAccount } from "../state/Account";
 import { allExercises, displayName, getExercise, restSeconds } from "../logic/routine";
 import { applyExerciseRecommendation, draftFor, finishWorkout } from "../logic/workout";
 import { number, validWeight } from "../logic/validation";
-import { ExerciseRecord, SetRecord, PlannedWorkout } from "../types";
+import { ActiveWorkout, AppState, ExerciseRecord, SetDraft, SetRecord, PlannedWorkout } from "../types";
 import { WeightSuggestion } from "../components/WeightSuggestion";
 import { useTheme } from "../theme";
 import { Calories } from "../components/Calories";
@@ -40,6 +40,28 @@ const draftFromRecord = (sets: SetRecord[], mode: LoadInputMode = "total", exerc
     } : {}),
   }));
 
+type LiveExerciseInput = {
+  key: string;
+  draft: SetDraft[];
+  barWeight: string;
+  apparatusWeight: string;
+  note: string;
+  revision: number;
+};
+
+const liveInputFor = (state: AppState, active?: ActiveWorkout): LiveExerciseInput => {
+  if (!active) return { key: "", draft: [], barWeight: "0", apparatusWeight: "0", note: "", revision: 0 };
+  const entry = active.day.exercises[active.index];
+  return {
+    key: `${active.startedAt}:${active.historical?.workoutId ?? "active"}:${entry.id}`,
+    draft: active.draft.map(set => ({ ...set })),
+    barWeight: active.barWeights?.[entry.exerciseId] ?? String(defaultBarWeight(entry.exerciseId)),
+    apparatusWeight: active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0),
+    note: state.preferences.notes?.[entry.exerciseId] ?? "",
+    revision: 0,
+  };
+};
+
 export default function Workout() {
   const { t } = useLanguage();
   const { state, update } = useStore();
@@ -54,6 +76,34 @@ export default function Workout() {
   const [editingExercise, setEditingExercise] = useState(false);
   const [exerciseMenuOpen, setExerciseMenuOpen] = useState(false);
   const active = state.active;
+  const activeKey = active ? `${active.startedAt}:${active.historical?.workoutId ?? "active"}:${active.day.exercises[active.index].id}` : "";
+  const [liveInput, setLiveInput] = useState<LiveExerciseInput>(() => liveInputFor(state, active));
+  const liveInputRef = useRef(liveInput);
+  const dirtyInput = useRef(false);
+  const flushInputRef = useRef<() => void>(() => undefined);
+
+  useEffect(() => {
+    const next = liveInputFor(state, active);
+    liveInputRef.current = next;
+    dirtyInput.current = false;
+    setLiveInput(next);
+  }, [activeKey]);
+
+  useEffect(() => {
+    if (!dirtyInput.current) return;
+    const timer = setTimeout(() => flushInputRef.current(), 350);
+    return () => clearTimeout(timer);
+  }, [liveInput.revision]);
+
+  useEffect(() => {
+    const subscription = NativeAppState.addEventListener("change", nextState => {
+      if (nextState !== "active") flushInputRef.current();
+    });
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => () => flushInputRef.current(), []);
+
   if (!state.completed || state.signedOut) return <Redirect href="/" />;
   if (!active) {
     const workout = state.history.at(-1);
@@ -96,23 +146,57 @@ export default function Workout() {
   const entry = active.day.exercises[active.index];
   const historical = active.historical;
   const readOnly = !!historical?.readOnly;
+  const exercise = getExercise(entry.exerciseId, state.preferences);
+  const hasApparatusWeight = (exercise.variant === "machine" || exercise.variant === "smith") && supportsApparatusWeight(entry.exerciseId);
+  const hasAddedBaseWeight = supportsBarWeight(entry.exerciseId) || hasApparatusWeight;
+  const changeLiveInput = (change: (current: LiveExerciseInput) => LiveExerciseInput) => {
+    const next = { ...change(liveInputRef.current), revision: liveInputRef.current.revision + 1 };
+    dirtyInput.current = true;
+    liveInputRef.current = next;
+    setLiveInput(next);
+  };
+  const flushLiveInput = () => {
+    if (!dirtyInput.current) return;
+    const input = liveInputRef.current;
+    if (input.key !== activeKey) return;
+    dirtyInput.current = false;
+    update(current => {
+      if (!current.active || current.active.day.exercises[current.active.index]?.id !== entry.id) return current;
+      const nextActive = {
+        ...current.active,
+        draft: input.draft,
+        drafts: { ...(current.active.drafts ?? {}), [entry.id]: input.draft },
+        ...(supportsBarWeight(entry.exerciseId) ? { barWeights: { ...current.active.barWeights, [entry.exerciseId]: input.barWeight } } : {}),
+        ...(hasApparatusWeight ? { apparatusWeights: { ...current.active.apparatusWeights, [entry.exerciseId]: input.apparatusWeight } } : {}),
+      };
+      return historical ? { ...current, active: nextActive } : {
+        ...current,
+        active: nextActive,
+        preferences: {
+          ...current.preferences,
+          ...(supportsBarWeight(entry.exerciseId) && input.barWeight.trim() && validBarWeight(number(input.barWeight)) ? { barWeights: { ...current.preferences.barWeights, [entry.exerciseId]: number(input.barWeight) } } : {}),
+          ...(hasApparatusWeight && input.apparatusWeight.trim() && validBarWeight(number(input.apparatusWeight)) ? { apparatusWeights: { ...current.preferences.apparatusWeights, [entry.exerciseId]: number(input.apparatusWeight) } } : {}),
+          notes: { ...(current.preferences.notes ?? {}), [entry.exerciseId]: input.note.slice(0, 300) },
+        },
+      };
+    });
+  };
+  flushInputRef.current = flushLiveInput;
   const closeHistorical = () => {
+    flushLiveInput();
     update(s => ({ ...s, active: undefined }));
     router.replace("/routine");
   };
-  const exercise = getExercise(entry.exerciseId, state.preferences);
   const skipped = active.skipped ?? [];
   const drafts = active.drafts ?? { [entry.id]: active.draft };
   const completed = new Set(active.records.map((record) => record.prescription.id));
   const isSkipped = skipped.includes(entry.id);
   const loadMode = active.loadModes?.[entry.id] ?? state.preferences.loadModes?.[entry.exerciseId] ?? defaultLoadInputMode(entry.exerciseId);
-  const barWeightText = active.barWeights?.[entry.exerciseId] ?? String(defaultBarWeight(entry.exerciseId));
-  const apparatusWeightText = active.apparatusWeights?.[entry.exerciseId] ?? String(state.preferences.apparatusWeights?.[entry.exerciseId] ?? 0);
+  const barWeightText = liveInput.barWeight;
+  const apparatusWeightText = liveInput.apparatusWeight;
   const machineBrand = active.machineBrands?.[entry.id] ?? entry.machineBrand ?? state.preferences.machineBrands?.[entry.exerciseId];
   const isBodyweight = exercise.variant === "bodyweight";
   const canIdentifyMachine = !["free", "bodyweight"].includes(exercise.variant);
-  const hasApparatusWeight = (exercise.variant === "machine" || exercise.variant === "smith") && supportsApparatusWeight(entry.exerciseId);
-  const hasAddedBaseWeight = supportsBarWeight(entry.exerciseId) || hasApparatusWeight;
   const baseWeightText = supportsBarWeight(entry.exerciseId) ? barWeightText : apparatusWeightText;
   const baseWeightLabel = supportsBarWeight(entry.exerciseId) ? "Peso de la barra" : "Peso del aparato";
   const weighted = active.weighted?.[entry.id] ?? false;
@@ -147,20 +231,12 @@ export default function Workout() {
   const changeBarWeight = (value: string) => {
     setError("");
     setSavedNotice(false);
-    update(s => !s.active ? s : ({ ...s,
-      active: { ...s.active, barWeights: { ...s.active.barWeights, [entry.exerciseId]: value } },
-      preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
-        barWeights: { ...s.preferences.barWeights, [entry.exerciseId]: number(value) } } : s.preferences,
-    }));
+    changeLiveInput(current => ({ ...current, barWeight: value }));
   };
   const changeApparatusWeight = (value: string) => {
     setError("");
     setSavedNotice(false);
-    update(s => !s.active ? s : ({ ...s,
-      active: { ...s.active, apparatusWeights: { ...s.active.apparatusWeights, [entry.exerciseId]: value } },
-      preferences: !historical && value.trim() && validBarWeight(number(value)) ? { ...s.preferences,
-        apparatusWeights: { ...s.preferences.apparatusWeights, [entry.exerciseId]: number(value) } } : s.preferences,
-    }));
+    changeLiveInput(current => ({ ...current, apparatusWeight: value }));
   };
   const changeMachineBrand = (brand?: string) => {
     setSavedNotice(false);
@@ -175,10 +251,9 @@ export default function Workout() {
   ) => {
     setError("");
     setSavedNotice(false);
-    update((s) => {
-      if (!s.active) return s;
-      const original = s.active.draft[index];
-      const replace = (set: typeof s.active.draft[number]) => field === "weight" && loadMode === "per-side" && !asymmetricEnabled
+    changeLiveInput(current => {
+      const original = current.draft[index];
+      const replace = (set: SetDraft) => field === "weight" && loadMode === "per-side" && !asymmetricEnabled
         ? { ...set, weight: value, leftWeight: value, rightWeight: value }
         : field === "reps" && loadMode === "per-side" && !asymmetricEnabled
           ? { ...set, reps: value, leftReps: value, rightReps: value }
@@ -186,7 +261,7 @@ export default function Workout() {
       // The first entered set is a useful default for the rest. A later set
       // still follows the default when it is blank or still equal to the
       // original first-set suggestion; a distinct edit is always preserved.
-      const draft = s.active.draft.map((set, i) => {
+      const draft = current.draft.map((set, i) => {
         if (i === index) return replace(set);
         if (index !== 0 || i < 1 || !value.trim()) return set;
         if (field === "weight" && (!set.weight.trim() || set.weight === original.weight)) return replace(set);
@@ -197,43 +272,41 @@ export default function Workout() {
         if (field === "rightReps" && (!(set.rightReps ?? "").trim() || set.rightReps === original.rightReps)) return replace(set);
         return set;
       });
-      return {
-        ...s,
-        active: {
-          ...s.active,
-          draft,
-          drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft },
-        },
-      };
+      return { ...current, draft };
     });
   };
   const changeAsymmetric = (value: boolean) => update(s => {
     if (!s.active) return s;
-    const values = Array.from({ length: s.active.draft.length }, () => value);
+    const values = Array.from({ length: liveInputRef.current.draft.length }, () => value);
     return { ...s, active: { ...s.active, asymmetricSets: { ...(s.active.asymmetricSets ?? {}), [entry.id]: values } } };
   });
 
   const changeLoadMode = (nextMode: LoadInputMode) => {
     if (nextMode === loadMode) return;
     setSavedNotice(false);
+    const input = liveInputRef.current;
+    const bar = number(input.barWeight) || 0;
+    const toPlates = (value: number, mode: LoadInputMode) => mode === "total-with-bar" ? Math.max(0, value - bar) : toStoredLoad(value, mode, entry.exerciseId);
+    const fromPlates = (value: number, mode: LoadInputMode) => mode === "total-with-bar" ? value + bar : fromStoredLoad(value, mode, entry.exerciseId);
+    const draft = input.draft.map(set => {
+      // When leaving per-side mode, the side fields are the latest edit;
+      // set.weight may still contain the old derived total.
+      const currentValue = loadMode === "per-side"
+        ? Math.min(number(set.leftWeight ?? set.weight), number(set.rightWeight ?? set.weight))
+        : number(set.weight);
+      const weight = formatLoad(fromPlates(toPlates(currentValue, loadMode), nextMode));
+      // Per-side input always presents one complete row per arm. Seed both
+      // sides from the existing total so switching modes never loses a set.
+      return nextMode === "per-side"
+        ? { ...set, weight, leftWeight: set.leftWeight ?? weight, rightWeight: set.rightWeight ?? weight, leftReps: set.leftReps ?? set.reps, rightReps: set.rightReps ?? set.reps }
+        : { ...set, weight, leftWeight: undefined, rightWeight: undefined, leftReps: undefined, rightReps: undefined };
+    });
+    const nextInput = { ...input, draft, revision: input.revision + 1 };
+    dirtyInput.current = false;
+    liveInputRef.current = nextInput;
+    setLiveInput(nextInput);
     update(s => {
       if (!s.active) return s;
-      const bar = number(barWeightText) || 0;
-      const toPlates = (value: number, mode: LoadInputMode) => mode === "total-with-bar" ? Math.max(0, value - bar) : toStoredLoad(value, mode, entry.exerciseId);
-      const fromPlates = (value: number, mode: LoadInputMode) => mode === "total-with-bar" ? value + bar : fromStoredLoad(value, mode, entry.exerciseId);
-      const draft = s.active.draft.map(set => {
-        // When leaving per-side mode, the side fields are the latest edit;
-        // set.weight may still contain the old derived total.
-        const currentValue = loadMode === "per-side"
-          ? Math.min(number(set.leftWeight ?? set.weight), number(set.rightWeight ?? set.weight))
-          : number(set.weight);
-        const weight = formatLoad(fromPlates(toPlates(currentValue, loadMode), nextMode));
-        // Per-side input always presents one complete row per arm. Seed both
-        // sides from the existing total so switching modes never loses a set.
-        return nextMode === "per-side"
-          ? { ...set, weight, leftWeight: set.leftWeight ?? weight, rightWeight: set.rightWeight ?? weight, leftReps: set.leftReps ?? set.reps, rightReps: set.rightReps ?? set.reps }
-          : { ...set, weight, leftWeight: undefined, rightWeight: undefined, leftReps: undefined, rightReps: undefined };
-      });
       const asymmetricSets = { ...(s.active.asymmetricSets ?? {}) };
       delete asymmetricSets[entry.id];
       return { ...s, active: { ...s.active, draft, drafts: { ...(s.active.drafts ?? {}), [entry.id]: draft }, loadModes: { ...(s.active.loadModes ?? {}), [entry.id]: nextMode }, asymmetricSets }, preferences: historical ? s.preferences : { ...s.preferences, loadModes: { ...(s.preferences.loadModes ?? {}), [entry.exerciseId]: nextMode } } };
@@ -246,10 +319,7 @@ export default function Workout() {
 
   const changeExerciseNote = (note: string) => {
     if (historical) return;
-    update(s => ({ ...s, preferences: {
-      ...s.preferences,
-      notes: { ...(s.preferences.notes ?? {}), [entry.exerciseId]: note.slice(0, 300) },
-    } }));
+    changeLiveInput(current => ({ ...current, note }));
   };
 
   const goTo = (
@@ -258,6 +328,7 @@ export default function Workout() {
     nextSkipped = skipped,
     nextDrafts = drafts,
   ) => {
+    flushLiveInput();
     const targetEntry = active.day.exercises[target];
     setSavedNotice(false);
     const saved = records.find((record) => record.prescription.id === targetEntry.id);
@@ -276,7 +347,7 @@ export default function Workout() {
               skipped: nextSkipped,
               drafts: {
                 ...nextDrafts,
-                [entry.id]: active.draft,
+                [entry.id]: liveInputRef.current.draft,
                 [targetEntry.id]: draft,
               },
               loadModes: s.active.loadModes,
@@ -313,7 +384,7 @@ export default function Workout() {
         const saved = { ...s, active: stayOpen ? s.active : undefined, history: s.history.map(workout => workout.id === historical.workoutId ? { ...workout, records: ordered, skipped: historical.skipped } : workout) };
         const recommended = savedRecord ? applyExerciseRecommendation(saved, savedRecord, active.startedAt) : saved;
         if (!stayOpen || !recommended.active) return recommended;
-        return { ...recommended, active: { ...recommended.active, records: ordered, skipped: nextSkipped, drafts: { ...(recommended.active.drafts ?? {}), [entry.id]: active.draft }, draft: active.draft } };
+        return { ...recommended, active: { ...recommended.active, records: ordered, skipped: nextSkipped, drafts: { ...(recommended.active.drafts ?? {}), [entry.id]: liveInputRef.current.draft }, draft: liveInputRef.current.draft } };
       });
       setError("");
       if (!stayOpen) router.replace("/routine");
@@ -371,11 +442,12 @@ export default function Workout() {
   };
 
   const saveExercise = () => {
+    dirtyInput.current = false;
     const preparing = !!active.preparing;
     if (!isBodyweight && hasAddedBaseWeight && loadMode !== "total-with-bar" && (!baseWeightText.trim() || !validBarWeight(number(baseWeightText)))) {
       setError("Introduce un peso base entre 0 y 100 kg. Puedes poner 0."); return;
     }
-    const sets = active.draft.map((set, index) => {
+    const sets = liveInputRef.current.draft.map((set, index) => {
       const sideSpecific = loadMode === "per-side";
       const leftWeight = sideSpecific ? number(set.leftWeight ?? set.weight) : undefined;
       const rightWeight = sideSpecific ? number(set.rightWeight ?? set.weight) : undefined;
@@ -432,10 +504,11 @@ export default function Workout() {
       complete(records, nextSkipped, record, true);
       setSavedNotice(true);
     } else if (target < 0) complete(records, nextSkipped, record);
-    else goTo(target, records, nextSkipped, { ...drafts, [entry.id]: active.draft });
+    else goTo(target, records, nextSkipped, { ...drafts, [entry.id]: liveInputRef.current.draft });
   };
 
   const skipExercise = () => {
+    dirtyInput.current = false;
     const records = active.records.filter(
       (record) => record.prescription.id !== entry.id,
     );
@@ -444,7 +517,7 @@ export default function Workout() {
     if (target < 0) complete(records, nextSkipped);
     else goTo(target, records, nextSkipped, {
       ...drafts,
-      [entry.id]: active.draft,
+      [entry.id]: liveInputRef.current.draft,
     });
   };
   const unresolvedElsewhere = active.day.exercises.some(item => item.id !== entry.id && !completed.has(item.id) && !skipped.includes(item.id));
@@ -457,7 +530,13 @@ export default function Workout() {
           compact
           variant="ghost"
           icon="arrow-left"
-          onPress={() => historical ? closeHistorical() : router.replace("/today")}
+          onPress={() => {
+            if (historical) closeHistorical();
+            else {
+              flushLiveInput();
+              router.replace("/today");
+            }
+          }}
         />
         <Txt size={12} muted>
           {active.index + 1} / {active.day.exercises.length}
@@ -562,7 +641,7 @@ export default function Workout() {
           {supportsPerSideInput(entry.exerciseId) && <Button label="Por lado" compact tone="green" variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} />}
           {supportsBarWeight(entry.exerciseId) && <Button label="Total levantado" compact tone="green" variant={loadMode === "total-with-bar" ? "primary" : "secondary"} onPress={() => changeLoadMode("total-with-bar")} />}
         </Row>}
-        {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} numeric suffix="kg" disabled={readOnly} />}
+        {hasAddedBaseWeight && loadMode !== "total-with-bar" && <Field label={baseWeightLabel} value={baseWeightText} onChangeText={supportsBarWeight(entry.exerciseId) ? changeBarWeight : changeApparatusWeight} onBlur={flushLiveInput} numeric suffix="kg" disabled={readOnly} />}
         {hasAddedBaseWeight && <Txt muted size={12}>{loadMode === "total-with-bar" ? "El total ya incluye la barra; no se añadirá nada más." : supportsBarWeight(entry.exerciseId) ? t("Barra añadida: {value1} kg. Se suma una sola vez a la carga externa. Si no hay barra, usa 0.", { value1: barWeightText || "0" }) : `Peso del aparato: ${apparatusWeightText || "0"} kg. Se suma a la carga indicada y la gráfica muestra el total, también para sesiones anteriores.`}</Txt>}
         {canIdentifyMachine && !readOnly && <MachineBrandSelect exerciseId={entry.exerciseId} value={machineBrand} onChange={changeMachineBrand} />}
       </Card>}
@@ -573,21 +652,21 @@ export default function Workout() {
         {!readOnly && weighted && <Row><Button label="Total" compact tone="green" variant={loadMode === "total" ? "primary" : "secondary"} onPress={() => changeLoadMode("total")} /><Button label="Por lado" compact tone="green" variant={loadMode === "per-side" ? "primary" : "secondary"} onPress={() => changeLoadMode("per-side")} /></Row>}
       </Card>}
       <Card style={{ padding: 0, gap: 0, overflow: "hidden" }}>
-      {active.draft.map((set, index) => (
-        <View key={`${entry.id}-${index}`} style={{ padding: 16, gap: 12, borderBottomWidth: index < active.draft.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+      {liveInput.draft.map((set, index) => (
+        <View key={`${entry.id}-${index}`} style={{ padding: 16, gap: 12, borderBottomWidth: index < liveInput.draft.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
           <Txt weight="600">
             {t("Serie {count}", { count: index + 1 })}
           </Txt>
           {loadMode === "per-side" ? <View style={{ gap: 10 }}>
             {!asymmetricEnabled ? <Row style={{ alignItems: "flex-end", gap: 8 }}>
-              {(!isBodyweight || weighted) && <Field label="Peso por lado" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "weight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
-              <Field label="Repeticiones" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "reps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
+              {(!isBodyweight || weighted) && <Field label="Peso por lado" value={set.leftWeight ?? set.weight} onChangeText={(value) => changeSet(index, "weight", value)} onBlur={flushLiveInput} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
+              <Field label="Repeticiones" value={set.leftReps ?? set.reps} onChangeText={(value) => changeSet(index, "reps", value)} onBlur={flushLiveInput} numeric suffix={messages.Workout.rep} disabled={readOnly} />
             </Row> : ( ["left", "right"] as const).map(side => {
               const left = side === "left";
               return <Row key={side} style={{ alignItems: "flex-end", gap: 8 }}>
                 <Txt weight="600" size={12} style={{ width: 66 }}>{left ? "Izquierdo" : "Derecho"}</Txt>
-                {(!isBodyweight || weighted) && <Field label="Peso" value={left ? (set.leftWeight ?? set.weight) : (set.rightWeight ?? set.weight)} onChangeText={(value) => changeSet(index, left ? "leftWeight" : "rightWeight", value)} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
-                <Field label="Repeticiones" value={left ? (set.leftReps ?? set.reps) : (set.rightReps ?? set.reps)} onChangeText={(value) => changeSet(index, left ? "leftReps" : "rightReps", value)} numeric suffix={messages.Workout.rep} disabled={readOnly} />
+                {(!isBodyweight || weighted) && <Field label="Peso" value={left ? (set.leftWeight ?? set.weight) : (set.rightWeight ?? set.weight)} onChangeText={(value) => changeSet(index, left ? "leftWeight" : "rightWeight", value)} onBlur={flushLiveInput} numeric suffix={messages.Workout.kg} disabled={readOnly} />}
+                <Field label="Repeticiones" value={left ? (set.leftReps ?? set.reps) : (set.rightReps ?? set.reps)} onChangeText={(value) => changeSet(index, left ? "leftReps" : "rightReps", value)} onBlur={flushLiveInput} numeric suffix={messages.Workout.rep} disabled={readOnly} />
               </Row>;
             })}
           </View> : <Row>
@@ -595,6 +674,7 @@ export default function Workout() {
               label={t("{value1} serie {value2}", { value1: t(isBodyweight ? "Lastre añadido" : isAssistedPullup(entry.exerciseId) ? "Kilos de ayuda" : loadMode === "total-with-bar" ? "Peso total levantado" : hasApparatusWeight ? "Carga añadida" : "Peso total"), value2: index + 1 })}
               value={set.weight}
               onChangeText={(value) => changeSet(index, "weight", value)}
+              onBlur={flushLiveInput}
               numeric
               suffix={messages.Workout.kg}
               disabled={readOnly}
@@ -603,6 +683,7 @@ export default function Workout() {
               label={t("Repeticiones serie {value1}", { value1: index + 1 })}
               value={set.reps}
               onChangeText={(value) => changeSet(index, "reps", value)}
+              onBlur={flushLiveInput}
               numeric
               suffix={messages.Workout.rep}
               disabled={readOnly}
@@ -626,8 +707,9 @@ export default function Workout() {
       <View style={{ width: "100%", gap: 10 }}>
         {!historical && <Field
           label="Notas para este ejercicio"
-          value={state.preferences.notes?.[entry.exerciseId] ?? ""}
+          value={liveInput.note}
           onChangeText={changeExerciseNote}
+          onBlur={flushLiveInput}
           placeholder="Pon lo que quieras aquí, se guardará para la próxima vez que hagas este ejercicio"
           multiline
           maxLength={300}

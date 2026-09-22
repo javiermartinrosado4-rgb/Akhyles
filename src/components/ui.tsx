@@ -315,6 +315,7 @@ export function Field({
   label,
   value,
   onChangeText,
+  onBlur,
   error,
   suffix,
   numeric = false,
@@ -328,6 +329,7 @@ export function Field({
   label: string;
   value: string;
   onChangeText: (s: string) => void;
+  onBlur?: () => void;
   error?: string;
   suffix?: string;
   numeric?: boolean;
@@ -368,7 +370,10 @@ export function Field({
           editable={!disabled}
           inputMode={email ? "email" : numeric ? "decimal" : "text"}
           onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
+          onBlur={() => {
+            setFocus(false);
+            onBlur?.();
+          }}
           placeholder={placeholder ? t(placeholder) : undefined}
           placeholderTextColor={colors.muted}
           // Do not truncate decimal loads while the user is typing. Validation
