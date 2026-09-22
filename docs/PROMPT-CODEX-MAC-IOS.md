@@ -5,6 +5,8 @@ Copia el bloque siguiente en Codex una vez clonado el repositorio en el Mac.
 ```text
 Prepara y lleva Akhyles a una build iOS de TestFlight, comprobada en un iPhone. El repositorio ya tiene configuración EAS; no crees un proyecto Expo nuevo.
 
+El propietario ha autorizado al operador de este Mac a usar las cuentas Expo/EAS y Apple Developer/App Store Connect de Akhyles para preparar, firmar, probar y publicar la app en iOS. No vuelvas a pedir permiso para iniciar sesión ni para tareas normales de build, TestFlight o envío a App Review. Introduce credenciales únicamente en los flujos oficiales e interactivos de Expo/Apple del Mac; nunca en el chat, archivos del repositorio, logs compartidos o Git.
+
 REPOSITORIO Y ESTADO
 - Repositorio: https://github.com/javiermartinrosado4-rgb/Akhyles.git
 - Trabaja sobre `main` actualizado con `git pull origin main` y registra el SHA inicial.
@@ -16,17 +18,17 @@ REPOSITORIO Y ESTADO
 
 CUENTAS Y CREDENCIALES
 - Instala opcionalmente el complemento oficial de Expo para Codex con `codex plugin add expo@openai-curated` si Codex todavía no lo tiene.
-- Autentícate en EAS con la cuenta Expo propietaria del proyecto y comprueba `npx eas-cli@latest project:info`. Usa el flujo interactivo en el terminal para el inicio de sesión; nunca pidas ni copies contraseñas o tokens al chat.
-- Para firmar y distribuir se necesita acceso autorizado al Apple Developer Program y a App Store Connect. Verifica que la ficha de la app ya existe con el Bundle ID indicado. No cambies el Bundle ID ni aceptes contratos, compras, cambios legales o fiscales.
-- Antes de guardar certificados o perfiles en EAS, explica qué credenciales se crearán/subirán y pide al propietario que realice el acceso sensible en el terminal. No guardes `.p8`, `.p12`, perfiles, contraseñas ni tokens en Git.
-- La integración de App Store Connect aún no está conectada al proyecto EAS. Configúrala solo con una cuenta autorizada; no envíes la app a revisión pública.
+- Autentícate en EAS con la cuenta propietaria del proyecto y comprueba `npx eas-cli@latest project:info`. Usa los flujos oficiales e interactivos del terminal/macOS para iniciar sesión.
+- Usa el acceso de Apple Developer Program y App Store Connect disponible en este Mac. Verifica que la ficha de la app existe con el Bundle ID indicado. No cambies el Bundle ID.
+- Configura la integración de App Store Connect y las credenciales de firma de EAS necesarias para compilar y distribuir. No guardes `.p8`, `.p12`, perfiles, contraseñas ni tokens en Git.
+- No aceptes contratos nuevos, pagos, acuerdos fiscales o declaraciones legales en nombre del propietario. Si Apple exige uno, detente y pide al propietario que lo acepte.
 
 GOOGLE SIGN-IN EN iOS
 - El código iOS de Google Sign-In ya existe para Comunidad y Cuentas.
 - Sigue `docs/IOS.md`: falta crear/verificar el cliente OAuth iOS de Google para el bundle ID `com.javiermartinrosado.akhyles` y obtener su `REVERSED_CLIENT_ID`.
 - Configura el valor público `AKHYLES_GOOGLE_IOS_URL_SCHEME` en el entorno EAS `production`. No uses el OAuth Android ni inventes un valor. Confirma que las APIs de Cuentas y Comunidad devuelven el client ID web esperado y validan el token y nonce.
 - Revisa la directriz 4.8 actual de App Review para los flujos reales de acceso. Determina si hace falta Sign in with Apple. No añadas un botón simulado ni alteres el backend sin una implementación real y completa.
-- Si falta acceso a Google Cloud, continúa con las tareas independientes y deja instrucciones claras al propietario. Nunca expongas secretos en logs.
+- Google Cloud es una cuenta separada de Expo y Apple. Comprueba si la sesión autorizada de Google Cloud está disponible en este Mac. Si falta acceso a ese proyecto, avanza con el resto y pide solo que el propietario habilite el acceso necesario; nunca expongas secretos en logs.
 
 AUDITORÍA, COMPILACIÓN Y PRUEBAS
 1. Revisa componentes con variantes de plataforma y audita almacenamiento, entrenamiento offline, sincronización, Cuentas, Comunidad, selección de fotos, notificaciones, navegación y permisos de iOS.
@@ -40,7 +42,7 @@ AUDITORÍA, COMPILACIÓN Y PRUEBAS
 
 LÍMITES Y ENTREGA
 - Trabaja en una rama de trabajo si necesitas modificar código. No sobrescribas cambios preexistentes.
-- No envíes la app a App Review ni la publiques en la App Store hasta que el propietario confirme expresamente el envío público.
-- Si una acción exige contraseña, token, CAPTCHA, aceptación de contrato, pago o autorización de acceso, detente y pide al propietario que la complete; sigue mientras tanto con trabajo independiente.
-- Al terminar, informa el SHA inicial/final, cambios, comandos y resultados, build/TestFlight, pruebas en dispositivo, decisiones que debe confirmar el propietario y próximos pasos exactos.
+- Cuando las pruebas y los metadatos estén completos, envía la app a App Review y completa la publicación de iOS, según la autorización del propietario. No inventes datos legales, fiscales, privacidad, edad, precio o territorios; pregunta solo por el dato concreto que falte.
+- El acceso a Expo y Apple ya está autorizado. Si una sesión requiere autenticación, usa el flujo interactivo oficial; detente únicamente ante contratos nuevos, pagos, CAPTCHA, datos legales no conocidos o una petición de ampliar permisos a terceros.
+- Al terminar, informa el SHA inicial/final, cambios, comandos y resultados, build/TestFlight, pruebas en dispositivo y estado exacto de App Review/publicación. Identifica solo las decisiones o accesos que realmente falten.
 ```
