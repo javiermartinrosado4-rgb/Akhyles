@@ -12,11 +12,12 @@ export function progression(
   expectedSets = 2,
   loadStep = 1.25,
   direction: "increase" | "decrease" = "increase",
+  exerciseId?: string,
 ) {
   // Per-side records are persisted with both side values, while legacy data
   // may still have the old single-side value in `weight`. Always progress from
   // the normalized bilateral total so old and new records behave identically.
-  const normalizedSets = sets.map((set) => ({ ...set, weight: storedSetLoad(set) }));
+  const normalizedSets = sets.map((set) => ({ ...set, weight: storedSetLoad(set, exerciseId) }));
   const valid =
     validRange(range) &&
     normalizedSets.length === expectedSets &&

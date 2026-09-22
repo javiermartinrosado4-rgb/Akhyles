@@ -114,16 +114,9 @@ export const messages = {
     volver: "Volver",
     configuracion: "Configuración",
     aTuManera: "A tu manera",
-    eligeElAmbienteEnElQueTe: "Elige el ambiente en el que te sientes mejor.",
-    usarTemaDelSistema: "Usar tema del sistema",
-    temaClaro: "Tema claro",
-    temaOscuro: "Tema oscuro",
     unEspacioPrivado: "Un espacio privado",
-    laEleccionDelTemaSeGuardaAutomaticamente:
-      " La elección del tema se guarda automáticamente. Las fotografías de la simulación no se guardan en el perfil.",
   },
   Today: {
-    unPasoALaVez: "UN PASO A LA VEZ",
     hoyUnPocoMasFuerte: "Hoy, un poco más fuerte.",
     laConstanciaEmpiezaPorUnEntrenamiento:
       "La constancia empieza por un entrenamiento.",

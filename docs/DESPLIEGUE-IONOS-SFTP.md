@@ -1,5 +1,7 @@
 # Despliegue reproducible en IONOS
 
+Antes de cualquier publicación, seguir también el [protocolo obligatorio de publicación](PROTOCOLO-RELEASE.md). Para cambios de sincronización, API y Web se publican en ese orden y Sync V2 permanece limitado a cuentas de prueba hasta verificar su manifiesto.
+
 Este procedimiento sustituye el Explorador Web de IONOS para las publicaciones
 normales. No usa ZIPs ni el selector de archivos del navegador, por lo que evita
 el fallo recurrente de control remoto `Debugger unattached`.
@@ -68,8 +70,8 @@ la autenticación, la clave de host o el acceso al directorio fallan, se aborta
 sin subir ningún archivo.
 
 La web transfiere primero recursos y deja `index.html` y `metadata.json` para el
-final. La API solo permite publicar `schema.sql` y `src/Community.php`; no
-puede transferir `config.local.php` ni otros secretos por accidente. Cada
+final. La API solo permite publicar `schema.sql`, `src/Accounts.php` y `src/Community.php`; no
+puede transferir `config.local.php`, binarios de backup ni otros secretos por accidente. Cada
 despliegue termina comprobando la URL de producción.
 
 ## Operación segura
@@ -83,3 +85,48 @@ despliegue termina comprobando la URL de producción.
   al proveedor ni recrear cuentas hasta contrastarlo con una cuenta existente.
 - Si cambia el host o la clave del servidor, verificar su fingerprint en IONOS
   antes de actualizar `known_hosts`.
+
+## Protocolo obligatorio de publicaciÃ³n web
+
+Antes de generar `dist`, usar siempre las URLs de producciÃ³n:
+
+```powershell
+$env:EXPO_PUBLIC_ACCOUNT_URL = 'https://api.akhyles.com'
+$env:EXPO_PUBLIC_COMMUNITY_URL = 'https://api.akhyles.com/community'
+Remove-Item Env:AKHYLES_ANDROID_LOCAL -ErrorAction SilentlyContinue
+npx.cmd expo export --platform web --output-dir dist
+```
+
+Si falta `EXPO_PUBLIC_ACCOUNT_URL`, la web entra deliberadamente en modo local.
+El respaldo web de `src/services/account.ts` evita que una exportaciÃ³n de
+producciÃ³n vuelva a quedar sin API, pero no sustituye la configuraciÃ³n.
+
+Antes de publicar, comprobar:
+
+1. `curl.exe -fsSL --max-time 20 https://api.akhyles.com/health` devuelve
+   `service: akhyles-accounts`, `ok: true` y `schema: 1`.
+2. El certificado HTTPS de `api.akhyles.com` estÃ¡ vÃ¡lido y asignado en IONOS.
+3. El bundle generado contiene `api.akhyles.com`:
+
+   ```powershell
+   Select-String -Path dist\_expo\static\js\web\entry-*.js -Pattern 'api.akhyles.com'
+   ```
+
+4. El preflight SFTP pasa:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/deploy-ionos.ps1 -Target Web -TestConnection
+   ```
+
+Solo entonces ejecutar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy-ionos.ps1 -Target Web -WebSource dist -Deploy
+```
+
+El script deja `metadata.json` e `index.html` para el final. Después verificar
+`https://app.akhyles.com/` y abrir `/account` con una recarga completa: nunca
+debe aparecer el aviso de servicio de cuentas no activado. Tras iniciar sesión,
+probar “Sincronizar ahora” y confirmar “Guardado en el dispositivo y en la
+nube”. Si falla HTTPS, CORS, el bundle o la sincronización, detener el proceso;
+no publicar una versión offline como solución.

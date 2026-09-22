@@ -28,15 +28,15 @@ export default function TabsLayout() {
         style={{
           flexDirection: desktop ? "column" : "row",
           gap: desktop ? 6 : 2,
-          padding: desktop ? 18 : 10,
-          width: desktop ? 232 : undefined,
+          padding: desktop ? 20 : 8,
+          width: desktop ? 248 : undefined,
           borderTopWidth: desktop ? 0 : 1,
           borderRightWidth: desktop ? 1 : 0,
           borderColor: colors.border,
-          backgroundColor: colors.surface,
+          backgroundColor: desktop ? colors.surface : colors.marble,
         }}
       >
-        {desktop && <View style={{ paddingHorizontal: 10, paddingBottom: 18, gap: 4 }}>
+        {desktop && <View style={{ paddingHorizontal: 10, paddingBottom: 22, gap: 5 }}>
           <Txt size={22} weight="600">Akhyles</Txt>
           <Txt size={12} muted>Tu espacio de entrenamiento</Txt>
         </View>}
@@ -52,34 +52,35 @@ export default function TabsLayout() {
             onPress={() => router.replace(tab.path)}
             style={({ pressed }) => ({
               flex: desktop ? undefined : 1,
-              minHeight: desktop ? 52 : 56,
+              minHeight: desktop ? 52 : 58,
               gap: 5,
               paddingVertical: desktop ? 10 : 8,
               paddingHorizontal: desktop ? 12 : 2,
               alignItems: desktop ? "flex-start" : "center",
               flexDirection: desktop ? "row" : "column",
               justifyContent: "center",
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: focused === tab.path ? colors.accent : "transparent",
-              backgroundColor:
-                path === tab.path ? colors.accentSoft : "transparent",
+              borderRadius: desktop ? 13 : 12,
+              // The gold icon alone identifies the current section. Keeping
+              // the row transparent removes the heavy card-within-card look.
+              borderWidth: focused === tab.path ? 1 : 0,
+              borderColor: colors.accent,
+              backgroundColor: "transparent",
               opacity: pressed ? 0.65 : 1,
             })}
           >
             <Icon
               name={tab.icon}
               size={20}
-              color={path === tab.path ? colors.accent : colors.muted}
+              color={path === tab.path ? colors.accent : desktop ? colors.muted : "#D5E0D5"}
             />
             <Txt
               size={desktop ? 14 : 11}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.8}
-              style={{ textAlign: desktop ? "left" : "center", width: desktop ? undefined : "100%" }}
-              weight={path === tab.path ? "600" : "400"}
-              muted={path !== tab.path}
+              weight="400"
+              muted={desktop}
+              style={{ textAlign: desktop ? "left" : "center", width: desktop ? undefined : "100%", color: !desktop ? "#D5E0D5" : undefined }}
             >
               {tab.name}
             </Txt>

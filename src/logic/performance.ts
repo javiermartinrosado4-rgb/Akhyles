@@ -1,4 +1,5 @@
 import { Workout } from "../types";
+import { storedSetLoad } from "./load";
 
 export interface WorkoutStats {
   sets: number;
@@ -8,12 +9,12 @@ export interface WorkoutStats {
 }
 
 export function workoutStats(workout: Workout): WorkoutStats {
-  const sets = workout.records.flatMap((record) => record.sets);
+  const sets = workout.records.flatMap((record) => record.sets.map(set => ({ ...set, normalizedWeight: storedSetLoad(set, record.prescription.exerciseId) })));
   return {
     sets: sets.length,
     reps: sets.reduce((sum, set) => sum + set.reps, 0),
     volume: Math.round(
-      sets.reduce((sum, set) => sum + set.weight * set.reps, 0),
+      sets.reduce((sum, set) => sum + set.normalizedWeight * set.reps, 0),
     ),
     exercises: workout.records.length,
   };
@@ -24,7 +25,7 @@ const bestStrength = (workout: Workout) =>
     workout.records.map((record) => [
       record.prescription.exerciseId,
       Math.max(
-        ...record.sets.map((set) => set.weight * (1 + set.reps / 30)),
+        ...record.sets.map((set) => storedSetLoad(set, record.prescription.exerciseId) * (1 + set.reps / 30)),
       ),
     ]),
   );

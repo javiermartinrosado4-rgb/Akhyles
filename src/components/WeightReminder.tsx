@@ -57,7 +57,7 @@ export function WeightReminder() {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         if (!alive) return;
         const existing = scheduled.find(item => item.identifier === notificationId);
-        if (existing?.content.data?.language === language && existing.content.data?.reminder === "weekly-weight-v2") return;
+        if (existing?.content.data?.language === language && existing.content.data?.reminder === "weekly-weight-v3") return;
         await Notifications.cancelScheduledNotificationAsync(notificationId);
       }
       if (!alive) return;
@@ -65,13 +65,13 @@ export function WeightReminder() {
         content: {
           title: t("Actualiza tu peso corporal"),
           body: t("Registra tu peso de esta semana para que Akhyles mantenga tus gráficas al día."),
-          data: { screen: "progress", language, reminder: "weekly-weight-v2" },
+          data: { screen: "progress", language, reminder: "weekly-weight-v3" },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          // Expo uses 1 = Sunday. Monday is the weekly weigh-in day.
-          weekday: 2,
-          hour: 18,
+          // Expo uses 1 = Sunday. Wednesday is the weekly weigh-in day.
+          weekday: 4,
+          hour: 8,
           minute: 0,
           channelId: "weight-reminders",
         },

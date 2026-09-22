@@ -1,12 +1,10 @@
 import { messages } from "../content/es";
 import { router, useLocalSearchParams } from "expo-router";
-import { Button, Card, Choice, Heading, Page, Txt } from "../components/ui";
-import { useStore } from "../state/Store";
+import { Button, Card, Heading, Page, Txt } from "../components/ui";
 import { copy } from "../config";
 import { LanguageSelector } from "../components/LanguageSelector";
 import { NotificationSettings } from "../components/NotificationSettings";
 export default function Settings() {
-  const { state, update } = useStore();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const goBack = () => {
     // Settings is opened from Perfil as a nested option. Returning explicitly
@@ -27,34 +25,14 @@ export default function Settings() {
       <Heading
         eyebrow={messages.Settings.configuracion}
         title={messages.Settings.aTuManera}
-        subtitle="Personaliza idioma, apariencia y avisos de la app."
+        subtitle="Personaliza idioma y avisos de la app."
       />
       <LanguageSelector />
-      {(
-        [
-          {
-            id: "system",
-            title: messages.Settings.usarTemaDelSistema,
-            icon: "monitor",
-          },
-          { id: "light", title: messages.Settings.temaClaro, icon: "sun" },
-          { id: "dark", title: messages.Settings.temaOscuro, icon: "moon" },
-        ] as const
-      ).map((t) => (
-        <Choice
-          key={t.id}
-          title={t.title}
-          icon={t.icon}
-          selected={state.theme === t.id}
-          onPress={() => update((s) => ({ ...s, theme: t.id }))}
-        />
-      ))}
       <NotificationSettings />
       <Card>
         <Txt weight="600">{messages.Settings.unEspacioPrivado}</Txt>
         <Txt muted size={13}>
-          {copy.local}
-          {messages.Settings.laEleccionDelTemaSeGuardaAutomaticamente}
+          {copy.local} La aplicación usa siempre el tema oscuro. Las fotografías de la simulación no se guardan en el perfil.
         </Txt>
       </Card>
     </Page>

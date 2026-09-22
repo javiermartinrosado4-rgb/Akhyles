@@ -32,7 +32,7 @@ Node existente continúa separado y no se publica con este paquete.
    destino externo al hosting y acordar una retención (propuesta: 30 días).
    Probar `php bin/restore.php archivo.encrypted` en una base **vacía** separada.
    No se restauran sesiones: el usuario vuelve a autenticarse. Las 20 versiones
-   por cuenta ayudan ante errores de sincronización, pero no sustituyen al backup.
+   por cuenta ayudan ante errores de sincronización, pero no sustituyen al backup. La copia incluye las tablas `account_sync_*`; verificar una restauración automática periódica y alertar si falla.
 10. Comprobar `/health`, registro, Google, verificación, SMTP, restauración y
     aislamiento antes de definir `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com`
     al compilar la app. El cliente sin esta variable comunica guardado local.
@@ -48,6 +48,13 @@ Node existente continúa separado y no se publica con este paquete.
 - `GET /me`, `DELETE /me` con confirmEmail, `POST /auth/logout`.
 - `GET /sync`, `PUT /sync`: estado y revisión; 409 si otro dispositivo avanzó.
 - `GET /sync/versions` y `GET /sync/versions/{revision}`: hasta 20 copias por cuenta.
+- `GET /sync/v2/status`, `POST /sync/v2/batch`, `POST /sync/v2/verify`: protocolo incremental por entidades, inicialmente desactivado por cuenta.
+
+Activación controlada: `php bin/sync-v2.php correo enable|disable`. Solo activar una cuenta de prueba tras comprobar backup, manifiesto y dos dispositivos; no habilitar globalmente sin seguimiento de incidencias.
+
+Supervisión: programar `php bin/sync-v2-report.php --require-verified` y alertar si devuelve código `2`: indica que hay cuentas V2 habilitadas cuya migración no se ha verificado. El informe no incluye entrenamientos ni datos personales.
+
+Canario diario: en una cuenta técnica aislada y con secretos fuera del repositorio, programar `npm run monitor:sync`. El script usa dos sesiones, crea un entrenamiento mínimo, comprueba que la segunda lo recibe y lo elimina. Una salida distinta de cero debe alertar y bloquear nuevas publicaciones hasta investigar.
 
 La API deduce siempre el propietario de la sesión. Nunca confía en un owner del
 cuerpo. El backup privado no activa publicaciones de Comunidad. AES-256-GCM

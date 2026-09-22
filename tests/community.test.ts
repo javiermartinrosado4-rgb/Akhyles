@@ -122,7 +122,7 @@ test("achievements use symbolic load milestones instead of every personal best",
     assert.equal((await f.call("/progress/me", "PUT", improved, athlete.token)).status, 200);
     const page = await f.call(`/achievements?user=${athlete.user.id}`, "GET", undefined, athlete.token);
     assert.equal(page.status, 200); assert.equal(page.data.achievements.length, 2);
-    assert.ok(page.data.achievements.some((achievement: { type: string; tierId?: string }) => achievement.type === "tier" && achievement.tierId === "progress"));
+    assert.ok(page.data.achievements.some((achievement: { type: string; tierId?: string }) => achievement.type === "tier" && achievement.tierId === "demigod"));
     const personalBest = page.data.achievements.find((achievement: { type: string }) => achievement.type === "personal_best");
     assert.equal(personalBest.kind, "personal_best");
     assert.equal(personalBest.details.milestone, 100);

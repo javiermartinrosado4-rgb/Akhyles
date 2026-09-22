@@ -3,13 +3,14 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { AppState } from "../types";
 import { emptyPreferences, emptyProfile } from "../data/options";
 import { archiveState, localRepository, purgeArchivedStates } from "../storage/repository";
-import { repairLegacyDemoScores } from "../data/demoScenarios";
+import { createAdvancedMachineDemoScenario, repairLegacyDemoScores } from "../data/demoScenarios";
 import { resumeWorkout } from "../logic/workout";
 import { syncPersonalAchievements } from "../logic/personalAchievements";
 import { ensureProgramHistory, preserveProgramHistory } from "../logic/programHistory";
+import { LOAD_NORMALIZATION_VERSION } from "../logic/loadMigration";
 export const initialState: AppState = {
-  version: 1, profile: emptyProfile, preferences: emptyPreferences,
-  onboardingStep: 0, completed: false, theme: "system", routine: [], history: [],
+  version: 1, loadNormalizationVersion: LOAD_NORMALIZATION_VERSION, profile: emptyProfile, preferences: emptyPreferences,
+  onboardingStep: 0, completed: false, theme: "dark", routine: [], history: [],
 };
 type Store = {
   state: AppState;
@@ -30,6 +31,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const getState = useCallback(() => stateRef.current, []);
   const hydrate = useCallback(async () => {
     try {
+      // Visual QA runs with rich, synthetic data on every launch. The guard is
+      // deliberately development-only, so release builds can never seed or
+      // replace a real profile even if the environment variable is present.
+      if (__DEV__ && process.env.EXPO_PUBLIC_VISUAL_QA === "1") {
+        const demo = createAdvancedMachineDemoScenario();
+        await localRepository.save(demo);
+        stateRef.current = demo; setState(demo);
+        blocked.current = false; setStorageBlocked(false); setError("");
+        return;
+      }
       // Migrate legacy full-state recovery rows before any screen can query
       // them; reading an oversized Android row can itself throw CursorWindow.
       await purgeArchivedStates();

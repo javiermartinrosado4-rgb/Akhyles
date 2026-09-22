@@ -29,7 +29,7 @@ export function exerciseMasteries(state: AppState): ExerciseMastery[] {
       if (!standard) continue;
       const bodyweightMovement = ["pronated-pullup", "neutral-pullup"].includes(record.prescription.exerciseId);
       const maximum = Math.max(...record.sets.map(set => {
-        const external = scoreLoad(record.prescription.exerciseId, storedSetLoad(set), record.apparatusWeight ?? record.barWeight);
+        const external = scoreLoad(record.prescription.exerciseId, storedSetLoad(set, record.prescription.exerciseId), record.apparatusWeight ?? record.barWeight);
         return estimatedMax(bodyweightMovement ? bodyWeight! + external : external, Math.min(set.reps, 10)) ?? 0;
       }), 0);
       const old = best.get(record.prescription.exerciseId);

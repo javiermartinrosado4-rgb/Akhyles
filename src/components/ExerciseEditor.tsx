@@ -115,7 +115,7 @@ export function ExerciseEditor({
   );
   const inputMode = original ? defaultLoadInputMode(original.id) : "total";
   const [name, setName] = useState(initialName);
-  const [weight, setWeight] = useState(String(fromStoredLoad(prescription?.weight ?? 0, inputMode)));
+  const [weight, setWeight] = useState(String(fromStoredLoad(prescription?.weight ?? 0, inputMode, original?.id)));
   const [sets, setSets] = useState(String(prescription?.sets ?? 2));
   const [min, setMin] = useState(String(prescription?.range[0] ?? 8));
   const [max, setMax] = useState(String(prescription?.range[1] ?? 10));
@@ -285,7 +285,7 @@ export function ExerciseEditor({
   const save = () => {
     const range: Range = [number(min), number(max)];
     const count = number(sets);
-    const kg = toStoredLoad(number(weight), inputMode);
+    const kg = toStoredLoad(number(weight), inputMode, original?.id);
     if (!name.trim())
       return setError(messages.ExerciseEditor.escribeUnNombreParaElEjercicio);
     if (!validWeight(kg))

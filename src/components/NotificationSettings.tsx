@@ -36,7 +36,7 @@ export function NotificationSettings({ compact = false }: { compact?: boolean })
   const content = <>
     <Txt weight="600" size={compact ? 16 : 20}>Gestionar notificaciones</Txt>
     <Txt muted size={12}>Puedes cambiarlas cuando quieras. No enviamos publicidad.</Txt>
-    <Option label="Recordatorio de peso semanal" description="Cada lunes a las 18:00 te pedirá registrar tu peso." value={!!state.profile.weightReminder} onChange={() => update(value => ({ ...value, profile: { ...value.profile, weightReminder: !value.profile.weightReminder } }))} />
+    <Option label="Recordatorio de peso semanal" description="Cada miércoles a las 08:00 te pedirá registrar tu peso." value={!!state.profile.weightReminder} onChange={() => update(value => ({ ...value, profile: { ...value.profile, weightReminder: !value.profile.weightReminder } }))} />
     <Option label="Aviso de entrenamiento" description="A las 9:00 de tus días de entrenamiento: sesión prevista y frase del día." value={!!state.profile.trainingReminder} onChange={() => update(value => ({ ...value, profile: { ...value.profile, trainingReminder: !value.profile.trainingReminder } }))} />
     {user && <Option label="Felicitaciones por logros" description="Avisa cuando alguien felicite uno de tus logros en Comunidad." value={achievementLikes} disabled={savingSocial} onChange={() => changeAchievementLikes(!achievementLikes)} />}
   </>;

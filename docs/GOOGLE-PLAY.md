@@ -1,5 +1,7 @@
 # Materiales para Google Play
 
+La secuencia vigente de compilación, pruebas Alpha, envío y reversión está en el [protocolo obligatorio de publicación](PROTOCOLO-RELEASE.md). No iniciar Producción mientras haya un cambio de datos o sincronización sin validar en Alpha.
+
 ## Estado de la entrega Alpha — próxima 1.0.16 / versionCode 18
 
 La versión 1.0.16 fue enviada a revisión en Prueba cerrada Alpha el 17 de
@@ -77,3 +79,20 @@ Se generó y validó el AAB `artifacts/android/akhyles-release.aab` con recupera
 ### Estado posterior al envío — 1.0.18 / versionCode 20
 
 El 17 de septiembre de 2026 a las 12:51 CEST se confirmó el envío 11 a **Prueba cerrada Alpha**. Play muestra `20 (1.0.18)` como **En revisión**. Producción no iniciada.
+- Latest Play delivery: version 1.0.28 / versionCode 31, submitted to Closed Alpha review on 2026-09-21. Production was not started.
+- AAB SHA-256: `33CB9FEDA7CEF559B15005364BE37051EB19BF9ACD241DBFC556ED2137841F83`.
+- Play status: **Changes under review**. Compatibility reported by Play: 8,676 phones, 4,769 tablets, 9 cars, 45 Chromebooks and 1 Android XR.
+
+## Latest Play delivery - 1.0.29 / versionCode 32
+
+- Signed production AAB: `artifacts/android/akhyles-release.aab`.
+- AAB SHA-256: `B85825E22428A3053EE17C2DB1343A43CA1EAFCE0B7856D9FB4A98C978D7FF40`.
+- Uploaded to **Closed Alpha** with release notes: `Logo de inicio más grande y mejoras visuales en botones y selección de días.`
+- Submitted to Google Play review. Current status: **Changes under review**. Production was not started.
+
+## Latest Play delivery - 1.0.32 / versionCode 35
+
+- Signed production AAB: `artifacts/android/akhyles-release.aab`.
+- AAB SHA-256: `C69853DB56618EA35BD8601FF328A0A78F99F199A178667E98613BA5F8F5A573`.
+- Uploaded to **Closed Alpha** with synchronization, visual, logo, achievements and startup-animation changes.
+- Submitted to Google Play review on 22 September 2026. Current status: **Changes under review**. Production was not started.

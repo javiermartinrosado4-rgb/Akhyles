@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { AchievementRarity, rarityOrder } from "../components/AchievementRarity";
 import { AchievementBadge } from "../components/AchievementBadge";
-import { Button, Card, Heading, Icon, Page, Txt } from "../components/ui";
+import { Button, Card, Heading, Icon, LaurelCrown, Page, Row, Txt } from "../components/ui";
 import { personalAchievements } from "../logic/personalAchievements";
 import { AchievementPage, CommunityAchievement } from "../services/community";
 import { useCommunity } from "../state/Community";
@@ -25,7 +25,7 @@ export default function Achievements() {
     return { item, remote };
   }).sort((a, b) => rarityOrder(a.remote?.rarity, `local:${a.item.id}`) - rarityOrder(b.remote?.rarity, `local:${b.item.id}`) || b.item.unlockedAt.localeCompare(a.item.unlockedAt) || a.item.title.localeCompare(b.item.title)), [personal, shared]);
   return <Page>
-    <Heading eyebrow="Perfil" title="Mis logros" subtitle="Tu historial completo, ordenado por exclusividad." />
+    <Row style={{ alignItems: "center", gap: 10 }}><LaurelCrown size={28} /><Heading eyebrow="Perfil" title="Mis logros" subtitle="Tu historial completo, ordenado por exclusividad." /></Row>
     <Button label="Volver al perfil" compact variant="ghost" icon="arrow-left" onPress={() => router.back()} />
     {!!error && <Card><Txt muted>{error}</Txt></Card>}
     <Card><Txt weight="600">{cards.length} {cards.length === 1 ? "logro desbloqueado" : "logros desbloqueados"}</Txt><Txt muted size={13}>Los logros privados siguen contando para su rareza, pero solo se publican si tú lo permites.</Txt></Card>

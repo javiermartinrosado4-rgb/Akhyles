@@ -2,16 +2,16 @@ import { useLanguage } from "../i18n";
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Pressable, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { Day, ExerciseRecord, PlannedWorkout, Workout } from "../types";
 import { useStore } from "../state/Store";
 import { displayName, getExercise } from "../logic/routine";
 import { applyExerciseRecommendation, openHistoricalWorkout, startWorkout } from "../logic/workout";
 import { datesForMonth, localDateKey, scheduledDay, scheduledWorkout, trainingStreak, weeklyAdherence } from "../logic/schedule";
 import { number, validWeight } from "../logic/validation";
-import { defaultLoadInputMode } from "../logic/load";
+import { defaultLoadInputMode, fromStoredLoad, storedSetLoad, toStoredLoad } from "../logic/load";
 import { useTheme } from "../theme";
-import { Button, Card, Choice, Field, Notice, Row, Txt } from "./ui";
+import { Button, Card, Choice, EmeraldSurface, Field, Notice, Row, Txt } from "./ui";
 
 
 const cloneDay = (day: Day): Day => ({ ...day, exercises: day.exercises.map(entry => ({ ...entry, range: [...entry.range] as [number, number] })) });
@@ -28,7 +28,10 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
   const { t } = useLanguage();
   const { update } = useStore();
   const { colors } = useTheme();
-  const [draft, setDraft] = useState(() => workout.records.map(record => record.sets.map(set => ({ weight: String(set.weight), reps: String(set.reps) }))));
+  const [draft, setDraft] = useState(() => workout.records.map(record => {
+    const mode = record.loadMode ?? defaultLoadInputMode(record.prescription.exerciseId);
+    return record.sets.map(set => ({ weight: String(fromStoredLoad(storedSetLoad(set, record.prescription.exerciseId), mode, record.prescription.exerciseId)), reps: String(set.reps) }));
+  }));
   const [error, setError] = useState("");
   const set = (recordIndex: number, setIndex: number, field: "weight" | "reps", value: string) => {
     setDraft(current => current.map((record, r) => r === recordIndex ? record.map((entry, s) => s === setIndex ? { ...entry, [field]: value } : entry) : record));
@@ -37,7 +40,15 @@ function PastWorkoutEditor({ workout, editable, create }: { workout: Workout; ed
   const save = () => {
     const records: ExerciseRecord[] = workout.records.map((record, r) => ({
       ...record,
-      sets: record.sets.map((_set, s) => ({ weight: number(draft[r][s].weight), reps: number(draft[r][s].reps) })),
+      sets: record.sets.map((_set, s) => {
+        const mode = record.loadMode ?? defaultLoadInputMode(record.prescription.exerciseId);
+        const entered = number(draft[r][s].weight);
+        return {
+          weight: toStoredLoad(entered, mode, record.prescription.exerciseId),
+          reps: number(draft[r][s].reps),
+          ...(mode === "per-side" ? { leftWeight: entered, rightWeight: entered } : {}),
+        };
+      }),
     }));
     if (records.some(record => record.sets.some(set => !validWeight(set.weight) || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100))) {
       setError("Revisa cada peso y repetición antes de guardar.");
@@ -114,12 +125,20 @@ export function RoutineCalendar() {
   }, []);
   const [cursor, setCursor] = useState(now);
   const [selected, setSelected] = useState(now);
+  const [pickerMode, setPickerMode] = useState<"month" | "year" | null>(null);
   const [adding, setAdding] = useState(false);
   const [moving, setMoving] = useState<MovingSession | null>(null);
   const weekdayLabels = Array.from({ length: 7 }, (_, index) => new Date(2024, 0, 1 + index).toLocaleDateString(locale, { weekday: "short" }));
   const dates = datesForMonth(cursor);
   const monthTitle = cursor.toLocaleDateString(locale, { month: "long" });
   const yearTitle = String(cursor.getFullYear());
+  const monthOptions = Array.from({ length: 12 }, (_, month) => new Date(cursor.getFullYear(), month, 1));
+  const yearOptions = Array.from({ length: 21 }, (_, index) => now.getFullYear() - 10 + index);
+  const chooseMonthYear = (year: number, month: number) => {
+    const target = new Date(year, month, 1);
+    setCursor(target);
+    setSelected(target);
+  };
   const selectedKey = localDateKey(selected);
   const selectedHistory = state.history.filter(workout => localDateKey(workout.date) === selectedKey);
   const selectedBase = scheduledDay(state.profile, state.routine, selected, state.routineVersions);
@@ -179,7 +198,6 @@ export function RoutineCalendar() {
   } : undefined;
   return <Card>
     <Txt weight="600" size={20}>Calendario de entrenamiento</Txt>
-    <Txt muted size={13}>Consulta cualquier mes del año. Selecciona un día para corregir un registro pasado o preparar el peso de una sesión futura.</Txt>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 5 }}>
       <Pressable accessibilityRole="button" accessibilityLabel={t("Cómo funciona la racha")} onPress={() => setShowStreakInfo(value => !value)}><Txt size={28}>⚡</Txt></Pressable>
       <View style={{ flex: 1 }}>
@@ -189,16 +207,61 @@ export function RoutineCalendar() {
       </View>
     </View>
     {showStreakInfo && <Notice>La racha se mantiene al completar al menos la mitad de las sesiones planificadas de cada semana.</Notice>}
-    <Row style={{ alignItems: "flex-start", gap: 10 }}>
-      <View style={{ flex: 1, alignItems: "center" }}>
+    <Row style={{ alignItems: "flex-start", gap: 16 }}>
+      <View style={{ flex: 1, alignItems: "center", gap: 6 }}>
         <Button label="Mes anterior" compact variant="ghost" icon="arrow-left" onPress={() => setCursor(current => moveMonth(current, -1))} />
-        <Txt size={13} weight="600" style={{ textTransform: "capitalize", textAlign: "center", marginTop: 2 }}>{monthTitle}</Txt>
+        <Pressable accessibilityRole="button" accessibilityLabel="Elegir mes" onPress={() => setPickerMode(value => value === "month" ? null : "month")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: pickerMode === "month" ? colors.selectionHighlight : colors.border, backgroundColor: pickerMode === "month" ? colors.selection : colors.surface, position: "relative", overflow: "hidden" }}>
+          {pickerMode === "month" && <EmeraldSurface />}
+          <Txt size={13} weight="600" style={{ textTransform: "capitalize", textAlign: "center", color: pickerMode === "month" ? "#F4FFF9" : colors.text }}>{monthTitle}</Txt>
+        </Pressable>
+        {pickerMode === "month" && <Card style={{ padding: 10, gap: 8, marginTop: 2, backgroundColor: colors.accentSoft, borderColor: colors.border, width: "100%" }}>
+          <Txt weight="600" size={13}>Elegir mes</Txt>
+          <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: 5 }} showsVerticalScrollIndicator>
+            {monthOptions.map((date, month) => {
+              const active = month === cursor.getMonth();
+              return <Pressable key={month} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { chooseMonthYear(cursor.getFullYear(), month); setPickerMode(null); }} style={{ width: "100%", minHeight: 38, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: active ? colors.selectionHighlight : colors.border, backgroundColor: active ? colors.selection : colors.surface, justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                {active && <EmeraldSurface />}
+                <Txt size={12} weight={active ? "600" : "400"} style={{ color: active ? "#F4FFF9" : colors.text, textTransform: "capitalize" }}>{date.toLocaleDateString(locale, { month: "long" })}</Txt>
+              </Pressable>;
+            })}
+          </ScrollView>
+          <Button label="Cerrar selector" compact variant="ghost" onPress={() => setPickerMode(null)} />
+        </Card>}
       </View>
-      <View style={{ flex: 1, alignItems: "center" }}>
+      <View style={{ flex: 1, alignItems: "center", gap: 6 }}>
         <Button label="Mes siguiente" compact variant="ghost" icon="arrow-right" onPress={() => setCursor(current => moveMonth(current, 1))} />
-        <Txt size={12} muted style={{ textAlign: "center", marginTop: 2 }}>{yearTitle}</Txt>
+        <Pressable accessibilityRole="button" accessibilityLabel="Elegir año" onPress={() => setPickerMode(value => value === "year" ? null : "year")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: pickerMode === "year" ? colors.selectionHighlight : colors.border, backgroundColor: pickerMode === "year" ? colors.selection : colors.surface, position: "relative", overflow: "hidden" }}>
+          {pickerMode === "year" && <EmeraldSurface />}
+          <Txt size={12} muted={!pickerMode} style={{ textAlign: "center", color: pickerMode === "year" ? "#F4FFF9" : colors.muted }}>{yearTitle}</Txt>
+        </Pressable>
+        {pickerMode === "year" && <Card style={{ padding: 10, gap: 8, marginTop: 2, backgroundColor: colors.accentSoft, borderColor: colors.border, width: "100%" }}>
+          <Txt weight="600" size={13}>Elegir aÃ±o</Txt>
+          <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: 5 }} showsVerticalScrollIndicator>
+            {yearOptions.map(year => {
+              const active = year === cursor.getFullYear();
+              return <Pressable key={year} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { chooseMonthYear(year, cursor.getMonth()); setPickerMode(null); }} style={{ width: "100%", minHeight: 36, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: active ? colors.selectionHighlight : colors.border, backgroundColor: active ? colors.selection : colors.surface, justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                {active && <EmeraldSurface />}
+                <Txt size={12} weight={active ? "600" : "400"} style={{ color: active ? "#F4FFF9" : colors.text }}>{year}</Txt>
+              </Pressable>;
+            })}
+          </ScrollView>
+          <Button label="Cerrar selector" compact variant="ghost" onPress={() => setPickerMode(null)} />
+        </Card>}
       </View>
     </Row>
+    {false && <Card style={{ padding: 10, gap: 8, backgroundColor: colors.accentSoft, borderColor: colors.border }}>
+      <Txt weight="600" size={13}>Elegir mes y año</Txt>
+      <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator>
+        {monthOptions.map((date, month) => {
+          const active = month === cursor.getMonth();
+          return <Pressable key={month} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => chooseMonthYear(cursor.getFullYear(), month)} style={{ width: "100%", minHeight: 38, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: active ? colors.selectionHighlight : colors.border, backgroundColor: active ? colors.selection : colors.surface, justifyContent: "center", position: "relative", overflow: "hidden" }}>
+            {active && <EmeraldSurface />}
+            <Txt size={12} weight={active ? "600" : "400"} style={{ color: active ? "#F4FFF9" : colors.text, textTransform: "capitalize" }}>{date.toLocaleDateString(locale, { month: "short" })}</Txt>
+          </Pressable>;
+        })}
+      </ScrollView>
+      <Button label="Cerrar selector" compact variant="ghost" onPress={() => setPickerMode(null)} />
+    </Card>}
     <View style={{ flexDirection: "row", gap: 0 }}>
       {weekdayLabels.map(label => <Txt key={label} size={11} muted weight="600" style={{ width: "13.85%", textAlign: "center" }}>{label}</Txt>)}
     </View>
@@ -218,6 +281,16 @@ export function RoutineCalendar() {
           if (planned && !history.length && localDateKey(date) >= localDateKey(moveFloor))
             setMoving({ sourceKey: localDateKey(date), day: planned, fromRecurring: !!scheduledDay(state.profile, state.routine, date, state.routineVersions) });
         };
+        if (isSelected) return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(locale)} accessibilityState={{ selected: true }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, position: "relative", overflow: "hidden", backgroundColor: colors.selection, borderWidth: 1, borderColor: colors.selectionHighlight, opacity: muted ? 0.38 : pressed ? 0.78 : 1 })}>
+          <EmeraldSurface />
+          <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
+            <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center", color: "#F4FFF9" }}>{date.getDate()}</Txt>
+          </Pressable>
+          {history.length ? <Txt translate={false} size={10} weight="700" numberOfLines={1} ellipsizeMode="tail" style={{ color: "#D5F5E6" }}>{history[0].dayName}</Txt> : planned ? <Txt translate={false} size={10} numberOfLines={1} ellipsizeMode="tail" style={{ color: "#F4FFF9" }}>{planned.name}</Txt> : null}
+          {!!statusColor && <Txt size={10} style={{ color: "#D5F5E6" }}>{history.length ? "✓" : "×"}</Txt>}
+          {overridden && !history.length && <Txt size={9} style={{ color: "#D5F5E6" }}>ajustada</Txt>}
+          {skipped && !history.length && <Txt size={9} style={{ color: "#D5F5E6" }}>quitada</Txt>}
+        </Pressable>;
         return <Pressable key={localDateKey(date)} accessibilityRole="button" accessibilityLabel={`${date.toLocaleDateString(locale)}: ${history.length ? t("Entrenamiento registrado") : planned ? `${planned.name}${missed ? ": " + t("Sin realizar") : ""}` : t(skipped ? "Sesión quitada" : "Descanso")}`} accessibilityState={{ selected: isSelected }} onPointerEnter={() => { if (moving && !history.length) setSelected(date); }} onPointerUp={() => { if (moving && !history.length) moveHere(localDateKey(date)); }} onPress={() => { setSelected(date); setAdding(false); }} style={({ pressed }) => ({ width: "13.85%", minHeight: 68, borderRadius: 10, padding: 6, gap: 3, backgroundColor: statusColor ? `${statusColor}20` : isSelected ? colors.accentSoft : pressed ? colors.soft : "transparent", borderWidth: isSelected ? 2 : statusColor ? 1 : 0, borderColor: isSelected ? colors.accent : statusColor, opacity: muted ? 0.38 : 1 })}>
           <Pressable onLongPress={startMovingHere} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Mover ${planned?.name ?? "sesión"}`} disabled={!planned || !!history.length}>
             <Txt size={12} weight={sameDate(date, now) ? "600" : "400"} style={{ textAlign: "center" }}>{date.getDate()}</Txt>
@@ -229,7 +302,6 @@ export function RoutineCalendar() {
         </Pressable>;
       })}
     </View>
-    <Txt muted size={12}>Verde ✓: completada · Rojo ✕: sin realizar · “ajustada”: pesos guardados para esa fecha.</Txt>
     <Txt weight="600">{selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Txt>
     {!!selectedHistory.length && selectedHistory.map(workout => <Card key={workout.id}>
       <Txt weight="600">{canEditPast ? "Editar este entrenamiento" : "Visualizar este entrenamiento"}</Txt>
@@ -244,7 +316,7 @@ export function RoutineCalendar() {
         <Txt weight="600">Preparar este día</Txt>
         <Txt muted size={12}>Abre el mismo editor detallado del entrenamiento para dejar listas las cargas, máquinas, notas y series por lado de esta fecha.</Txt>
         <Button label={"Preparar " + selectedPlan.name} icon="play" onPress={() => {
-          update(current => ({ ...current, active: startWorkout(selectedPlan, current.profile.weight, current.profile.level, current.profile.sex, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes, { preparing: true, plannedDate: dateAtNoon(selected) }) }));
+          update(current => ({ ...current, active: startWorkout(selectedPlan, current.profile.weight, current.profile.level, current.profile.sex, current.preferences.barWeights, current.preferences.apparatusWeights, current.preferences.loadModes, { preparing: true, plannedDate: dateAtNoon(selected), history: current.history }) }));
           router.push("/workout");
         }} />
       </Card>

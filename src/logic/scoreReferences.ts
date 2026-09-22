@@ -23,6 +23,7 @@ export const scoreReferences: Record<string, ScoreReference> = {
   "supported-row": analogy(0.55, 0.5), "neutral-pulldown": analogy(0.5, 0.45), "wide-pulldown": analogy(0.48, 0.43),
   "assisted-pullup": { ...analogy(0.65, 0.6), body: "subtract" },
   "t-row": analogy(0.5, 0.45), "t-row-free": analogy(0.55, 0.5), "pullover": analogy(0.25, 0.22),
+  "shrug-smith": analogy(0.3, 0.25), "shrug-barbell": analogy(0.35, 0.3), "shrug-dumbbell": analogy(0.3, 0.25),
   "gironda-row": analogy(0.55, 0.5), "pronated-pullup": { ...analogy(0.65, 0.6), body: "add" },
   "neutral-pullup": { ...analogy(0.68, 0.63), body: "add" },
   "barbell-row": analogy(0.6, 0.55), "one-arm-row": analogy(0.27, 0.25), "seated-face-pull": analogy(0.2, 0.17),

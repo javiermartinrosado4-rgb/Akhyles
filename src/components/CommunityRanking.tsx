@@ -10,7 +10,7 @@ import { useTheme } from "../theme";
 import { Avatar } from "./Avatar";
 import { CommunityTabs } from "./CommunityTabs";
 import { Button, Card, Icon, Notice, Row, Txt } from "./ui";
-import { nextPointsGoal, nextPointsTier, pointsTier } from "../logic/achievements";
+import { nextPointsTier, pointsTier, presentationPoints } from "../logic/achievements";
 
 
 const scopes: { value: RankingScope; label: string }[] = [
@@ -24,7 +24,7 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
   city: string; onCityChange: (city: string) => void;
 }) {
   const { t, locale } = useLanguage();
-  const points = (value: number) => value.toLocaleString(locale, { maximumFractionDigits: 1 });
+  const points = (value: number) => (presentationPoints(value) ?? 0).toLocaleString(locale, { maximumFractionDigits: 1 });
   const { user, request, refresh } = useCommunity();
   const { state } = useStore();
   const { colors } = useTheme();
@@ -100,7 +100,7 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
             <View style={{ alignItems: "flex-end" }}><Txt weight="700" size={30}>{points(board.me.points)}</Txt><Txt muted size={12}>A-POINTS · {board.me.coverage}/11 grupos</Txt></View>
           </Row>
           {board.me.projected && <Txt muted size={12}>Posición estimada con tus A-Points actuales. Solo compites oficialmente en la ciudad de tu perfil.</Txt>}
-          <View style={{ gap: 4 }}><Row style={{ justifyContent: "space-between" }}><Txt weight="600">{pointsTier(board.me.points).name}</Txt><Txt muted size={12}>Meta: {nextPointsGoal(board.me.points)} A-Points</Txt></Row><Txt muted size={12}>Te faltan {points(nextPointsGoal(board.me.points) - board.me.points)} puntos.{nextPointsTier(board.me.points) ? ` Próximo tier: ${nextPointsTier(board.me.points)!.name}.` : ""}</Txt></View>
+          <View style={{ gap: 4 }}><Row style={{ justifyContent: "space-between" }}><Txt weight="600">{pointsTier(board.me.points).name}</Txt><Txt muted size={12}>{nextPointsTier(board.me.points) ? `Meta: ${nextPointsTier(board.me.points)!.name}` : "Nivel máximo"}</Txt></Row><Txt muted size={12}>{nextPointsTier(board.me.points) ? `Te faltan ${(nextPointsTier(board.me.points)!.minimum - (presentationPoints(board.me.points) ?? 0)).toLocaleString(locale, { maximumFractionDigits: 1 })} puntos.` : "Tu puntuación puede seguir aumentando dentro de Olimpian."}</Txt></View>
           {board.nextRival ? <View style={{ gap: 8 }}><Txt>{t("Te separan {points} pts de @{name}. Iguala su marca para compartir puesto.", { points: points(board.gap!), name: board.nextRival.handle })}</Txt>
             <Button label="Ver al siguiente rival" variant="secondary" compact onPress={() => openProfile(board.nextRival!.id)} /></View>
             : <Txt>{board.total > 1 ? "Estás en el primer puesto. ¡Ahora toca defenderlo!" : "Ya estás dentro. Encuentra a tu gente y empieza el reto."}</Txt>}
@@ -127,7 +127,7 @@ export function CommunityRanking({ openProfile, findPeople, editLocation, scope,
         </Pressable>)}
       </Card> : !board.needsLocation && <Card><Icon name="users" size={28} /><Txt weight="600">{scope === "friends" ? "Un buen rival lo cambia todo" : "Todavía no hay participantes"}</Txt><Txt muted>{scope === "friends" ? "Busca a tus amigos por su @. Cuando os sigáis mutuamente y participéis, competiréis aquí." : "Aparecerán aquí quienes activen el ranking y tengan las marcas necesarias."}</Txt><Button label="Encontrar personas" variant="secondary" onPress={findPeople} /></Card>}
       {board.next !== null && <Button label="Ver más posiciones" disabled={busy} variant="secondary" onPress={() => void more()} />}
-      {scope === "friends" && board.entries.length > 0 && <Button label="Encontrar más amigos" icon="user-plus" variant="secondary" onPress={findPeople} />}
+      {scope === "friends" && board.entries.length > 0 && <Button label="Encontrar más amigos" icon="user-plus" variant="primary" onPress={findPeople} />}
     </>}
     {!loading && !board && <Button label="Reintentar ranking" onPress={() => setRevision(value => value + 1)} />}
     <Button label={rules ? "Ocultar cómo se compite" : "Cómo se calculan las posiciones"} icon="info" compact variant="ghost" onPress={() => setRules(value => !value)} />

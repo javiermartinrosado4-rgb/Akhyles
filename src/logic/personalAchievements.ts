@@ -22,7 +22,7 @@ export function personalAchievements(state: AppState): LocalAchievement[] {
   for (const workout of history) {
     for (const record of workout.records) {
       const current = Math.max(...record.sets.map(set => {
-        const load = effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set), workout.bodyWeight, record.apparatusWeight, record.barWeight);
+        const load = effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set, record.prescription.exerciseId), workout.bodyWeight, record.apparatusWeight, record.barWeight);
         return load === undefined ? 0 : estimatedMax(load, Math.min(set.reps, 10)) ?? 0;
       }), 0);
       const prior = best.get(record.prescription.exerciseId) ?? 0;

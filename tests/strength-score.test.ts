@@ -105,7 +105,7 @@ test("an explicitly selected chart period excludes later data and can omit the p
 });
 
 test("all catalog exercises have explicit finite analogies, and the scale is uncapped", () => {
-  assert.equal(catalog.length, 91);
+  assert.equal(catalog.length, 94);
   for (const exercise of catalog) {
     const reference = scoreReferences[exercise.id];
     assert.ok(reference, exercise.id);

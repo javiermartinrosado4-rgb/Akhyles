@@ -1,4 +1,5 @@
 import { Level, Profile, Workout } from "../types";
+import { storedSetLoad } from "./load";
 
 export interface LevelSuggestion {
   nextLevel: Level;
@@ -17,7 +18,7 @@ const bestLoads = (history: Workout[]) => {
   const loads = new Map<string, number[]>();
   for (const workout of [...history].sort((a, b) => a.date.localeCompare(b.date))) {
     for (const record of workout.records) {
-      const best = Math.max(0, ...record.sets.map(set => set.weight));
+      const best = Math.max(0, ...record.sets.map(set => storedSetLoad(set, record.prescription.exerciseId)));
       if (best > 0) loads.set(record.prescription.exerciseId, [...(loads.get(record.prescription.exerciseId) ?? []), best]);
     }
   }

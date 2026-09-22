@@ -1,6 +1,6 @@
 {
   "name": "akhyles",
-  "version": "1.0.23",
+  "version": "1.0.32",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -45,6 +45,8 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:visual": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-android-visual-qa.ps1",
+    "android:visual:serve": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-android-visual-metro.ps1",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
@@ -57,8 +59,12 @@
     "android:apk": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format apk",
     "android:aab": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1 -Format aab",
     "brand:assets": "node scripts/brand-assets.mjs",
+    "ui:assets": "node scripts/ui-surface-assets.mjs",
     "play:assets": "node scripts/play-assets-akhyles.mjs",
     "check:secrets": "node scripts/check-git-secrets.mjs",
+    "release:doctor": "node scripts/release-doctor.mjs",
+    "monitor:sync": "node scripts/synthetic-account-sync.mjs",
+    "security:dependencies": "node scripts/check-dependencies.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run check:secrets"
   },
   "private": true

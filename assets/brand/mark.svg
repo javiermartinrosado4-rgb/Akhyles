@@ -1,5 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs><linearGradient id="sage" x1="190" y1="170" x2="790" y2="800" gradientUnits="userSpaceOnUse"><stop stop-color="#91B7A7"/><stop offset="1" stop-color="#5D8E7B"/></linearGradient></defs>
-  <path fill="url(#sage)" d="M512 176 216 666h142l154-255 154 255h142L512 176Z"/>
-  <path fill="url(#sage)" d="M248 732h528l-65-108H313l-65 108Z"/>
+  <image href="icon.png" width="1024" height="1024" preserveAspectRatio="xMidYMid slice"/>
 </svg>

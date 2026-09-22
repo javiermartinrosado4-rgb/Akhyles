@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { anatomicalGroups, muscleAppearance, strengthBands } from "../src/logic/bodyMap";
-import { pointsTierById } from "../src/logic/achievements";
+import { pointsTierById, presentationPoints } from "../src/logic/achievements";
 import { createDemoScenario, repairLegacyDemoScores } from "../src/data/demoScenarios";
 import { catalog } from "../src/data/catalog";
 import { scoreProgress } from "../src/logic/progress";
@@ -12,24 +12,24 @@ import { bodyFemaleBack } from "../src/components/anatomy/bodyFemaleBack";
 import { gluteInference, scoreGroups } from "../src/logic/scoreReferences";
 
 test("fixed strength colors do not depend on another muscle or missing values", () => {
-  assert.equal(muscleAppearance(200).color, strengthBands[2].color);
-  assert.equal(muscleAppearance(0).label, "Base");
-  assert.equal(muscleAppearance(100).label, "En progreso");
-  assert.equal(muscleAppearance(800).label, "Mítico");
-  assert.equal(muscleAppearance(900).label, "Greek God");
-  assert.equal(muscleAppearance(1000).label, "Olympian");
-  assert.equal(muscleAppearance(9000).label, "Olympian");
-  for (const missing of [undefined, NaN, Infinity, -1]) assert.equal(muscleAppearance(missing).label, "Sin datos");
+  assert.equal(muscleAppearance(334).color, strengthBands[2].color);
+  assert.equal(muscleAppearance(0).label, "Iniciado");
+  assert.equal(muscleAppearance(167).label, "Atleta");
+  assert.equal(muscleAppearance(734).label, "Semidiós");
+  assert.equal(muscleAppearance(1000).label, "Olimpian");
+  assert.equal(muscleAppearance(9000).label, "Olimpian");
+  for (const missing of [undefined, NaN, Infinity, -1]) assert.equal(muscleAppearance(missing).label, "Sin valorar");
 });
 
 test("Community point milestones use the same body-map rank names", () => {
-  assert.equal(pointsTierById("points-900").name, "Greek God");
+  assert.equal(pointsTierById("points-900").name, "Semidiós");
+  assert.equal(presentationPoints(490.5), 73.6);
 });
 
-test("the map follows the visible spectrum from red at entry level to purple at the highest tier", () => {
-  assert.equal(muscleAppearance(0).color, "#D94A4A");
-  assert.equal(muscleAppearance(500).color, "#35AABD");
-  assert.equal(muscleAppearance(1000).color, "#A33BA7");
+test("the map follows the approved material scale from stone to gold", () => {
+  assert.equal(muscleAppearance(0).color, "#A8AAA4");
+  assert.equal(muscleAppearance(600).color, "#B9C1C2");
+  assert.equal(muscleAppearance(1000).color, "#C39850");
 });
 
 test("old demo sessions recover their known sex without changing any loads or real sessions", () => {

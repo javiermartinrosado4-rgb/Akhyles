@@ -11,12 +11,14 @@ final class ApiError extends RuntimeException {
 }
 
 final class Accounts {
+    private static bool $syncV2SchemaReady = false;
     public function __construct(private PDO $db, private array $config, private $googleVerifier = null) {
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         if (strlen(base64_decode($config['encryption_key'] ?? '', true) ?: '') !== 32) {
             throw new RuntimeException('A 32-byte encryption key is required.');
         }
+        $this->ensureSyncV2Schema();
     }
     private function run(string $sql, array $args = []): \PDOStatement {
         $s = $this->db->prepare($sql); $s->execute($args); return $s;
@@ -26,6 +28,95 @@ final class Accounts {
         $this->db->beginTransaction();
         try { $result = $fn(); $this->db->commit(); return $result; }
         catch (Throwable $e) { if ($this->db->inTransaction()) $this->db->rollBack(); throw $e; }
+    }
+    /** Additive schema for incremental sync; existing progress storage is untouched. */
+    private function ensureSyncV2Schema(): void {
+        if (self::$syncV2SchemaReady) return;
+        $statements = [
+            'CREATE TABLE IF NOT EXISTS account_sync_meta (user_id VARCHAR(64) PRIMARY KEY,sync_cursor BIGINT NOT NULL DEFAULT 0,migrated_at VARCHAR(32) NULL,v2_enabled TINYINT NOT NULL DEFAULT 0,migration_hash CHAR(64) NULL,migration_verified_at VARCHAR(32) NULL)',
+            'CREATE TABLE IF NOT EXISTS account_sync_entities (user_id VARCHAR(64) NOT NULL,entity_type VARCHAR(32) NOT NULL,entity_id VARCHAR(191) NOT NULL,revision INT NOT NULL,payload MEDIUMTEXT NULL,deleted TINYINT NOT NULL DEFAULT 0,updated VARCHAR(32) NOT NULL,PRIMARY KEY(user_id,entity_type,entity_id))',
+            'CREATE TABLE IF NOT EXISTS account_sync_changes (user_id VARCHAR(64) NOT NULL,sync_cursor BIGINT NOT NULL,entity_type VARCHAR(32) NOT NULL,entity_id VARCHAR(191) NOT NULL,revision INT NOT NULL,payload MEDIUMTEXT NULL,deleted TINYINT NOT NULL DEFAULT 0,updated VARCHAR(32) NOT NULL,PRIMARY KEY(user_id,sync_cursor))',
+            'CREATE TABLE IF NOT EXISTS account_sync_operations (user_id VARCHAR(64) NOT NULL,operation_id VARCHAR(96) NOT NULL,sync_cursor BIGINT NOT NULL,created BIGINT NOT NULL,PRIMARY KEY(user_id,operation_id))',
+            'CREATE TABLE IF NOT EXISTS account_operational_metrics (metric_day CHAR(10) NOT NULL,event_name VARCHAR(48) NOT NULL,hits BIGINT NOT NULL DEFAULT 0,PRIMARY KEY(metric_day,event_name))',
+        ];
+        foreach ($statements as $sql) $this->db->exec($sql);
+        foreach ([
+            'ALTER TABLE account_sync_meta ADD COLUMN v2_enabled TINYINT NOT NULL DEFAULT 0',
+            'ALTER TABLE account_sync_meta ADD COLUMN migration_hash CHAR(64) NULL',
+            'ALTER TABLE account_sync_meta ADD COLUMN migration_verified_at VARCHAR(32) NULL',
+        ] as $sql) try { $this->db->exec($sql); } catch (\PDOException) { /* Already migrated. */ }
+        self::$syncV2SchemaReady = true;
+    }
+    private function syncMeta(string $uid): array {
+        $meta = $this->one('SELECT * FROM account_sync_meta WHERE user_id=?', [$uid]);
+        if ($meta) return $meta;
+        try { $this->run('INSERT INTO account_sync_meta (user_id,sync_cursor) VALUES (?,0)', [$uid]); }
+        catch (\PDOException $e) { /* A concurrent first sync created it. */ }
+        return $this->one('SELECT * FROM account_sync_meta WHERE user_id=?', [$uid]) ?: ['user_id'=>$uid,'sync_cursor'=>0,'migrated_at'=>null,'v2_enabled'=>0,'migration_hash'=>null,'migration_verified_at'=>null];
+    }
+    /** Aggregated counters only: no email, owner, workout or request body is retained. */
+    private function metric(string $event): void {
+        $day=gmdate('Y-m-d'); $row=$this->one('SELECT hits FROM account_operational_metrics WHERE metric_day=? AND event_name=?',[$day,$event]);
+        if ($row) $this->run('UPDATE account_operational_metrics SET hits=hits+1 WHERE metric_day=? AND event_name=?',[$day,$event]);
+        else $this->run('INSERT INTO account_operational_metrics (metric_day,event_name,hits) VALUES (?,?,1)',[$day,$event]);
+    }
+    private function syncEntity(array $row): array {
+        $data = null;
+        if (!$row['deleted'] && $row['payload']) {
+            $plain = $this->decrypt($row['payload'], 'sync-v2:'.$row['user_id'].':'.$row['entity_type'].':'.$row['entity_id']);
+            $data = $plain['data'] ?? null;
+        }
+        return ['type'=>$row['entity_type'],'id'=>$row['entity_id'],'revision'=>(int)$row['revision'], 'deleted'=>(bool)$row['deleted'],'updated'=>$row['updated'],'data'=>$data];
+    }
+    private function canonicalSyncValue(mixed $value): string {
+        if ($value === null || is_scalar($value)) return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if (!is_array($value)) throw new RuntimeException('Invalid sync value');
+        if (array_is_list($value)) return '['.implode(',',array_map(fn($item)=>$this->canonicalSyncValue($item),$value)).']';
+        ksort($value,SORT_STRING); $items=[];
+        foreach ($value as $key=>$item) $items[]=json_encode((string)$key,JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR).':'.$this->canonicalSyncValue($item);
+        return '{'.implode(',',$items).'}';
+    }
+    private function syncManifest(string $uid): array {
+        $rows=$this->run('SELECT * FROM account_sync_entities WHERE user_id=? AND deleted=0 ORDER BY entity_type,entity_id',[$uid])->fetchAll();
+        $counts=['state'=>0,'workout'=>0,'body-weight'=>0]; $digest=hash_init('sha256');
+        foreach ($rows as $row) { $entity=$this->syncEntity($row); $counts[$entity['type']]++; hash_update($digest,$entity['type'].':'.$entity['id'].':'.$this->canonicalSyncValue($entity['data'])."\n"); }
+        return ['counts'=>$counts,'hash'=>hash_final($digest),'entities'=>count($rows)];
+    }
+    /** Incremental and idempotent: retrying an opId never writes an entity twice. */
+    private function syncV2Batch(string $uid, array $data): array {
+        $cursor = $data['cursor'] ?? 0; $operations = $data['operations'] ?? [];
+        if (!is_int($cursor) || $cursor < 0 || !is_array($operations) || !array_is_list($operations) || count($operations) > 100)
+            $this->fail(400, 'Solicitud de sincronizaciÃ³n no vÃ¡lida.');
+        return $this->transaction(function() use ($uid,$cursor,$operations) {
+            $meta = $this->syncMeta($uid); $acknowledged=[]; $conflicts=[];
+            if (!(bool)$meta['v2_enabled']) $this->fail(403,'La sincronizaciÃ³n V2 no estÃ¡ activada para esta cuenta.');
+            foreach ($operations as $operation) {
+                $opId=$operation['opId'] ?? null; $type=$operation['type'] ?? null; $id=$operation['id'] ?? null;
+                $base=$operation['baseRevision'] ?? 0; $deleted=(bool)($operation['deleted'] ?? false); $payload=$operation['data'] ?? null;
+                if (!is_string($opId) || !preg_match('/^[A-Za-z0-9:_-]{16,96}$/',$opId) || !in_array($type,['state','workout','body-weight'],true)
+                    || !is_string($id) || !preg_match('/^[A-Za-z0-9:_-]{1,191}$/',$id) || !is_int($base) || $base<0
+                    || (!$deleted && !is_array($payload)) || strlen(json_encode($payload, JSON_THROW_ON_ERROR)) > 250000)
+                    $this->fail(400, 'OperaciÃ³n de sincronizaciÃ³n no vÃ¡lida.');
+                $seen=$this->one('SELECT sync_cursor FROM account_sync_operations WHERE user_id=? AND operation_id=?',[$uid,$opId]);
+                if ($seen) { $acknowledged[]=$opId; continue; }
+                $current=$this->one('SELECT * FROM account_sync_entities WHERE user_id=? AND entity_type=? AND entity_id=?',[$uid,$type,$id]);
+                $currentRevision=$current ? (int)$current['revision'] : 0;
+                if ($currentRevision !== $base) { $this->metric('sync_v2_conflict'); $conflicts[]=['opId'=>$opId,'entity'=>$current ? $this->syncEntity($current) : null]; continue; }
+                $revision=$currentRevision+1; $updated=gmdate('c'); $encoded=$deleted ? null : $this->encrypt(['data'=>$payload],'sync-v2:'.$uid.':'.$type.':'.$id);
+                if ($current) $this->run('UPDATE account_sync_entities SET revision=?,payload=?,deleted=?,updated=? WHERE user_id=? AND entity_type=? AND entity_id=?',[$revision,$encoded,$deleted?1:0,$updated,$uid,$type,$id]);
+                else $this->run('INSERT INTO account_sync_entities (user_id,entity_type,entity_id,revision,payload,deleted,updated) VALUES (?,?,?,?,?,?,?)',[$uid,$type,$id,$revision,$encoded,$deleted?1:0,$updated]);
+                $nextCursor=(int)$meta['sync_cursor']+1; $meta['sync_cursor']=$nextCursor;
+                $this->run('UPDATE account_sync_meta SET sync_cursor=? WHERE user_id=?',[$nextCursor,$uid]);
+                $this->run('INSERT INTO account_sync_changes (user_id,sync_cursor,entity_type,entity_id,revision,payload,deleted,updated) VALUES (?,?,?,?,?,?,?,?)',[$uid,$nextCursor,$type,$id,$revision,$encoded,$deleted?1:0,$updated]);
+                $this->run('INSERT INTO account_sync_operations (user_id,operation_id,sync_cursor,created) VALUES (?,?,?,?)',[$uid,$opId,$nextCursor,time()]);
+                $acknowledged[]=$opId;
+                $this->metric('sync_v2_operation');
+            }
+            $changes=$this->run('SELECT * FROM account_sync_changes WHERE user_id=? AND sync_cursor>? ORDER BY sync_cursor ASC LIMIT 250',[$uid,$cursor])->fetchAll();
+            $last=$changes ? (int)$changes[count($changes)-1]['sync_cursor'] : min($cursor,(int)$meta['sync_cursor']);
+            $this->run('DELETE FROM account_sync_changes WHERE user_id=? AND sync_cursor<?',[$uid,max(0,(int)$meta['sync_cursor']-10000)]);
+            return ['cursor'=>$last,'serverCursor'=>(int)$meta['sync_cursor'],'acknowledged'=>$acknowledged,'conflicts'=>$conflicts,'changes'=>array_map(fn($row)=>$this->syncEntity($row),$changes)];
+        });
     }
     private function fail(int $status, string $text): never { throw new ApiError($status, $text); }
     private function text(mixed $value, int $max): string {
@@ -175,7 +266,7 @@ final class Accounts {
         return $p;
     }
     public function handle(string $method, string $path, array $data = [], string $token = '', string $ip = 'local'): array {
-        if ($path === '/app/version' && $method === 'GET') return ['version'=>'1.0.25','androidUrl'=>'https://play.google.com/store/apps/details?id=com.akhyles.app'];
+        if ($path === '/app/version' && $method === 'GET') return ['version'=>'1.0.31','androidUrl'=>'https://play.google.com/store/apps/details?id=com.javiermartinrosado.akhyles'];
         if ($path === '/health' && $method === 'GET') {
             $this->run('SELECT 1 FROM account_users LIMIT 1');
             return ['service'=>'akhyles-accounts','ok'=>true,'schema'=>1,'googleConfigured'=>!empty($this->config['google_client_id'])];
@@ -234,6 +325,11 @@ final class Accounts {
         }
         $u = $this->user($token); $uid = $u['id']; $this->limit('user:'.$uid,600);
         if ($path === '/me' && $method === 'GET') return $this->publicUser($u);
+        if ($path === '/telemetry/event' && $method === 'POST') {
+            $event=$data['event'] ?? null;
+            if (!is_string($event) || !in_array($event,['sync_error','sync_conflict','local_storage_error','migration_mismatch'],true)) $this->fail(400,'Evento no vÃ¡lido.');
+            $this->metric($event); return ['ok'=>true];
+        }
         if ($path === '/community/session' && $method === 'POST') return ['assertion'=>$this->communityAssertion($u)];
         if ($path === '/auth/google/link' && $method === 'POST') {
             $p = $this->google($data);
@@ -251,9 +347,24 @@ final class Accounts {
             return $this->transaction(function() use ($uid,$u) {
                 $this->run('DELETE FROM account_challenges WHERE email=?',[$u['email']]);
                 $this->run('DELETE FROM account_mail WHERE email=?',[$u['email']]);
+                foreach (['account_sync_operations','account_sync_changes','account_sync_entities','account_sync_meta'] as $table)
+                    $this->run('DELETE FROM '.$table.' WHERE user_id=?',[$uid]);
                 $this->run('DELETE FROM account_users WHERE id=?',[$uid]); return ['ok'=>true];
             });
         }
+        if ($path === '/sync/v2/status' && $method === 'GET') {
+            $meta=$this->syncMeta($uid); return ['enabled'=>(bool)$meta['v2_enabled'],'cursor'=>(int)$meta['sync_cursor'],
+                'migrationVerified'=>!empty($meta['migration_verified_at']),'manifest'=>$this->syncManifest($uid)];
+        }
+        if ($path === '/sync/v2/verify' && $method === 'POST') {
+            $meta=$this->syncMeta($uid); if (!(bool)$meta['v2_enabled']) $this->fail(403,'La sincronizaciÃ³n V2 no estÃ¡ activada para esta cuenta.');
+            $manifest=$this->syncManifest($uid); $provided=$data['manifest'] ?? null;
+            if (!is_array($provided) || !hash_equals($manifest['hash'],(string)($provided['hash'] ?? '')) || $manifest['counts'] !== ($provided['counts'] ?? null))
+                $this->fail(409,'La verificaciÃ³n de migraciÃ³n no coincide. La copia anterior permanece activa.');
+            $this->run('UPDATE account_sync_meta SET migration_hash=?,migration_verified_at=?,migrated_at=? WHERE user_id=?',[$manifest['hash'],gmdate('c'),gmdate('c'),$uid]);
+            return ['ok'=>true,'manifest'=>$manifest];
+        }
+        if ($path === '/sync/v2/batch' && $method === 'POST') return $this->syncV2Batch($uid,$data);
         if ($path === '/sync' && $method === 'GET') {
             $p = $this->one('SELECT * FROM account_progress WHERE user_id=?',[$uid]);
             return ['revision'=>(int)$p['revision'],'updated'=>$p['updated'],'state'=>$p['payload'] ? $this->normalizeState($this->decrypt($p['payload'],'progress:'.$uid)) : null];
@@ -331,7 +442,7 @@ final class Accounts {
             || !is_array($s['routine'] ?? null) || !array_is_list($s['routine']) || !is_array($s['history'] ?? null) || !array_is_list($s['history'])
             || !is_bool($s['completed'] ?? null) || !in_array($s['theme'] ?? null,['system','light','dark'],true))
             $this->fail(400,'La copia no tiene un formato válido.');
-        $allowed = ['version','programRevision','profile','preferences','onboardingStep','completed','theme','volumeTargets','routine','routineVersions','history','plannedWorkouts','skippedWorkoutDates','active','bodyWeights','achievements'];
+        $allowed = ['version','programRevision','loadNormalizationVersion','profile','preferences','onboardingStep','completed','theme','volumeTargets','routine','routineVersions','history','plannedWorkouts','skippedWorkoutDates','active','bodyWeights','achievements','strengthReferences'];
         if (array_diff(array_keys($s),$allowed)) $this->fail(400,'La copia contiene campos de dispositivo o sesión.');
         if (strlen(json_encode($s,JSON_THROW_ON_ERROR)) > 4_000_000 || count($s['history']) > 20000 || count($s['routine']) > 30)
             $this->fail(413,'La copia supera el tamaño permitido. Tus datos permanecen guardados en el dispositivo.');
@@ -347,6 +458,16 @@ final class Accounts {
                     !is_string($achievement['unlockedAt'] ?? null) || strtotime($achievement['unlockedAt']) === false ||
                     !in_array($achievement['category'] ?? null, ['progress','consistency','strength'], true))
                     $this->fail(400,'Los logros de la copia no tienen un formato válido.');
+        }
+        if (isset($s['strengthReferences'])) {
+            if (!is_array($s['strengthReferences']) || !array_is_list($s['strengthReferences']) || count($s['strengthReferences']) > 5)
+                $this->fail(400,'Las referencias de fuerza de la copia no tienen un formato vÃ¡lido.');
+            foreach ($s['strengthReferences'] as $reference)
+                if (!is_array($reference) || !in_array($reference['id'] ?? null,['bench','pullup','overhead_press','squat','deadlift'],true)
+                    || !$this->finite($reference['weight'] ?? null,0,1000) || !$this->finite($reference['reps'] ?? null,1,30)
+                    || !$this->finite($reference['bodyWeight'] ?? null,30,350) || !in_array($reference['sex'] ?? null,['male','female'],true)
+                    || !is_string($reference['date'] ?? null) || strtotime($reference['date'])===false)
+                    $this->fail(400,'Las referencias de fuerza de la copia no tienen un formato vÃ¡lido.');
         }
         foreach ($s['routine'] as $day) {
             if (!is_array($day) || !is_string($day['id'] ?? null) || strlen($day['id']) > 160 ||

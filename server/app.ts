@@ -11,6 +11,7 @@ import { comparableIds, compareProgress, ComparisonSample } from "../src/logic/c
 import { isSharedProgress, isSharedRoutine } from "../src/logic/sharing";
 import { POINTS_MODEL } from "../src/logic/strengthScore";
 import { pointsTiers } from "../src/logic/achievements";
+import { INITIAL_GYM_CHAINS } from "../src/data/gymChains";
 
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -20,7 +21,8 @@ const str = (value: unknown, max: number) => typeof value === "string" && value.
 const validExerciseId = (value: string) => /^[\w-]{1,80}$/.test(value) && !["__proto__", "constructor", "prototype"].includes(value);
 const validLevel = (level: unknown) => ["beginner", "intermediate", "advanced"].includes(String(level));
 interface User { id: string; account_id?: string | null; handle: string; name: string; bio: string; level: string; salt: string; password: string; training_place?: string; city?: string; gym_id?: string | null; trainer_enabled?: number }
-interface Gym { id: string; provider: string; provider_place_id?: string | null; name: string; normalized_name: string; address: string; city: string; normalized_city: string; status: string }
+interface Gym { id: string; provider: string; provider_place_id?: string | null; name: string; normalized_name: string; address: string; city: string; normalized_city: string; province: string; normalized_province: string; status: string }
+interface GymChain { id: string; name: string; sort_order: number; status: string }
 const normalizeGym = (value = "") => normalizeLocation(value).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const requestGuards = new WeakMap<IncomingMessage, () => void>();
 
@@ -66,6 +68,7 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     );
     CREATE TABLE IF NOT EXISTS gyms (
       id TEXT PRIMARY KEY,
+      chain_id TEXT,
       provider TEXT NOT NULL DEFAULT 'community',
       provider_place_id TEXT,
       name TEXT NOT NULL,
@@ -73,10 +76,18 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       address TEXT NOT NULL DEFAULT '',
       city TEXT NOT NULL DEFAULT '',
       normalized_city TEXT NOT NULL DEFAULT '',
+      province TEXT NOT NULL DEFAULT '',
+      normalized_province TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'community'
     );
     CREATE UNIQUE INDEX IF NOT EXISTS gyms_provider_place_id ON gyms(provider, provider_place_id) WHERE provider_place_id IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS gyms_normalized_location ON gyms(normalized_name, normalized_city);
+    CREATE TABLE IF NOT EXISTS gym_chains (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      sort_order INTEGER NOT NULL DEFAULT 100,
+      status TEXT NOT NULL DEFAULT 'active'
+    );
     CREATE TABLE IF NOT EXISTS gym_machine_brands (gym_id TEXT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE, exercise_id TEXT NOT NULL, brand TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY(gym_id, exercise_id, brand));
     CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, caption TEXT NOT NULL, photo BLOB NOT NULL, created TEXT NOT NULL);
@@ -154,7 +165,18 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
     CREATE INDEX IF NOT EXISTS exercise_proposals_status ON exercise_proposals(status, submitted DESC);
     CREATE TABLE IF NOT EXISTS implementation_suggestions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, category TEXT NOT NULL, title TEXT NOT NULL, details TEXT NOT NULL, created TEXT NOT NULL, delivered_at TEXT, delivery_attempts INTEGER NOT NULL DEFAULT 0);
   `);
+  // Older databases may predate the notification uniqueness constraint. Keep
+  // the first copy of each logical notification and enforce one notification
+  // per recipient, actor and type from now on.
+  db.exec("DELETE FROM notifications WHERE rowid NOT IN (SELECT MIN(rowid) FROM notifications GROUP BY recipient_id, actor_id, type)");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS notifications_once ON notifications(recipient_id, actor_id, type)");
+  const insertChain = db.prepare("INSERT INTO gym_chains (id, name, sort_order, status) VALUES (?, ?, ?, 'active') ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order, status = 'active'");
+  for (const chain of INITIAL_GYM_CHAINS) insertChain.run(chain.id, chain.name, chain.sortOrder);
   const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  const gymColumns = db.prepare("PRAGMA table_info(gyms)").all() as { name: string }[];
+  if (!gymColumns.some(column => column.name === "chain_id")) db.exec("ALTER TABLE gyms ADD COLUMN chain_id TEXT");
+  if (!gymColumns.some(column => column.name === "province")) db.exec("ALTER TABLE gyms ADD COLUMN province TEXT NOT NULL DEFAULT ''");
+  if (!gymColumns.some(column => column.name === "normalized_province")) db.exec("ALTER TABLE gyms ADD COLUMN normalized_province TEXT NOT NULL DEFAULT ''");
   if (!userColumns.some(column => column.name === "account_id")) db.exec("ALTER TABLE users ADD COLUMN account_id TEXT");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_account_id ON users(account_id) WHERE account_id IS NOT NULL");
   if (!userColumns.some(column => column.name === "training_place")) db.exec("ALTER TABLE users ADD COLUMN training_place TEXT NOT NULL DEFAULT ''");
@@ -644,10 +666,24 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       if (path === "/gyms" && method === "GET") {
         const query = normalizeGym(url.searchParams.get("q") ?? "");
         const city = normalizeGym(url.searchParams.get("city") ?? "");
-        if (query.length < 2) { json(200, []); return; }
+        const province = normalizeGym(url.searchParams.get("province") ?? "");
+        const chainId = url.searchParams.get("chainId")?.trim() ?? "";
+        if (query.length < 2 && !city && !province) { json(200, []); return; }
         const gyms = db.prepare(`SELECT id, provider, provider_place_id, name, address, city, status FROM gyms
-          WHERE normalized_name LIKE ? AND (? = '' OR normalized_city = ?) ORDER BY name LIMIT 12`).all(`%${query}%`, city, city) as unknown as Gym[];
+          WHERE (? = '' OR normalized_name LIKE ?) AND (? = '' OR normalized_city = ?) AND (? = '' OR normalized_province = ?) AND (? = '' OR chain_id = ?) ORDER BY province, city, name LIMIT 100`).all(query, `%${query}%`, city, city, province, province, chainId, chainId) as unknown as Gym[];
         json(200, gyms.map(gym => ({ id: gym.id, provider: gym.provider, name: gym.name, address: gym.address, city: gym.city, status: gym.status }))); return;
+      }
+      if (path === "/gym-locations" && method === "GET") {
+        const chainId = url.searchParams.get("chainId")?.trim() ?? "";
+        const province = normalizeGym(url.searchParams.get("province") ?? "");
+        const rows = db.prepare(`SELECT DISTINCT province, city FROM gyms WHERE status != 'rejected' AND (? = '' OR chain_id = ?) AND (? = '' OR normalized_province = ?) ORDER BY province, city`).all(chainId, chainId, province, province) as unknown as Array<{ province: string; city: string }>;
+        json(200, rows);
+        return;
+      }
+      if (path === "/gym-chains" && method === "GET") {
+        const chains = db.prepare("SELECT id, name, sort_order, status FROM gym_chains WHERE status = 'active' ORDER BY sort_order, name COLLATE NOCASE").all() as unknown as GymChain[];
+        json(200, chains.map(chain => ({ id: chain.id, name: chain.name, sortOrder: chain.sort_order })));
+        return;
       }
       if (path === "/machine-brands" && method === "GET") {
         const exerciseId = url.searchParams.get("exercise") ?? "";
@@ -670,14 +706,17 @@ export function createGymServer({ database = ":memory:", origins = ["http://loca
       }
       if (path === "/gyms" && method === "POST") {
         const data = await body(req);
-        const name = str(data.name, 80), city = str(data.city, 80), address = data.address === undefined ? "" : str(data.address, 160);
+        const name = str(data.name, 80), city = str(data.city, 80), province = data.province === undefined ? "" : str(data.province, 80), address = data.address === undefined ? "" : str(data.address, 160);
+        const chainId = data.chainId === undefined || data.chainId === null ? "" : str(data.chainId, 80);
+        if (chainId && !db.prepare("SELECT 1 FROM gym_chains WHERE id = ? AND status = 'active'").get(chainId)) fail(400, "La cadena seleccionada no existe.");
         const normalizedName = normalizeGym(name), normalizedCity = normalizeGym(city);
+        const normalizedProvince = normalizeGym(province);
         if (normalizedName.length < 2) fail(400, "Escribe el nombre del gimnasio.");
         const existing = db.prepare("SELECT id, provider, name, address, city, status FROM gyms WHERE normalized_name = ? AND normalized_city = ?").get(normalizedName, normalizedCity) as Gym | undefined;
         if (existing) { json(200, existing); return; }
-        const gym = { id: randomUUID(), provider: "community", name: name.trim(), address: address.trim(), city: city.trim(), status: "community" };
-        db.prepare("INSERT INTO gyms (id, provider, name, normalized_name, address, city, normalized_city, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(gym.id, gym.provider, gym.name, normalizedName, gym.address, gym.city, normalizedCity, gym.status);
+        const gym = { id: randomUUID(), provider: "community", name: name.trim(), address: address.trim(), city: city.trim(), province: province.trim(), status: "community", chainId: chainId || null };
+        db.prepare("INSERT INTO gyms (id, chain_id, provider, name, normalized_name, address, city, normalized_city, province, normalized_province, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .run(gym.id, gym.chainId, gym.provider, gym.name, normalizedName, gym.address, gym.city, normalizedCity, gym.province, normalizedProvince, gym.status);
         json(201, gym); return;
       }
       if (path === "/me/privacy" && method === "PATCH") {

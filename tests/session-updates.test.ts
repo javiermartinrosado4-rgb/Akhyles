@@ -57,6 +57,25 @@ test("resuming never relabels recorded work after a routine replacement reuses i
   assert.equal(resumed.day.exercises[0].exerciseId, original.exerciseId);
   assert.equal(resumed.records[0].prescription.exerciseId, original.exerciseId);
 });
+test("a new workout starts each exercise with the most recent performed weight and reps", () => {
+  const s = state();
+  const first = s.routine[0].exercises[0];
+  const second = s.routine[0].exercises[1];
+  s.history = [
+    { id: "older", dayName: "Test", date: "2026-09-01", minutes: 30, records: [
+      { prescription: first, name: "First", type: "compound", sets: [{ weight: 40, reps: 8 }, { weight: 40, reps: 9 }] },
+    ] },
+    { id: "latest", dayName: "Test", date: "2026-09-10", minutes: 30, records: [
+      { prescription: first, name: "First", type: "compound", sets: [{ weight: 42.5, reps: 10 }, { weight: 42.5, reps: 10 }] },
+      { prescription: second, name: "Second", type: "compound", sets: [{ weight: 27.5, reps: 12 }] },
+    ] },
+  ];
+
+  const active = startWorkout(s.routine[0], "80", undefined, undefined, undefined, undefined, undefined, { history: s.history });
+
+  assert.deepEqual(active.drafts?.[first.id], [{ weight: "42.5", reps: "10" }, { weight: "42.5", reps: "10" }]);
+  assert.deepEqual(active.drafts?.[second.id]?.[0], { weight: "27.5", reps: "12" });
+});
 test("calories depend on completed exercise work and body weight, not an open timer", () => {
   const s = state();
   const workout: Workout = { id: "test", dayName: "Test", date: new Date().toISOString(), minutes: 30, bodyWeight: 80, records: [{ prescription: s.routine[0].exercises[0], name: "Press", type: "compound", sets: [{ weight: 30, reps: 8 }, { weight: 30, reps: 8 }] }] };

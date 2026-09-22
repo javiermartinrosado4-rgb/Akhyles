@@ -11,11 +11,11 @@ export function WeightSuggestion({ record }: { record: ExerciseRecord }) {
   const e = getExercise(record.prescription.exerciseId, state.preferences);
   const assisted = e.id === "assisted-pullup";
   const mode = record.loadMode ?? defaultLoadInputMode(e.id);
-  const displayLoad = (value: number) => fromStoredLoad(value, mode);
+  const displayLoad = (value: number) => fromStoredLoad(value, mode, e.id);
   const { result } = progressionForRecord(state.preferences, record);
   return <Card>
     <Txt translate={false} weight="600">{record.name}</Txt>
-    <Txt muted size={13}>{record.sets.map(s => `${displayLoad(storedSetLoad(s)).toLocaleString(locale)} kg × ${s.reps}`).join(" · ")}</Txt>
+    <Txt muted size={13}>{record.sets.map(s => `${displayLoad(storedSetLoad(s, e.id)).toLocaleString(locale)} kg × ${s.reps}`).join(" · ")}</Txt>
     <Notice>{result.increase ? assisted
       ? `Máximo alcanzado. Próxima sesión: ${displayLoad(result.suggested).toLocaleString(locale)} kg de ayuda (-${result.percent.toLocaleString(locale)}%). Se prepara automáticamente; puedes modificar la asistencia.`
       : t("Máximo alcanzado en todas las series. Próxima sesión: {weight} kg (+{percent}%). Se prepara automáticamente; puedes modificar el peso dentro de cada serie.", { weight: displayLoad(result.suggested).toLocaleString(locale), percent: result.percent.toLocaleString(locale) })

@@ -27,9 +27,9 @@ function strongest(record: ExerciseRecord, bodyWeight?: number) {
   return record.sets
     .filter(set => Number.isFinite(set.weight) && set.weight > 0 && Number.isInteger(set.reps) && set.reps > 0)
     .flatMap(set => {
-      const load = effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set), bodyWeight, record.apparatusWeight, record.barWeight);
+      const load = effectiveLiftedLoad(record.prescription.exerciseId, storedSetLoad(set, record.prescription.exerciseId), bodyWeight, record.apparatusWeight, record.barWeight);
       const maximum = load === undefined ? undefined : estimatedMax(load, Math.min(set.reps, 10));
-      return maximum === undefined ? [] : [{ weight: storedSetLoad(set), reps: Math.min(set.reps, 10), maximum }];
+      return maximum === undefined ? [] : [{ weight: storedSetLoad(set, record.prescription.exerciseId), reps: Math.min(set.reps, 10), maximum }];
     })
     .sort((a, b) => b.maximum - a.maximum)[0];
 }

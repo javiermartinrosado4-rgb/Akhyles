@@ -47,6 +47,52 @@ CREATE TABLE IF NOT EXISTS account_versions (
  PRIMARY KEY(user_id, revision),
  FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS account_sync_meta (
+ user_id VARCHAR(64) PRIMARY KEY,
+ sync_cursor BIGINT NOT NULL DEFAULT 0,
+ migrated_at VARCHAR(32) NULL,
+ v2_enabled TINYINT NOT NULL DEFAULT 0,
+ migration_hash CHAR(64) NULL,
+ migration_verified_at VARCHAR(32) NULL,
+ FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS account_sync_entities (
+ user_id VARCHAR(64) NOT NULL,
+ entity_type VARCHAR(32) NOT NULL,
+ entity_id VARCHAR(191) NOT NULL,
+ revision INT NOT NULL,
+ payload MEDIUMTEXT NULL,
+ deleted TINYINT NOT NULL DEFAULT 0,
+ updated VARCHAR(32) NOT NULL,
+ PRIMARY KEY(user_id,entity_type,entity_id),
+ FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS account_sync_changes (
+ user_id VARCHAR(64) NOT NULL,
+ sync_cursor BIGINT NOT NULL,
+ entity_type VARCHAR(32) NOT NULL,
+ entity_id VARCHAR(191) NOT NULL,
+ revision INT NOT NULL,
+ payload MEDIUMTEXT NULL,
+ deleted TINYINT NOT NULL DEFAULT 0,
+ updated VARCHAR(32) NOT NULL,
+ PRIMARY KEY(user_id,sync_cursor),
+ FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS account_sync_operations (
+ user_id VARCHAR(64) NOT NULL,
+ operation_id VARCHAR(96) NOT NULL,
+ sync_cursor BIGINT NOT NULL,
+ created BIGINT NOT NULL,
+ PRIMARY KEY(user_id,operation_id),
+ FOREIGN KEY(user_id) REFERENCES account_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS account_operational_metrics (
+ metric_day CHAR(10) NOT NULL,
+ event_name VARCHAR(48) NOT NULL,
+ hits BIGINT NOT NULL DEFAULT 0,
+ PRIMARY KEY(metric_day,event_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS account_mail (
  id CHAR(64) PRIMARY KEY,
  email VARCHAR(254) NOT NULL,

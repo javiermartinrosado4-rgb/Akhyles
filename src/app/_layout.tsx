@@ -15,6 +15,8 @@ import { AccountProvider, useAccount } from "../state/Account";
 import { LanguageProvider, useLanguage } from "../i18n";
 import { accountUrl, latestAppVersion } from "../services/account";
 import Constants from "expo-constants";
+import * as SplashScreen from "expo-splash-screen";
+import { KintsugiIntroPreview } from "../components/KintsugiIntroPreview";
 export { ErrorBoundary } from "../components/RouteError";
 function Frame() {
   const { language, t } = useLanguage();
@@ -97,6 +99,11 @@ function ProfileCommunity() {
   return <CommunityProvider key={ready ? state.cloud?.owner ?? "guest" : "hydrating"}><Frame /></CommunityProvider>;
 }
 export default function RootLayout() {
+  React.useEffect(() => {
+    // The native splash is only a colour-matched handoff. Closing it explicitly
+    // prevents a blank frame before the kintsugi intro is mounted.
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
   return (
     <SafeAreaProvider>
       <LanguageProvider>
@@ -106,6 +113,8 @@ export default function RootLayout() {
         </ThemeProvider>
       </StoreProvider>
       </LanguageProvider>
+      {/* Keep the intro outside the keyed account subtree so hydration cannot remount it. */}
+      {Platform.OS !== "web" ? <KintsugiIntroPreview replay={__DEV__} /> : null}
     </SafeAreaProvider>
   );
 }

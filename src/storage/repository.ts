@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { APP } from "../config";
 import { AppState } from "../types";
 import { catalog } from "../data/catalog";
@@ -10,12 +11,87 @@ import { validBarWeight } from "../logic/load";
 import { validStoredCollections } from "../logic/storedState";
 import { defaultTrainingDays } from "../data/options";
 import { validStrengthReference } from "../logic/strengthReferences";
+import { repairSingleStackLoads } from "../logic/loadMigration";
 export interface StateRepository {
   load(): Promise<AppState | null>;
   save(state: AppState): Promise<void>;
 }
 
 import { getNativeDatabase } from './native-sqlite';
+
+const WEB_PACKED_PREFIX = "akhyles:gzip:v1:";
+const WEB_DATABASE_NAME = "akhyles-local-state";
+const WEB_DATABASE_STORE = "state";
+const WEB_DATABASE_KEY = "primary";
+
+/**
+ * localStorage is deliberately small (often 5 MB) and a single profile photo
+ * plus a long training history can exhaust it. On web, IndexedDB is the
+ * durable primary store; localStorage remains a compatibility fallback only.
+ */
+async function openWebDatabase(): Promise<IDBDatabase | null> {
+  if (Platform.OS !== "web" || typeof indexedDB === "undefined") return null;
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = (value: IDBDatabase | null) => { if (!settled) { settled = true; resolve(value); } };
+    try {
+      const request = indexedDB.open(WEB_DATABASE_NAME, 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(WEB_DATABASE_STORE)) request.result.createObjectStore(WEB_DATABASE_STORE);
+      };
+      request.onsuccess = () => finish(request.result);
+      request.onerror = request.onblocked = () => finish(null);
+    } catch { finish(null); }
+  });
+}
+async function readWebState(): Promise<string | undefined> {
+  const database = await openWebDatabase();
+  if (!database) return undefined;
+  return new Promise(resolve => {
+    try {
+      const request = database.transaction(WEB_DATABASE_STORE, "readonly").objectStore(WEB_DATABASE_STORE).get(WEB_DATABASE_KEY);
+      request.onsuccess = () => { database.close(); resolve(typeof request.result === "string" ? request.result : undefined); };
+      request.onerror = () => { database.close(); resolve(undefined); };
+    } catch { database.close(); resolve(undefined); }
+  });
+}
+async function writeWebState(value: string): Promise<boolean> {
+  const database = await openWebDatabase();
+  if (!database) return false;
+  return new Promise(resolve => {
+    try {
+      const transaction = database.transaction(WEB_DATABASE_STORE, "readwrite");
+      transaction.objectStore(WEB_DATABASE_STORE).put(value, WEB_DATABASE_KEY);
+      transaction.oncomplete = () => { database.close(); resolve(true); };
+      transaction.onerror = transaction.onabort = () => { database.close(); resolve(false); };
+    } catch { database.close(); resolve(false); }
+  });
+}
+async function gzipWeb(value: string): Promise<string> {
+  if (Platform.OS !== "web" || typeof CompressionStream === "undefined") return value;
+  const stream = new CompressionStream("gzip");
+  const writer = stream.writable.getWriter();
+  // Start consuming before awaiting writes: a large profile image can fill
+  // the transform buffer otherwise, leaving both sides waiting forever.
+  const output = new Response(stream.readable).arrayBuffer();
+  await writer.write(new TextEncoder().encode(value));
+  await writer.close();
+  const bytes = new Uint8Array(await output);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return WEB_PACKED_PREFIX + btoa(binary);
+}
+async function ungzipWeb(value: string): Promise<string> {
+  if (Platform.OS !== "web" || !value.startsWith(WEB_PACKED_PREFIX) || typeof DecompressionStream === "undefined") return value;
+  const binary = atob(value.slice(WEB_PACKED_PREFIX.length));
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  const stream = new DecompressionStream("gzip");
+  const writer = stream.writable.getWriter();
+  const output = new Response(stream.readable).arrayBuffer();
+  await writer.write(bytes);
+  await writer.close();
+  return new TextDecoder().decode(await output);
+}
 
 /**
  * A stale weekday selection can survive a program import or an earlier app
@@ -68,16 +144,20 @@ function repairStoredMaps(state: AppState): AppState {
   return preferences === state.preferences && active === state.active ? state : { ...state, preferences, active };
 }
 export function decodeState(raw: string): AppState {
-  const s = repairStoredMaps(repairStoredTrainingDays(JSON.parse(raw) as AppState));
+  const decoded = repairStoredMaps(repairStoredTrainingDays(JSON.parse(raw) as AppState));
+  // Theme selection was removed. Keep old local/cloud states readable, but
+  // always normalize them to the only supported appearance: dark.
+  const s = decoded.theme === "dark" ? decoded : { ...decoded, theme: "dark" as const };
   if (!validStoredCollections(s)) throw new Error("Invalid stored collections");
   if (
     !s ||
     s.version !== 1 ||
+    (s.loadNormalizationVersion !== undefined && s.loadNormalizationVersion !== 2) ||
     !s.profile ||
     !s.preferences ||
     !Array.isArray(s.routine) ||
     !Array.isArray(s.history) ||
-    !["system", "light", "dark"].includes(s.theme)
+    s.theme !== "dark"
   )
     throw new Error("Invalid state");
   const p = s.profile;
@@ -202,15 +282,43 @@ export function decodeState(raw: string): AppState {
   const preferences: AppState["preferences"] = s.preferences.equipment.includes("bodyweight")
     ? s.preferences
     : { ...s.preferences, equipment: [...s.preferences.equipment, "bodyweight"] as AppState["preferences"]["equipment"] };
-  const next = { ...s, profile, preferences };
+  const next = repairSingleStackLoads({ ...s, profile, preferences });
   return next.active ? { ...next, active: resumeWorkout(next) } : next;
 }
 export const localRepository: StateRepository = {
   async load() {
+    if (Platform.OS === "web") {
+      // Prefer IndexedDB. This avoids a quota failure blocking the final save
+      // of a workout when the legacy localStorage entry has grown too large.
+      let raw = await readWebState();
+      if (raw) {
+        try { return decodeState(await ungzipWeb(raw)); }
+        catch { /* A legacy local value may still be a valid recovery path. */ }
+      }
+      raw = (await AsyncStorage.getItem(APP.storageKey)) ?? undefined;
+      if (!raw) return null;
+      let decodedRaw = raw;
+      try { decodedRaw = await ungzipWeb(raw); } catch { /* decodeState reports malformed data below. */ }
+      try {
+        const decoded = decodeState(decodedRaw);
+        // Only clear the legacy entry after the complete state is safely in
+        // IndexedDB. This immediately frees the browser's small quota.
+        if (await writeWebState(await gzipWeb(decodedRaw))) await AsyncStorage.removeItem(APP.storageKey);
+        return decoded;
+      } catch (error) {
+        const recoveryKey = `${APP.storageKey}:invalid:${Date.now()}`;
+        try {
+          await AsyncStorage.setItem(recoveryKey, decodedRaw);
+          await AsyncStorage.removeItem(APP.storageKey);
+        } catch { throw error; }
+        return null;
+      }
+    }
     const db = await getNativeDatabase();
     let raw = db?.getFirstSync<{ payload: string }>("SELECT payload FROM app_state WHERE id=1")?.payload;
     if (!raw) {
       raw = (await AsyncStorage.getItem(APP.storageKey)) ?? undefined;
+      if (raw) raw = await ungzipWeb(raw);
       if (raw && db) {
         try {
           const decoded = decodeState(raw);
@@ -225,6 +333,11 @@ export const localRepository: StateRepository = {
       }
     }
     if (!raw) return null;
+    try {
+      raw = await ungzipWeb(raw);
+    } catch {
+      // Keep the original parse/recovery path for an unrecognised legacy value.
+    }
     try {
       return decodeState(raw);
     } catch (error) {
@@ -253,7 +366,10 @@ export const localRepository: StateRepository = {
     const raw = JSON.stringify(state);
     const db = await getNativeDatabase();
     if (db) db.runSync("INSERT INTO app_state(id,payload) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", raw);
-    else await AsyncStorage.setItem(APP.storageKey, raw);
+    else if (Platform.OS === "web" && await writeWebState(await gzipWeb(raw))) {
+      // Do not keep a second full-state copy in the quota-constrained store.
+      await AsyncStorage.removeItem(APP.storageKey).catch(() => undefined);
+    } else await AsyncStorage.setItem(APP.storageKey, await gzipWeb(raw));
   },
 };
 

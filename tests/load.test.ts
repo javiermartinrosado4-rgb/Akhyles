@@ -9,6 +9,10 @@ test("per-side input is always normalized to total load", () => {
   assert.equal(defaultLoadInputMode("chest-cable"), "per-side");
   assert.equal(defaultLoadInputMode("standing-cable-pec-dec"), "per-side");
   assert.equal(toStoredLoad(20, defaultLoadInputMode("chest-cable")), 40);
+  assert.equal(toStoredLoad(15, "per-side", "triceps-extension"), 15);
+  assert.equal(fromStoredLoad(15, "per-side", "triceps-extension"), 15);
+  assert.equal(storedSetLoad({ weight: 15, leftWeight: 15, rightWeight: 15 }, "triceps-extension"), 15);
+  assert.equal(toStoredLoad(20, "per-side", "chest-cable"), 40);
   assert.equal(supportsPerSideInput("leg-press"), true);
   assert.equal(supportsPerSideInput("bench-smith"), true);
   assert.equal(supportsPerSideInput("pronated-pullup"), true);

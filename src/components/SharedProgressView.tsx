@@ -13,7 +13,8 @@ import { PublishedRoutine } from "../services/community";
 import { BodyMap } from "./BodyMap";
 import { PeriodSelector } from "./ProgressExplorer";
 import { LineChart, ChartSeries } from "./LineChart";
-import { Button, Card, Choice, Icon, Row, Txt } from "./ui";
+import { Button, Card, Choice, GoldSurface, Icon, Row, Txt } from "./ui";
+import { presentationPoints } from "../logic/achievements";
 
 type Section = "summary" | "charts" | "sessions";
 
@@ -60,7 +61,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
   const filter = (points: ChartPoint[]) => periodProgress(points, start, end, false);
   const palette = dark ? ["#8ABCF4", "#FFB47A", "#D1A4EA", "#71D6CC", "#F69EAB", "#DDD071"] : ["#2864A5", "#A54A16", "#8249A1", "#167D79", "#B13A5C", "#7D7014"];
   const series: ChartSeries[] = pointsMode
-    ? [{ id: "points", name: "A-Points", color: colors.accent, points: filter(progress.pointsHistory ?? []) }]
+    ? [{ id: "points", name: "A-Points", color: colors.accent, points: filter((progress.pointsHistory ?? []).map(point => ({ ...point, value: presentationPoints(point.value) ?? 0 }))) }]
     : [
       { id: "body", name: t("Peso corporal"), color: colors.text, primary: true, width: 0.75, opacity: 0.38, pointRadius: 1.25, points: filter(progress.bodyWeights ?? []) },
       ...selected.map(id => ({
@@ -80,7 +81,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
 
   return <View style={{ gap: 14 }}>
     <Row style={{ justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap" }}>
-      <View><Txt muted size={12}>PROGRESO COMPARTIDO</Txt><Txt size={26} weight="600">{progress.points?.toLocaleString(locale, { maximumFractionDigits: 1 }) ?? "—"}<Txt muted size={13}> A-Points</Txt></Txt></View>
+      <View><Txt muted size={12}>PROGRESO COMPARTIDO</Txt><Txt size={26} weight="600">{presentationPoints(progress.points)?.toLocaleString(locale, { maximumFractionDigits: 1 }) ?? "—"}<Txt muted size={13}> A-Points</Txt></Txt></View>
       <View style={{ alignItems: "flex-end" }}><Txt weight="600">{t("{n} sesiones", { n: progress.sessions })}</Txt><Txt muted size={11}>{t("Actualizado {date}", { date: new Date(progress.updated).toLocaleDateString(locale) })}</Txt></View>
     </Row>
     <Row style={{ flexWrap: "wrap" }}>
@@ -123,7 +124,7 @@ export function SharedProgressView({ progress, routineId }: { progress: SharedPr
     {section === "sessions" && <>
       {!routineId ? <Txt muted>Esta persona no ha compartido su rutina contigo.</Txt> : routineError ? <><Txt muted>{routineError}</Txt><Button label="Reintentar" onPress={() => setRetry(value => value + 1)} /></> : !routine ? <Txt muted>Cargando rutina…</Txt> : <>
         <Card><Txt weight="600">Su semana</Txt><Row style={{ flexWrap: "wrap" }}>
-          {routine.days.map((day, index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={day.name} accessibilityState={{ selected: dayIndex === index }} onPress={() => setDayIndex(dayIndex === index ? null : index)} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, justifyContent: "center", backgroundColor: dayIndex === index ? colors.accent : colors.accentSoft, opacity: pressed ? 0.78 : 1 })}><Txt translate={false} size={13} weight="600" style={{ color: dayIndex === index ? colors.onAccent : colors.accent }}>{day.name}</Txt></Pressable>)}
+          {routine.days.map((day, index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={day.name} accessibilityState={{ selected: dayIndex === index }} onPress={() => setDayIndex(dayIndex === index ? null : index)} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, overflow: "hidden", position: "relative", justifyContent: "center", backgroundColor: dayIndex === index ? colors.accent : colors.accentSoft, opacity: pressed ? 0.78 : 1 })}>{dayIndex === index && <GoldSurface />}<Txt translate={false} size={13} weight="600" style={{ color: dayIndex === index ? colors.onAccent : colors.accent }}>{day.name}</Txt></Pressable>)}
         </Row></Card>
         {dayIndex !== null && routine.days[dayIndex] && <Card style={{ backgroundColor: colors.accentSoft }}>
           <Txt muted size={12}>RUTINA COMPARTIDA</Txt>

@@ -1,5 +1,44 @@
 # Diario de Akhyles
 
+### Rediseño visual de Akhyles — 21 de septiembre de 2026
+
+- Se trasladaron las referencias visuales aprobadas a `referencias-visuales/Estetica de la app/Nuevo Diseño Akhyles/`.
+- Se actualizó la identidad visual de web y móvil: verde oscuro, dorado cálido, mármol en la navegación móvil y una jerarquía más limpia de tarjetas, títulos y controles.
+- En Entrenamiento, «Tu semana» precede a la sesión seleccionada; los días de descanso quedan compactos y «Cambiar ejercicio para hoy» pasa a ser una acción secundaria.
+- Se retiraron del Calendario su introducción redundante y la leyenda textual de colores.
+- Se sustituyó la escala arcoíris de A-Points por materiales: piedra, mármol blanco, bronce, mármol verde, plata, mármol negro con kintsugi y oro. Los rangos son Iniciado 0–24, Atleta 25–49, Guerrero 50–69, Competidor 70–89, Héroe 90–109, Semidiós 110–149 y Olimpian 150+; la fórmula y los registros no cambian.
+- Se añadió la corona de laurel para Logros y un busto clásico decorativo exclusivo de escritorio; el logo se conserva sin cambios.
+- Se eliminó «Un paso a la vez» de Inicio. En el entrenamiento, la navegación entre ejercicios ahora muestra únicamente flechas, manteniendo sus etiquetas accesibles.
+- Al iniciar o preparar una sesión, cada ejercicio recupera el peso y las repeticiones de su último registro; sigue siendo posible editar cada serie y la fórmula de progresión no cambia.
+- Al introducir peso o repeticiones en la primera serie, esos valores actualizan las series posteriores que estén vacías o que aún conserven la sugerencia inicial; nunca sustituyen una edición distinta ya hecha.
+- El día seleccionado dentro de «Tu semana» usa ahora el dorado principal, con texto de contraste, para que la selección sea inmediata.
+- Se revisó la resolución de conflictos de copias: elegir el dispositivo publica esa copia en la nube y elegir la nube restaura esa copia localmente, actualizando la revisión confirmada y archivando ambas versiones.
+- La escala interna histórica de A-Points se conserva intacta y ahora se convierte solo al presentarla: la referencia interna 1000 equivale a 150 visuales. La conversión se aplica al total, mapa corporal, perfiles, ranking, Comunidad, historial y gráficas compartidas; 150 o más permanece en Olimpian sin limitar el número mostrado.
+- Se redujeron superficies repetidas: el descanso y la hidratación pasan a una franja informativa única, con el agua en azul; las series de cada ejercicio comparten un único contenedor con divisores.
+- El último ejercicio pendiente muestra «Guardar y finalizar», termina la sesión y vuelve a Hoy; si quedaban ejercicios sin registrar, al guardar se navega al siguiente pendiente para que la sesión no quede abierta de forma ambigua.
+- El dorado se refinó hacia un oro antiguo más luminoso: acciones destacadas tienen un borde de luz y una sombra muy tenue, mientras que la corona de laurel usa un degradado metálico sutil. Textos, iconos y bordes conservan el tono plano para asegurar legibilidad.
+- Verificado: `npm.cmd run typecheck` correcto y revisión visual local web. Las pruebas pendientes relacionadas con demográficos históricos provienen de cambios locales previos en `src/logic/progress.ts` y no se han alterado.
+
+### Publicación web del refinado del dorado — 21 de septiembre de 2026
+
+- Se generó el export Web de producción con la nueva paleta de oro cálido, el efecto metálico sutil de la corona y el brillo contenido de las acciones principales.
+- Preflight SFTP superado y versión publicada en `https://app.akhyles.com/`.
+- Verificado: la portada responde HTTP 200 y el bundle remoto contiene la API de producción y los nuevos tonos dorados.
+
+### Publicación web de los cambios de entrenamiento — 21 de septiembre de 2026
+
+- Exportación web generada con `https://api.akhyles.com` y `https://api.akhyles.com/community`.
+- Preflight SFTP de IONOS superado y exportación publicada en `https://app.akhyles.com/`.
+- Verificado: portada y `/account` responden, el bundle remoto coincide con el export local y contiene la URL de la API de producción.
+- Publicada una nueva composición de la estatua web: busto oscuro desplazado a la izquierda para evitar el recorte de la cabeza. También se publicó la selección dorada del día activo en «Tu semana».
+
+### Publicación web: perfiles de Comunidad — 19 de septiembre de 2026
+
+- Web exportada con las URLs de producción y publicada en `https://app.akhyles.com/`.
+- Bundle publicado: `entry-f20e743fd70d4425497277f0e5ab4f3b.js`.
+- Verificaciones: API saludable, bundle con `api.akhyles.com`, preflight SFTP correcto y comprobación HTTP posterior superada.
+- Incluye la nueva presentación tipo Instagram del perfil de Comunidad, con foto, estadísticas, biografía, gimnasio y seguimiento.
+
 ### Publicacion Android 1.0.27 y sincronizacion Git/Play - 18 de septiembre de 2026
 
 - Se incremento la version Android a `1.0.27` (`versionCode 30`) y se subio a `main` en el commit `a3f741f`.
@@ -1442,3 +1481,162 @@ Cuando se solicite una actualización completa, usar esta instrucción literal:
 - Cada nuevo campo de preferencias o sesión debe añadirse simultáneamente al normalizador PHP, a la reparación del lector cliente y a una prueba de round-trip cliente↔API.
 - Antes de publicar una actualización, ejecutar una cuenta con copia cloud existente y verificar: inicio de sesión, descarga de copia, estado **Guardado en el dispositivo y en la nube** y recarga completa de la Web.
 - No asumir que una build Android nueva es necesaria hasta comprobar primero la compatibilidad de la API y del estado remoto; una regresión de serialización puede afectar a versiones antiguas ya instaladas.
+
+### Normalización de cargas por lado en poleas — 21 de septiembre de 2026
+
+- Causa confirmada: el modo «Por lado» multiplicaba siempre la carga por dos. En poleas de una sola torre, como Extensión Tríceps, 15 kg se guardaban y puntuaban como 30 kg; además, varios resúmenes mostraban directamente ese total interno.
+- Solución: las poleas de una sola carga conservan el valor real indicado por la torre aunque se registren ambos brazos. Los cruces con dos torres independientes y los discos introducidos por lado mantienen la suma bilateral.
+- Migración idempotente `loadNormalizationVersion: 2`: corrige preferencias, rutina actual, versiones históricas de rutina, entrenamientos planificados, historial y sesión activa. La marca también viaja con la copia cloud para impedir una segunda división al restaurar o sincronizar.
+- Se actualizaron A-Points, progresión, volumen, tendencias, logros, comparaciones, historial, gráficas y datos compartidos para usar la semántica correcta de cada ejercicio.
+- Verificación real en Web: Extensión Tríceps pasó de 30 kg a 15 kg por lado; la puntuación y el volumen se recalcularon con la carga corregida y la cuenta terminó en «Copia sincronizada».
+- Verificaciones locales: TypeScript correcto; 96 pruebas relevantes correctas. Permanecen 2 fallos heredados y ajenos sobre exclusión/duplicados de puntuación (`1 !== 0`). Web publicada y verificada en `https://app.akhyles.com/`. Google Play continúa pausado.
+
+### Materiales del mapa, pestañas verdes y nuevo oro raíz — 21 de septiembre de 2026
+
+- Se eliminaron del mapa corporal los patrones repetidos de 36×36 px y las líneas horizontales que producían un aspecto de barras y cuadrados.
+- Los materiales ahora usan superficies continuas: vetas curvas y luces suaves en piedra y mármoles, reflejos diagonales orgánicos en bronce, plata y oro, y grietas ramificadas doradas exclusivamente en Semidiós.
+- La escala de A-Points deja de presentarse como una barra segmentada y utiliza muestras circulares con el mismo material que el cuerpo, siguiendo la referencia visual aprobada.
+- `#C39850` pasa a ser el color raíz de todo el dorado de Akhyles. Los brillos (`#EED49C`) y sombras (`#725025`) derivan de esa familia y se aplican a acciones, iconos, bordes, oro Olimpian y kintsugi.
+- Las pestañas de «Tu semana» se aproximan a la referencia: selección esmeralda luminosa con brillo interior, borde verde fino y un detalle dorado lateral; los días inactivos permanecen oscuros y discretos.
+- Verificación: TypeScript correcto, exportación Web correcta y comprobación visual tanto local como en producción con datos reales y copia cloud sincronizada. Publicado en `https://app.akhyles.com/`. Google Play continúa pausado.
+- Ajuste posterior del oro: se retiraron la franja blanca y el contraste excesivo del acabado general. Los controles dorados usan ahora un degradado satinado y suave alrededor de `#C39850`, como en la referencia; el brillo metálico marcado queda reservado al material Oro del mapa.
+- Cierre visual aprobado: «Editar mi rutina» pasa a ser una acción primaria dorada compacta con ese mismo acabado satinado. Quedan consolidados como criterio vigente el oro raíz `#C39850`, las selecciones semanales esmeralda luminosas y los materiales orgánicos del mapa sin patrones de barras o cuadrículas. TypeScript y exportación Web correctos; versión publicada y verificada en `https://app.akhyles.com/`.
+-
+### ActualizaciÃ³n de Google Play con protocolo de pruebas cerradas â€” 21 de septiembre de 2026
+
+- Se generÃ³ el AAB firmado de Android `1.0.28` / `versionCode 31` con la configuraciÃ³n de producciÃ³n y `EXPO_PUBLIC_ACCOUNT_URL=https://api.akhyles.com`.
+- ValidaciÃ³n del artefacto correcta: firma esperada, manifest seguro, `versionCode` 31 y sin permisos prohibidos. SHA-256 AAB: `33CB9FEDA7CEF559B15005364BE37051EB19BF9ACD241DBFC556ED2137841F83`.
+- Se subiÃ³ a **Prueba cerrada Alpha**, se completaron nombre y notas `es-ES`, y se guardÃ³ la versiÃ³n en el Resumen de publicaciÃ³n.
+- Se enviÃ³ 1 cambio a revisiÃ³n de Google Play. Estado visible: **Cambios en revisiÃ³n**. No se iniciÃ³ ProducciÃ³n.
+- Comprobaciones locales: `npm run typecheck` correcto; las pruebas mantienen fallos heredados del entorno/repositorio (no bloquean la carga del AAB): transformaciÃ³n React Native de `cloud.test.ts` y tres expectativas antiguas de puntuaciÃ³n/sesiones.
+-
+### Web deployment: previous-session reference under first set - 2026-09-21
+
+- Exported the production Web bundle with `https://api.akhyles.com` and `https://api.akhyles.com/community`.
+- SFTP read-only preflight passed and the bundle was published to `https://app.akhyles.com/`.
+- The first set now shows a compact `Anterior sesión` reference with the previous session's load and repetitions. It respects total/per-side input and only appears on Set 1.
+- Verified HTTP 200, the remote bundle contains `Anterior sesi` and `api.akhyles.com`.
+
+### Cloud sync API compatibility fix - 2026-09-21
+
+- Cause identified: the Web client includes `loadNormalizationVersion` in the cloud-safe state, but the API `/sync` allowlist did not accept that field and returned HTTP 400: `La copia contiene campos de dispositivo o sesion.`
+- Added the field to `server-php/src/Accounts.php`; PHP lint passed.
+- Published the API after the mandatory SFTP preflight and verified the production health endpoint.
+- Verified from the production Web app: manual sync completes and the account shows `Guardado en el dispositivo y en la nube`.
+
+### Weekly weight reminder and trapezius shrug catalog - 2026-09-21
+
+- The weekly weight notification is now scheduled for Wednesdays at 08:00 (local device time) instead of Mondays at 18:00.
+- Updated the notification settings copy to match the new schedule.
+- Added three Tier A back exercises: Smith machine shrug, barbell shrug and dumbbell shrug. Each has equipment imagery mapping and a strength reference so it participates consistently in suggestions, progress and scoring.
+- Exported and published the Web bundle with these changes at `https://app.akhyles.com/`; production API URL and the new shrug catalog entries were verified in the remote bundle.
+
+### Mobile visual polish for day tiles and gold controls - 2026-09-21
+
+- Fixed responsive SVG surfaces for selected routine-day tiles by adding an explicit non-distorting viewBox, preventing partial fills and clipped-looking corners on mobile.
+- Removed the external highlight shadow from primary gold buttons and selected day controls; borders now stay within the component and use the root gold tone for a cleaner finish.
+
+### Larger mobile launch logo - 2026-09-21
+
+- Increased the Expo splash-screen logo width from 180 to 260 so the mark is visibly larger before the mobile app opens.
+- The logo asset, app icon and adaptive icon remain unchanged.
+
+### Foundation for incremental cloud sync - 2026-09-21
+
+- Began the safe, additive migration away from a single full-state sync payload. Existing local and cloud copies remain compatible and untouched.
+- Added the Sync V2 entity model: a small account document, one atomic entity per completed workout, and one entity per body-weight measurement. Rebuilding those entities preserves the existing AppState and therefore all training and A-Points calculations.
+- Added encrypted server-side V2 entity storage, per-user change cursors, and idempotent operation identifiers. A repeated network request cannot write a workout twice.
+- Added a separate durable Sync V2 outbox foundation instead of placing pending network work inside the user state.
+- Cloud sync no longer stops solely because local browser/device persistence reported an error: for authenticated users it can still store the in-memory completed workout in the cloud, allowing recovery at the next launch.
+- Included strength references in the private cloud allowlist and validation; they are now covered by the same backup path as workout history.
+- Verification: TypeScript passed and the dedicated Sync V2 entity tests passed. PHP CLI is not installed in this workstation shell, so PHP integration tests must be run in the deployment/CI environment before publishing the API.
+
+### Controlled Sync V2 operations and release protocol - 2026-09-21
+
+- Sync V2 is now disabled by default and can only be enabled or disabled for an individual test account with the server CLI. Its batch endpoint rejects accounts that are not explicitly enabled.
+- Added a per-account migration manifest: entity counts plus a deterministic SHA-256 content hash. A migration is not marked verified unless the client and server manifests match.
+- Added a privacy-safe operational report for enabled versus verified accounts and retained Sync V2 changes. Its non-zero exit status can feed the hosting alert when an enabled account is not verified.
+- Expanded encrypted database backups to include every `account_sync_*` table while retaining restore compatibility with earlier backup format 1.
+- Added `docs/PROTOCOLO-RELEASE.md` and linked it from the IONOS and Play documents. It requires backup verification, account-scoped rollout, API-before-Web ordering, Alpha-only Android delivery and documented rollback.
+
+### Continuous release safeguards - 2026-09-21
+
+- Added `npm run release:doctor -- web|android|api`: a release gate that validates TypeScript, aligned app versions/versionCode and target-specific prerequisites before publishing.
+- Added `npm run monitor:sync`: a two-session synthetic account canary. With credentials provided only through the scheduled-task secrets, it writes a minimal isolated workout, verifies that a second session receives it, then removes it.
+- Added privacy-safe aggregate operational metrics for sync failures, conflicts, local-storage failures and Sync V2 operations. No email, token, workout, load or error text is stored in the metric rows.
+- Added the production procedure for daily canary execution, alerting on failure, staging isolation, and the requirement that staging never share production data or encryption keys.
+- Validation: typecheck, `release:doctor -- api`, and Sync V2 entity tests passed. The synthetic canary intentionally was not run because production test-account secrets are not available in this workspace.
+
+### User recovery, export and resilience safeguards - 2026-09-21
+
+- Recovery copies now require a second explicit confirmation before they replace the data on the device. The selected snapshot remains visible for review first and the current cloud copy is retained before restoration.
+- Added a private personal-data export from Cuenta y copias. It contains training data only and omits cloud ownership metadata, sessions, tokens and device notification identifiers.
+- Added dependency security gate `npm run security:dependencies`; it blocks high or critical production dependency vulnerabilities. The release protocol now requires it before publication.
+- Added encryption-key rotation and staging guidance to the release protocol: keys are never rotated in place; a tested decrypt/re-encrypt migration plus full restore verification is required.
+- Validation: typecheck passed; personal export, Sync V2 entity, idempotent finish and interrupted-session recovery tests passed; production dependency audit found no high or critical findings.
+
+### Full local verification of account safeguards - 2026-09-21
+
+- Repaired the account-test SQLite fixture so it isolates the Accounts schema instead of attempting to parse unrelated MySQL-only Community indexes.
+- Executed the bundled PHP runtime tests successfully: 44 account integration assertions, including Sync V2 disabled-by-default, idempotent retry and encrypted V2 payload checks; encrypted backup/restore also passed.
+- Re-ran TypeScript, personal export, Sync V2 merge, idempotent finish, interrupted-session recovery, production dependency audit and `release:doctor -- api`; all passed.
+
+### Google Play Alpha: splash logo ampliado - 2026-09-21
+
+- Generado y verificado el AAB firmado de Android `1.0.29` / `versionCode 32` con el logo de inicio ampliado.
+- SHA-256 AAB: `B85825E22428A3053EE17C2DB1343A43CA1EAFCE0B7856D9FB4A98C978D7FF40`.
+- Subido a **Prueba cerrada Alpha**, con notas `Logo de inicio más grande y mejoras visuales en botones y selección de días.`
+- Enviado a revisión de Google Play. Estado visible: **Cambios en revisión**. Producción no iniciada.
+
+### SincronizaciÃ³n: reconciliaciÃ³n segura de conflictos - 2026-09-21
+
+- Los borradores de entrenamientos abiertos, los logros derivados y la versiÃ³n interna de migraciÃ³n dejan de formar parte de la copia cloud. No pueden volver a provocar un conflicto entre dispositivos cuando el progreso duradero es el mismo.
+- La comparaciÃ³n normaliza colecciones opcionales vacÃ­as y el orden de colecciones cuyo orden no cambia el resultado. Se evita que una actualizaciÃ³n de la app convierta la misma copia en dos estados distintos.
+- Si dos dispositivos aÃ±aden entrenamientos finalizados o mediciones distintas sin tocar la rutina ni el perfil, se unen automÃ¡ticamente y se conservan ambos registros. Una ediciÃ³n del mismo entrenamiento, rutina o preferencias nunca se pisa: se explica el Ã¡rea afectada y se mantienen las copias de recuperaciÃ³n.
+- Se publicÃ³ la Web tras preflight SFTP, verificaciÃ³n de salud API, `release:doctor -- web`, TypeScript y auditorÃ­a de dependencias. La cuenta de prueba terminÃ³ en `Guardado en el dispositivo y en la nube` despuÃ©s de resolver la diferencia real de carga con la copia local corregida; la copia cloud previa permanece en el historial de recuperaciÃ³n.
+
+### Pulido de superficies mÃ³viles verde y dorada - 2026-09-21
+
+- Se retiraron la franja dorada lateral, el sombreado de texto y los reflejos angulares que se cortaban dentro de las pestaÃ±as seleccionadas de iOS.
+- Las selecciones verdes usan ahora una Ãºnica superficie esmeralda continua; se aplica a los dÃ­as de `Tu semana`, a las pestaÃ±as de Comunidad y al dÃ­a seleccionado del Calendario.
+- El oro de botones destacados usa una transiciÃ³n metÃ¡lica cÃ¡lida y continua basada en `#C39850`, sin sombra exterior ni bloques de color. Web publicada tras las validaciones de release y SFTP.
+
+### Selector directo de mes y aÃ±o en Calendario - 2026-09-21
+
+- El mes y el aÃ±o del encabezado ahora son botones accesibles.
+- Al pulsarlos aparece un selector compacto con los 12 meses y un rango de 21 aÃ±os; elegir una opciÃ³n actualiza el calendario y centra la fecha seleccionada en ese mes.
+- El selector usa las mismas superficies esmeralda y bordes dorados discretos del resto de la app. Web exportada y publicada tras `release:doctor -- web` y preflight SFTP.
+
+### Selector de mes y aÃ±o compacto - 2026-09-21
+
+- Se sustituyÃ³ la cuadrÃ­cula grande por un desplegable vertical con desplazamiento limitado: una lista de meses o una lista de aÃ±os segÃºn el encabezado pulsado.
+- El panel ocupa poco espacio en mÃ³vil y se puede recorrer con el dedo o con la rueda/ratÃ³n en ordenador. Al elegir una opciÃ³n se cierra y actualiza el calendario.
+- TypeScript y `release:doctor -- web` correctos; Web publicada mediante preflight y despliegue SFTP.
+
+### Selectores de mes y aÃ±o independientes - 2026-09-21
+
+- Mes y aÃ±o se muestran en controles separados, cada uno con su propio estado y desplegable vertical anclado debajo del control correspondiente.
+- Se aÃ±adiÃ³ separaciÃ³n visual entre ambos para evitar que parezcan un Ãºnico selector; siguen siendo desplazables con dedo o ratÃ³n.
+- TypeScript correcto y Web publicada tras `release:doctor -- web`, exportaciÃ³n, preflight y despliegue SFTP.
+
+### Nuevo logo para materiales de Google Play - 2026-09-21
+
+- Se sustituyÃ³ la fuente de los materiales de Play por `Logo definitivo circular.png`, conservando el original web sin cambios.
+- Se regeneraron `assets/play/icon-512.png` y `assets/play/feature-graphic.png` con el nuevo emblema circular.
+- Los recursos quedan preparados para actualizar la ficha de Play Console; no se ha generado ni enviado una nueva versiÃ³n Android solo por este cambio de material grÃ¡fico.
+
+### Logo circular actualizado en Google Play Console - 2026-09-21
+
+- Se cargÃ³ `assets/play/icon-512.png` en la ficha predeterminada de Akhyles.
+- Se retirÃ³ el icono anterior, se dejÃ³ Ãºnicamente el nuevo icono circular y Play Console confirmÃ³ el guardado sin errores de validaciÃ³n.
+- El cambio queda publicado como recurso de la ficha; no se modificÃ³ el binario Android ni la configuraciÃ³n del logo web.
+### Release Android 1.0.30 / versionCode 33 preparada en Alpha - 2026-09-21
+
+- Se incrementó la versión de la app a `1.0.30` y `versionCode` `33`.
+- Se generaron AAB y APK de producción con backend HTTPS, reutilizando la firma Android existente.
+- `verify-android` validó certificado, manifest, versión y permisos permitidos; `release:doctor` y typecheck correctos.
+- Dependencias de producción sin vulnerabilidades altas/críticas.
+- La subida a Google Play Console quedó preparada en Prueba cerrada > Alpha como `33 (1.0.30)` con notas en `es-ES`, guardada en revisión. Solo aparece la advertencia informativa de desofuscación no asociada (no se usa R8/ProGuard).
+- No se pudo realizar la instalación en dispositivo físico porque no había ningún dispositivo Android conectado por ADB.
+- La suite tiene 151 pruebas correctas y 5 fallos heredados no relacionados con este bump; quedan documentados para su tratamiento separado.
+- Tras la confirmación del propietario, la versión se envió a revisión de Google Play; el Resumen de publicación muestra `1 cambio enviado a revisión`.

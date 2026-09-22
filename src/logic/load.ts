@@ -19,6 +19,21 @@ const BARBELL_BASICS = new Set([
 const DUAL_CABLE_LOADS = new Set(["chest-cable", "standing-cable-pec-dec"]);
 export const usesPerSideDisplay = (exerciseId: string) => DUAL_CABLE_LOADS.has(exerciseId);
 
+// A single cable stack reports the real resistance moved by either arm. Using
+// the per-side editor for these exercises is useful (especially when the two
+// arms differ), but it must not turn 15 kg on the stack into 30 kg. Crossovers
+// with two independent stacks remain bilateral totals and are intentionally
+// excluded from this set.
+const SINGLE_STACK_CABLE_LOADS = new Set([
+  "neutral-pulldown", "wide-pulldown", "pullover", "lateral-cable",
+  "bayesian-curl", "cable-curl-unilateral", "cable-curl-bar",
+  "triceps-extension", "triceps-single", "katana", "katana-single",
+  "gironda-row", "seated-face-pull", "cable-y-raise", "low-high-face-pull",
+  "katana-bar", "kickback", "cable-floor-crunch",
+]);
+export const usesSingleStackPerSideLoad = (exerciseId: string) => SINGLE_STACK_CABLE_LOADS.has(exerciseId);
+export const perSideLoadMultiplier = (exerciseId?: string) => exerciseId && usesSingleStackPerSideLoad(exerciseId) ? 1 : 2;
+
 // These movements are logged using the exercise load itself. A machine/frame
 // base weight is not useful for comparing them and should not be offered.
 const APPARATUS_WEIGHT_EXCLUDED = new Set([
@@ -41,7 +56,7 @@ export const supportsBarWeight = (exerciseId: string) => BARBELL_BASICS.has(exer
 /** Configured increments use the athlete's visible unit. On two cable stacks,
  * 1.25 kg means 1.25 kg on each stack, or 2.5 kg internally. */
 export const storedProgressionStep = (exerciseId: string, step: number, mode: LoadInputMode) =>
-  mode === "per-side" && !supportsBarWeight(exerciseId) ? step * 2 : step;
+  mode === "per-side" && !supportsBarWeight(exerciseId) ? step * perSideLoadMultiplier(exerciseId) : step;
 export const supportsApparatusWeight = (exerciseId: string) => !APPARATUS_WEIGHT_EXCLUDED.has(exerciseId);
 export const isAssistedPullup = (exerciseId: string) => exerciseId === "assisted-pullup";
 
@@ -55,11 +70,11 @@ export const effectiveLiftedLoad = (exerciseId: string, stored: number, bodyWeig
     ? Number.isFinite(bodyWeight) ? bodyWeight! - stored : undefined
     : effectiveExternalLoad(exerciseId, stored, apparatusWeight, barWeight, preferenceApparatusWeight);
 
-export const toStoredLoad = (entered: number, mode: LoadInputMode) =>
-  mode === "per-side" ? entered * 2 : entered;
+export const toStoredLoad = (entered: number, mode: LoadInputMode, exerciseId?: string) =>
+  mode === "per-side" ? entered * perSideLoadMultiplier(exerciseId) : entered;
 
-export const fromStoredLoad = (stored: number, mode: LoadInputMode) =>
-  mode === "per-side" ? stored / 2 : stored;
+export const fromStoredLoad = (stored: number, mode: LoadInputMode, exerciseId?: string) =>
+  mode === "per-side" ? stored / perSideLoadMultiplier(exerciseId) : stored;
 
 // A bar is optional: do not silently add 20 kg when the athlete records a total.
 export const defaultBarWeight = (_exerciseId: string) => 0;
@@ -73,9 +88,9 @@ export const scoreLoad = (exerciseId: string, stored: number, barWeight?: number
  * This also repairs legacy sessions which retained the two side values but stored
  * only the weaker single-arm load in `weight`.
  */
-export const storedSetLoad = (set: Pick<SetRecord, "weight" | "leftWeight" | "rightWeight">) =>
+export const storedSetLoad = (set: Pick<SetRecord, "weight" | "leftWeight" | "rightWeight">, exerciseId?: string) =>
   Number.isFinite(set.leftWeight) && Number.isFinite(set.rightWeight)
-    ? 2 * Math.min(set.leftWeight!, set.rightWeight!)
+    ? perSideLoadMultiplier(exerciseId) * Math.min(set.leftWeight!, set.rightWeight!)
     : set.weight;
 
 export const formatLoad = (value: number) =>
@@ -83,6 +98,7 @@ export const formatLoad = (value: number) =>
 
 export function loadHint(exerciseId: string): string {
   if (DUAL_CABLE_LOADS.has(exerciseId)) return "Usa Por lado: registra lo que indica una de las dos poleas. Akhyles suma ambas para guardarlo y puntuarlo (20 kg por lado = 40 kg totales).";
+  if (SINGLE_STACK_CABLE_LOADS.has(exerciseId)) return "En esta polea, Por lado sirve para registrar cada brazo sin duplicar la carga: 15 kg por lado se conservan como 15 kg.";
   if (exerciseId === "assisted-pullup") return "Introduce kilos de ayuda, no kilos levantados. La gráfica y los cálculos restan esa asistencia a tu peso corporal de esa sesión. Menos asistencia representa más fuerza.";
   if (["pronated-pullup", "neutral-pullup", "weighted-dips", "push-up", "handstand-push-up"].includes(exerciseId)) return "Sin lastre solo registra las repeticiones. Si activas Con lastre, introduce únicamente el peso añadido: Akhyles suma el peso corporal de esta sesión para los cálculos.";
   if (BARBELL_BASICS.has(exerciseId)) return "Puedes registrar discos (total o por lado) y su barra, o introducir directamente el peso total levantado. Si no especificas barra, se asumen 0 kg.";

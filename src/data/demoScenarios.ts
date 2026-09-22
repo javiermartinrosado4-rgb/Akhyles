@@ -176,7 +176,7 @@ function createMachineScenario(profile: Profile, preferences: Preferences, weeks
     version: 1,
     completed: true,
     onboardingStep: 0,
-    theme: "system",
+    theme: "dark",
     programRevision: 1,
     profile,
     preferences,
@@ -324,7 +324,7 @@ export function createDemoScenario(female = false, now = new Date()): AppState {
   }
   const tomorrow = new Date(now); tomorrow.setHours(12, 0, 0, 0); tomorrow.setDate(tomorrow.getDate() + 1);
   return JSON.parse(JSON.stringify({
-    version: 1, completed: true, onboardingStep: 0, theme: female ? "dark" : "system", programRevision: 7,
+    version: 1, completed: true, onboardingStep: 0, theme: "dark", programRevision: 7,
     profile, preferences: prefs, routine, history,
     routineVersions: [
       { effectiveFrom: localDateKey(start), profile: previousProfile, routine: oldRoutine },

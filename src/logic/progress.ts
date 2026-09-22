@@ -6,6 +6,7 @@ import { estimatedMax, wilksCoefficient } from "./strengthScore";
 import { displayPoints, gluteInference, groupWeights, scoreGroups, scoreReferences } from "./scoreReferences";
 import { localDateKey } from "./schedule";
 import { scoreStrengthReference } from "./strengthReferences";
+import { presentationPoints } from "./achievements";
 export interface ChartPoint { date: string; value: number; detail?: string }
 export function periodProgress(points: ChartPoint[], cutoff: number, end = Infinity, includePrevious = true): ChartPoint[] {
   const sorted = [...points].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
@@ -22,7 +23,7 @@ export const eligibleForScore = (e: Exercise) => !e.custom && scoreReferences[e.
 export function exerciseProgress(history: Workout[], id: string, apparatusWeights: Record<string, number> = {}): ChartPoint[] {
   return [...history].sort((a, b) => a.date.localeCompare(b.date)).flatMap(w => {
     const sets = w.records.filter(r => r.prescription.exerciseId === id)
-      .flatMap(r => r.sets.map(set => ({ ...set, total: effectiveLiftedLoad(id, storedSetLoad(set), w.bodyWeight, r.apparatusWeight, r.barWeight, apparatusWeights[id]) })))
+      .flatMap(r => r.sets.map(set => ({ ...set, total: effectiveLiftedLoad(id, storedSetLoad(set, id), w.bodyWeight, r.apparatusWeight, r.barWeight, apparatusWeights[id]) })))
       .filter((set): set is typeof set & { total: number } => Number.isFinite(set.total));
     const best = sets.filter(s => s.weight > 0 && s.reps > 0).sort((a, b) => b.total - a.total || b.reps - a.reps)[0];
     return best ? [{ date: w.date, value: best.total, detail: translate("{reps} rep · peso corporal {weight} kg", { reps: best.reps, weight: w.bodyWeight ?? translate("sin registrar") }) }] : [];
@@ -40,9 +41,15 @@ export function scoreProgress(state: AppState) {
     // Missing historic demographics must not be guessed from today's profile.
     const sex = w.sex ?? [...(state.routineVersions ?? [])]
       .filter(version => version.effectiveFrom !== "1970-01-01" && localDateKey(version.effectiveFrom) <= localDateKey(w.date))
-      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.profile.sex;
-    if (!Number.isFinite(w.bodyWeight) || !sex) continue;
-    const coefficient = wilksCoefficient(w.bodyWeight!, sex);
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.profile.sex ?? state.profile.sex;
+    // Older local sessions may predate the per-session demographics fields.
+    // Preserve recorded values when present; otherwise use the current profile
+    // as a compatibility fallback so valid historical lifts are not silently
+    // excluded from the muscle map.
+    const profileBodyWeight = Number(state.profile.weight);
+    const bodyWeight = Number.isFinite(w.bodyWeight) ? w.bodyWeight! : profileBodyWeight;
+    if (!Number.isFinite(bodyWeight) || !sex) continue;
+    const coefficient = wilksCoefficient(bodyWeight, sex);
     if (coefficient === undefined) continue;
     let changed = false;
     for (const r of w.records) {
@@ -52,10 +59,10 @@ export function scoreProgress(state: AppState) {
       const category = exercise.muscle;
       const reference = scoreReferences[exercise.id];
       for (const set of r.sets) {
-        const stored = storedSetLoad(set);
+        const stored = storedSetLoad(set, exercise.id);
         if (!Number.isFinite(stored) || stored < 0 || stored > 1000 || !Number.isInteger(set.reps) || set.reps < 1 || set.reps > 100) continue;
         const externalLoad = effectiveExternalLoad(exercise.id, stored, r.apparatusWeight, r.barWeight);
-        const load = reference.body === "add" ? w.bodyWeight! + externalLoad : reference.body === "subtract" ? w.bodyWeight! - externalLoad : externalLoad;
+        const load = reference.body === "add" ? bodyWeight + externalLoad : reference.body === "subtract" ? bodyWeight - externalLoad : externalLoad;
         // Higher-rep work remains valid training; no extra strength bonus beyond ten reps.
         const maximum = estimatedMax(load, Math.min(set.reps, 10));
         const value = maximum === undefined ? undefined : maximum / reference[sex] * (sex === "male" ? 2.52 : 2.41) * coefficient / 4;
@@ -94,6 +101,29 @@ export function scoreProgress(state: AppState) {
     best.set(reference.muscle, reference.value);
     evidence.set(reference.muscle, { exerciseId: reference.exerciseId, kind: reference.kind, exerciseName: reference.name, load: reference.load, reps: reference.reps, maximum: reference.maximum, date: reference.date });
   }
+  // Glute coherence guard: posterior-chain strength is not identical to glute
+  // strength, but an advanced hamstring/quadriceps profile should not produce
+  // a beginner glute estimate. Use two independent lower-body signals and keep
+  // this as a conservative floor below direct glute evidence.
+  const hamstrings = best.get("hamstrings");
+  const quads = best.get("quads");
+  if (hamstrings !== undefined && quads !== undefined) {
+    const chainSignal = ((hamstrings + quads) / 2) * 0.55;
+    const current = best.get("glutes") ?? 0;
+    if (chainSignal > current) {
+      best.set("glutes", chainSignal);
+      const source = evidence.get("hamstrings") ?? evidence.get("quads");
+      if (source) evidence.set("glutes", {
+        exerciseId: source.exerciseId,
+        kind: "inferred-coherence",
+        exerciseName: "Inferencia conservadora de cadena posterior",
+        load: source.load,
+        reps: source.reps,
+        maximum: source.maximum,
+        date: source.date,
+      });
+    }
+  }
   // References are a declared current baseline. Preserve historical chart points,
   // then append the combined current score without pretending it was a workout.
   if (state.strengthReferences?.length && best.size) {
@@ -127,6 +157,6 @@ export function bodyWeightProgress(state: AppState): ChartPoint[] {
       .filter(workout => Date.parse(workout.date) <= atTime)
       .map(workout => ({ ...workout, bodyWeight: point.value }));
     const score = scoreProgress({ ...state, history }).points.at(-1);
-    return { ...point, detail: score ? `A-Points: ${score.value.toLocaleString(getLocale(), { maximumFractionDigits: 1 })}` : translate("A-Points: sin valoración todavía") };
+    return { ...point, detail: score ? `A-Points: ${presentationPoints(score.value)!.toLocaleString(getLocale(), { maximumFractionDigits: 1 })}` : translate("A-Points: sin valoración todavía") };
   });
 }

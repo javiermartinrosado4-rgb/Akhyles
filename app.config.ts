@@ -8,10 +8,10 @@ if (!localAndroid && process.env.NODE_ENV === "production" && process.env.EXPO_P
 const config: ExpoConfig = {
   name: APP.name,
   slug: APP.slug,
-    version: "1.0.27",
+    version: "1.0.32",
   orientation: "portrait",
   scheme: APP.slug,
-  userInterfaceStyle: "automatic",
+  userInterfaceStyle: "dark",
   icon: "./assets/brand/icon.png",
   ios: {
     bundleIdentifier: "com.javiermartinrosado.akhyles",
@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.javiermartinrosado.akhyles",
-      versionCode: 30,
+      versionCode: 35,
     allowBackup: false,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
@@ -37,9 +37,9 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-sqlite",
     "./plugins/withAsyncStorageDatabaseSize",
-    "expo-notifications",
+    ["expo-notifications", { icon: "./assets/brand/notification-icon.png", color: "#C39850" }],
     "./plugins/withAndroidSigning",
-    ["expo-splash-screen", { image: "./assets/brand/splash.png", imageWidth: 180, backgroundColor: "#0F1412", dark: { backgroundColor: "#0F1412" } }],
+    ["expo-splash-screen", { image: "./assets/brand/splash.png", imageWidth: 260, backgroundColor: "#0F1412", dark: { backgroundColor: "#0F1412" } }],
     ["expo-build-properties", { android: { usesCleartextTraffic: localAndroid } }],
     // Android autolinks Nitro Google Sign-In; its client ID comes from our API.
     // The package's config plugin is only needed for Firebase files / iOS.
@@ -56,6 +56,7 @@ const config: ExpoConfig = {
   web: {
     bundler: "metro",
     output: "single",
+    favicon: "./assets/brand/favicon.png",
   },
   experiments: { typedRoutes: true },
   extra: { communityLocalTest: localAndroid },

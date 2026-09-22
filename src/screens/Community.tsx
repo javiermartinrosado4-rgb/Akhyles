@@ -9,6 +9,7 @@ import { useAccount } from "../state/Account";
 import { AchievementPage, CoachingRelationship, CommunityAchievement, CommunityGym, CommunityUser, PublishedProgress, TrainingVisibility } from "../services/community";
 import { levelName } from "../data/options";
 import { useTheme } from "../theme";
+import { presentationPoints, presentationPointsDelta } from "../logic/achievements";
 import { GoogleSignIn } from "../components/GoogleSignIn";
 import { Avatar, AvatarPhotoPicker } from "../components/Avatar";
 import { exportProgress, exportRoutine } from "../logic/sharing";
@@ -20,7 +21,7 @@ import { CommunityRanking } from "../components/CommunityRanking";
 import { CommunityTabs } from "../components/CommunityTabs";
 import { ComparisonCard } from "../components/ComparisonCard";
 import { TrainerProfileCard } from "../components/TrainerProfileCard";
-import { GoogleGymPicker } from "../components/GoogleGymPicker";
+import { LocalGymPicker } from "../components/LocalGymPicker";
 import { achievementPresentation } from "../logic/achievementCatalog";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AchievementRarity, rarityOrder } from "../components/AchievementRarity";
@@ -105,7 +106,10 @@ function CommunityScreen() {
       if (generation.current !== current) return null;
       setAchievements([]); setNext(null); setProfile(null); setSharedProgress(null);
       setLoading(true); setError("");
-      return Promise.all([request<AchievementPage>(queryPath), request<CommunityUser>(`/profiles/${owner}`)]);
+      return Promise.all([
+        request<AchievementPage>(queryPath).catch(() => ({ achievements: [], next: null })),
+        request<CommunityUser>(`/profiles/${owner}`),
+      ]);
     })
       .then(result => { if (result && generation.current === current) { const [page, person] = result; setAchievements(page.achievements); setNext(page.next); setProfile(person); } })
       .catch(error => { if (generation.current === current) setError(error.message); })
@@ -174,7 +178,7 @@ function CommunityScreen() {
         <Txt weight="600">{number(details.load ?? details.weight ?? 0)} kg × {details.reps} repeticiones</Txt>
         {details.milestone !== undefined ? <Txt muted size={12}>Hito simbólico desbloqueado: {number(details.milestone)} kg.</Txt> : <Txt muted size={12}>1RM estimado: {number(details.maximum ?? 0)} kg · antes: {number(details.beforeMaximum ?? 0)} kg{details.percent !== undefined ? ` · +${number(details.percent)}%` : ""}</Txt>}
       </Card>}
-      {post.kind === "tier" && details && <Txt size={13}>A-Points: {number(details.beforePoints ?? 0)} → {number(details.afterPoints ?? 0)}{details.gainedPoints !== undefined ? ` · +${number(details.gainedPoints)}` : ""}</Txt>}
+      {post.kind === "tier" && details && <Txt size={13}>A-Points: {number(presentationPoints(details.beforePoints ?? 0) ?? 0)} → {number(presentationPoints(details.afterPoints ?? 0) ?? 0)}{details.gainedPoints !== undefined ? ` · ${details.gainedPoints >= 0 ? "+" : ""}${number(presentationPointsDelta(details.gainedPoints) ?? 0)}` : ""}</Txt>}
       {post.kind === "perfect_week" && details && <Txt size={13}>Semana completa: {details.completed}/{details.scheduled} sesiones.</Txt>}
       {post.kind === "consistency" && details && <Txt size={13}>Fuerza comparable: {details.strengthPercent !== undefined ? `${details.strengthPercent >= 0 ? "+" : ""}${number(details.strengthPercent)}%` : "en progreso"}{details.compared ? ` · ${details.compared} ejercicios` : ""}</Txt>}
       <Row style={{ justifyContent: "space-between", alignItems: "center" }}><Button label={`@${post.handle}`} variant="ghost" compact onPress={() => openProfile(post.userId)} /><Txt muted size={12}>{new Date(post.created).toLocaleString(locale)}</Txt></Row>
@@ -215,9 +219,9 @@ function CommunityScreen() {
       </Card>}
     </> : <>
       {tab !== "profile" && <CommunityTabs value={tab === "all" ? "following" : tab} options={[
-        { value: "ranking", label: "Ranking", icon: "award" },
+        { value: "ranking", label: "Ranking", icon: "trophy" },
         { value: "people", label: "Personas", icon: "users" },
-        { value: "following", label: "Logros", icon: "star" },
+        { value: "following", label: "Logros", icon: "laurel" },
       ]} onChange={value => { setError(""); setMessage(""); setTab(value); }} />}
       {tab === "ranking" && <CommunityRanking scope={rankingScope} onScopeChange={scope => { setRankingScope(scope); if (scope !== "city") setRankingCity(""); }} city={rankingCity} onCityChange={city => { setRankingCity(city); setRankingScope("city"); }} openProfile={openProfile} findPeople={() => setTab("people")} editLocation={() => router.replace("/profile")} />}
       {tab === "people" && <CommunityPeople openProfile={openProfile} />}
@@ -225,16 +229,19 @@ function CommunityScreen() {
       {(tab === "profile" || tab === "all" || tab === "following") && <>
       {tab === "profile" && !mine && <Button label={profileOrigin === "ranking" ? "Volver al ranking" : profileOrigin === "people" ? "Volver a personas" : "Volver a logros"} icon="arrow-left" variant="ghost" compact onPress={() => setTab(profileOrigin === "ranking" ? "ranking" : profileOrigin === "people" ? "people" : "following")} />}
       {tab === "profile" && profile && <Card>
-        <Row>
-          <Avatar id={profile.avatar} />
-          <View style={{ flex: 1, minWidth: 0 }}><Txt size={23} weight="600" numberOfLines={2} translate={false}>{profile.name}</Txt><Txt muted numberOfLines={1} translate={false}>@{profile.handle}</Txt></View>
-          {!mine && <Button label={profile.followed ? "Dejar de seguir" : profile.followsYou ? "Devolver seguimiento" : "Seguir"} compact disabled={busy} onPress={() => void run(async () => { setProfile(await request<CommunityUser>(`/follow/${profile.id}`, profile.followed ? "DELETE" : "PUT")); setSharedProgress(null); })} />}
+        <Row style={{ alignItems: "flex-start", gap: 16 }}>
+          <Avatar id={profile.avatar} size={92} />
+          <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+            <Txt size={23} weight="600" numberOfLines={2} translate={false}>{profile.name}</Txt>
+            <Txt muted numberOfLines={1} translate={false}>@{profile.handle}</Txt>
+            <Row style={{ justifyContent: "space-between", gap: 8 }}>
+              <View style={{ alignItems: "center", minWidth: 58 }}><Txt weight="600">{profile.posts}</Txt><Txt muted size={11}>Logros</Txt></View>
+              <Pressable accessibilityRole="button" accessibilityLabel={t(profile.followers === 1 ? "Ver {count} seguidor" : "Ver {count} seguidores", { count: profile.followers })} onPress={() => void openNetworkList("followers")} style={{ alignItems: "center", minWidth: 58 }}><Txt weight="600">{profile.followers}</Txt><Txt muted size={11}>Seguidores</Txt></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t(profile.following === 1 ? "Ver {count} seguido" : "Ver {count} seguidos", { count: profile.following })} onPress={() => void openNetworkList("following")} style={{ alignItems: "center", minWidth: 58 }}><Txt weight="600">{profile.following}</Txt><Txt muted size={11}>Seguidos</Txt></Pressable>
+            </Row>
+          </View>
         </Row>
-        <Row style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-          <Txt size={13}>{t(profile.posts === 1 ? "{count} logro" : "{count} logros", { count: profile.posts })}</Txt>
-          <Pressable accessibilityRole="button" accessibilityLabel={t(profile.followers === 1 ? "Ver {count} seguidor" : "Ver {count} seguidores", { count: profile.followers })} onPress={() => void openNetworkList("followers")}><Txt size={13} weight="600">{t(profile.followers === 1 ? "{count} seguidor" : "{count} seguidores", { count: profile.followers })}</Txt></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={t(profile.following === 1 ? "Ver {count} seguido" : "Ver {count} seguidos", { count: profile.following })} onPress={() => void openNetworkList("following")}><Txt size={13} weight="600">{t("{value1} siguiendo", { value1: profile.following })}</Txt></Pressable>
-        </Row>
+        {!mine && <Button label={profile.followed ? "Dejar de seguir" : profile.followsYou ? "Devolver seguimiento" : "Seguir"} disabled={busy} onPress={() => void run(async () => { setProfile(await request<CommunityUser>(`/follow/${profile.id}`, profile.followed ? "DELETE" : "PUT")); setSharedProgress(null); })} />}
         {networkList && <Card style={{ padding: 12 }}>
           <Row style={{ justifyContent: "space-between" }}><Txt weight="600" size={18}>{networkList === "followers" ? "Seguidores" : "Siguiendo"}</Txt><Button label="Cerrar" compact variant="ghost" onPress={() => setNetworkList(null)} /></Row>
           {networkPeople.length ? networkPeople.map(person => <Pressable key={person.id} accessibilityRole="button" accessibilityLabel={t("Ver perfil de @{value1}", { value1: person.handle })} onPress={() => openProfile(person.id)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, backgroundColor: pressed ? colors.soft : "transparent" })}>
@@ -242,9 +249,11 @@ function CommunityScreen() {
           </Pressable>) : <Txt muted>Aún no hay personas en esta lista.</Txt>}
         </Card>}
         <Pill>{levelName(profile.level)}</Pill>
-        {!!profile.bio && <Txt translate={false}>{profile.bio}</Txt>}
-        {!!profile.trainingPlace && <Txt muted>{t("Entrena en {value1}", { value1: profile.trainingPlace })}</Txt>}
-        {!!profile.city && <Txt muted translate={false}>{profile.city}</Txt>}
+        <View style={{ gap: 4 }}>
+          <Txt translate={false}>{profile.bio || "Sin biografía"}</Txt>
+          <Txt muted>{profile.trainingPlace ? t("Entrena en {value1}", { value1: profile.trainingPlace }) : "Gimnasio no indicado"}</Txt>
+          {!!profile.city && <Txt muted translate={false}>{profile.city}</Txt>}
+        </View>
         {profile.trainerEnabled && <Pill>Entrenador</Pill>}
         {profile.trainerEnabled && <TrainerProfileCard profileId={profile.id} mine={mine} />}
         {mine && <Button label="Editar perfil social" compact variant="secondary" onPress={() => { setName(profile.name); setBio(profile.bio); setAvatar(profile.avatar ?? "mountain"); setTrainingPlace(profile.trainingPlace ?? ""); setCity(profile.city ?? ""); setTrainerEnabled(!!profile.trainerEnabled); setEditing(!editing); }} />}
@@ -252,7 +261,7 @@ function CommunityScreen() {
           <Field label="Nombre público" value={name} onChangeText={setName} />
           <Field label="Biografía" value={bio} onChangeText={setBio} maxLength={300} />
           <Field label="Gimnasio" value={trainingPlace} onChangeText={setTrainingPlace} placeholder="Busca tu gimnasio" maxLength={80} />
-          <GoogleGymPicker value={trainingPlace} language={locale.startsWith("en") ? "en" : "es"} onPick={gym => { setTrainingPlace(gym.name); setCity(gym.city); setGymMatches([]); setMessage(gym.address ? `Gimnasio seleccionado: ${gym.address}` : "Gimnasio seleccionado desde Google Maps."); }} />
+          <LocalGymPicker request={request} city={city} onPick={gym => { setTrainingPlace(gym.name); setCity(gym.city); setGymMatches([]); setMessage(`Gimnasio seleccionado: ${gym.name}`); }} onIndependent={() => { setTrainingPlace(""); setGymMatches([]); setMessage("Puedes introducir un gimnasio independiente."); }} />
           {!!gymMatches.length && <Card style={{ padding: 0, gap: 0 }}>
             {gymMatches.map(gym => <Pressable key={gym.id} accessibilityRole="button" accessibilityLabel={t("Elegir {name}", { name: `${gym.name}${gym.city ? `, ${gym.city}` : ""}` })} onPress={() => { setTrainingPlace(gym.name); if (gym.city) setCity(gym.city); setGymMatches([]); }} style={({ pressed }) => ({ padding: 12, backgroundColor: pressed ? colors.soft : colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border })}>
               <Txt weight="600" translate={false}>{gym.name}</Txt>{!!gym.city && <Txt muted size={12} translate={false}>{gym.city}{gym.address ? ` · ${gym.address}` : ""}</Txt>}

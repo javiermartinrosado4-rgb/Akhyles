@@ -231,7 +231,7 @@ export function RoutineOverview() {
                     <Txt weight="600">
                       {entry.weight === 0
                         ? messages.Routine.cargaPorElegir
-                        : `${fromStoredLoad(entry.weight, defaultLoadInputMode(entry.exerciseId)).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg${defaultLoadInputMode(entry.exerciseId) === "per-side" ? " por lado" : ""}`}
+                        : (() => { const mode = state.preferences.loadModes?.[entry.exerciseId] ?? defaultLoadInputMode(entry.exerciseId); return `${fromStoredLoad(entry.weight, mode, entry.exerciseId).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg${mode === "per-side" ? " por lado" : ""}`; })()}
                     </Txt>
                   </Row>
                   <Txt muted size={11}>{expanded === entry.id ? "Ocultar detalles" : "Ver detalles"}</Txt>

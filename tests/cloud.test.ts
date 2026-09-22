@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledge, canonical, cloudState, snapshot, syncDecision } from "../src/logic/cloud";
+import { acknowledge, canonical, cloudState, mergeConcurrentProgress, snapshot, syncDecision } from "../src/logic/cloud";
 import { decodeState } from "../src/storage/repository";
 import { emptyPreferences, emptyProfile } from "../src/data/options";
 import { AppState } from "../src/types";
@@ -12,7 +12,33 @@ test("cloud payload omits account identity, local session state and notification
   const s={...trained(),signedOut:true,weightReminderNotificationId:"local-id",cloud:{owner:"owner",revision:1,base:"secret-local"}};
   assert.equal("cloud" in cloudState(s),false); assert.equal("signedOut" in cloudState(s),false);
   assert.equal("weightReminderNotificationId" in cloudState(s),false);
+  assert.equal("active" in cloudState(s),false);
+  assert.equal("achievements" in cloudState(s),false);
+  assert.equal("loadNormalizationVersion" in cloudState(s),false);
   assert.deepEqual(cloudState(s).routine,s.routine);
+});
+test("device drafts, derived achievements and empty optional collections cannot create a cloud conflict",()=>{
+  const cloud=trained();
+  const local=acknowledge({...cloud,
+    active:{day:cloud.routine[0],index:0,startedAt:"2026-09-21T10:00:00Z",records:[],draft:[]},
+    achievements:[], bodyWeights:[], plannedWorkouts:[], skippedWorkoutDates:[], strengthReferences:[],
+    loadNormalizationVersion:2, programRevision:6,
+  },"a",1,snapshot(cloud),"now");
+  assert.equal(snapshot(local),snapshot(cloud));
+  assert.equal(syncDecision(local,remote(cloud),"a"),"same");
+});
+test("independent completed workouts are merged without discarding either device",()=>{
+  const base=trained();
+  const local={...base,history:[{id:"local",dayName:"A",date:"2026-09-20",minutes:40,records:[]}]};
+  const remoteState={...base,history:[{id:"remote",dayName:"B",date:"2026-09-21",minutes:40,records:[]}]};
+  const merged=mergeConcurrentProgress(local,remoteState);
+  assert.deepEqual(merged?.history.map(item=>item.id),["local","remote"]);
+});
+test("an edit to the same completed workout is never merged automatically",()=>{
+  const workout={id:"same",dayName:"A",date:"2026-09-21",minutes:40,records:[]};
+  const local={...trained(),history:[workout]};
+  const remoteState={...trained(),history:[{...workout,minutes:41}]};
+  assert.equal(mergeConcurrentProgress(local,remoteState),null);
 });
 test("a stale weekday selection is repaired when a cloud copy is read",()=>{
   const invalid={...trained(),profile:{...trained().profile,days:3,trainingDays:[1,1,9]}};

@@ -2,6 +2,7 @@ import { AppState } from "../types";
 import { weeklyProgressInsight } from "../logic/insights";
 import { Card, Icon, Row, Txt } from "./ui";
 import { useLanguage } from "../i18n";
+import { presentationPointsDelta } from "../logic/achievements";
 
 export function WeeklyProgressInsight({ state }: { state: AppState }) {
   const { locale } = useLanguage();
@@ -18,7 +19,7 @@ export function WeeklyProgressInsight({ state }: { state: AppState }) {
       <Txt size={13}>{insight.coverage}/11 grupos valorados</Txt>
       <Txt size={13}>Fiabilidad {insight.reliability}%</Txt>
     </Row>
-    {insight.points?.delta !== undefined && <Txt size={13} muted>A-Points: {insight.points.delta >= 0 ? "+" : ""}{number(insight.points.delta)} esta semana.</Txt>}
+    {insight.points?.delta !== undefined && <Txt size={13} muted>A-Points: {insight.points.delta >= 0 ? "+" : ""}{number(presentationPointsDelta(insight.points.delta) ?? 0)} esta semana.</Txt>}
     {!!insight.personalBests.length && <Txt size={13} weight="600">{insight.personalBests.length === 1 ? "1 nueva marca personal" : `${insight.personalBests.length} nuevas marcas personales`} · {insight.personalBests.slice(0, 2).map(item => item.name).join(", ")}</Txt>}
     {insight.improvingWeeks >= 2 && <Txt size={13} muted>{insight.improvingWeeks} semanas consecutivas mejorando.</Txt>}
   </Card>;

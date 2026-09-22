@@ -1,4 +1,4 @@
-import { ActiveWorkout, AppState, Day, ExerciseRecord, Level, Preferences, Prescription, Profile, Workout } from "../types";
+import { ActiveWorkout, AppState, Day, ExerciseRecord, Level, Preferences, Prescription, Profile, SetDraft, Workout } from "../types";
 import { progression } from "./progression";
 import { getExercise } from "./routine";
 import { localDateKey, routineAt } from "./schedule";
@@ -7,14 +7,36 @@ import { defaultBarWeight, defaultLoadInputMode, fromStoredLoad, LoadInputMode, 
 import { syncPersonalAchievements } from "./personalAchievements";
 export const draftFor = (p: Prescription, mode: LoadInputMode = "total") =>
   Array.from({ length: p.sets }, () => ({
-    weight: formatLoad(fromStoredLoad(p.weight, mode)),
+    weight: formatLoad(fromStoredLoad(p.weight, mode, p.exerciseId)),
     reps: "",
   }));
-export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>, options?: { preparing?: boolean; plannedDate?: string }): ActiveWorkout {
+/** Reuse the last performed values as an editable starting point for a new session. */
+export function previousDraftFor(p: Prescription, history: Workout[], mode: LoadInputMode): SetDraft[] {
+  const record = [...history]
+    .sort((a, b) => (b.startedAt ?? b.date).localeCompare(a.startedAt ?? a.date))
+    .flatMap(workout => [...workout.records].reverse())
+    .find(item => item.prescription.exerciseId === p.exerciseId);
+  if (!record) return draftFor(p, mode);
+  return draftFor(p, mode).map((blank, index) => {
+    const set = record.sets[index];
+    if (!set) return blank;
+    const weight = formatLoad(fromStoredLoad(set.weight, mode, p.exerciseId));
+    return {
+      weight,
+      reps: String(set.reps),
+      ...(mode === "per-side" ? {
+        leftWeight: formatLoad(set.leftWeight ?? fromStoredLoad(set.weight, mode, p.exerciseId)),
+        rightWeight: formatLoad(set.rightWeight ?? fromStoredLoad(set.weight, mode, p.exerciseId)),
+        ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}),
+      } : {}),
+    };
+  });
+}
+export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?: Profile["sex"], barWeights?: Record<string, number>, apparatusWeights?: Record<string, number>, loadModes?: Record<string, LoadInputMode>, options?: { preparing?: boolean; plannedDate?: string; history?: Workout[] }): ActiveWorkout {
   if (!day.exercises.length) throw new Error("La sesión no tiene ejercicios.");
   const modeFor = (entry: Prescription) => loadModes?.[entry.id] ?? loadModes?.[entry.exerciseId] ?? defaultLoadInputMode(entry.exerciseId);
-  const mode = modeFor(day.exercises[0]);
-  const draft = draftFor(day.exercises[0], mode);
+  const drafts = Object.fromEntries(day.exercises.map(entry => [entry.id, previousDraftFor(entry, options?.history ?? [], modeFor(entry))]));
+  const draft = drafts[day.exercises[0].id];
   return {
     ...(options?.preparing ? { preparing: true, plannedDate: options.plannedDate } : {}),
     sex,
@@ -33,7 +55,7 @@ export function startWorkout(day: Day, bodyWeight?: string, level?: Level, sex?:
     startedAt: new Date().toISOString(),
     records: [],
     draft,
-    drafts: { [day.exercises[0].id]: draft },
+    drafts,
     loadModes: Object.fromEntries(day.exercises.map(entry => [entry.id, modeFor(entry)])),
     skipped: [],
   };
@@ -66,11 +88,11 @@ export function openHistoricalWorkout(workout: Workout, readOnly: boolean, profi
   const drafts = Object.fromEntries(workout.records.map(record => {
     const mode = historicalModes[record.prescription.id] as LoadInputMode;
     return [record.prescription.id, record.sets.map(set => ({
-      weight: formatLoad(fromStoredLoad(set.weight, mode)),
+      weight: formatLoad(fromStoredLoad(set.weight, mode, record.prescription.exerciseId)),
       reps: String(set.reps),
       ...(mode === "per-side" ? {
-        leftWeight: formatLoad(set.leftWeight ?? fromStoredLoad(set.weight, mode)),
-        rightWeight: formatLoad(set.rightWeight ?? fromStoredLoad(set.weight, mode)),
+        leftWeight: formatLoad(set.leftWeight ?? fromStoredLoad(set.weight, mode, record.prescription.exerciseId)),
+        rightWeight: formatLoad(set.rightWeight ?? fromStoredLoad(set.weight, mode, record.prescription.exerciseId)),
         ...(set.leftReps !== undefined ? { leftReps: String(set.leftReps), rightReps: String(set.rightReps ?? set.reps) } : {}),
       } : {}),
     }))];
@@ -87,7 +109,7 @@ export function progressionForRecord(preferences: Preferences, record: ExerciseR
   const mode = record.loadMode ?? defaultLoadInputMode(e.id);
   const result = progression(record.type, record.prescription.range, record.sets, record.prescription.sets,
     storedProgressionStep(e.id, preferences.loadSteps?.[e.id] ?? e.loadStep ?? 1.25, mode),
-    e.id === "assisted-pullup" ? "decrease" : "increase");
+    e.id === "assisted-pullup" ? "decrease" : "increase", e.id);
   return { e, result };
 }
 

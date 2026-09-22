@@ -1,13 +1,14 @@
 import { useLanguage } from "../i18n";
 import { useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { useStore } from "../state/Store";
 import { useTheme } from "../theme";
 import { muscles } from "../data/options";
 import { allExercises, displayName } from "../logic/routine";
-import { bodyWeightProgress, ChartPoint, exerciseProgress, periodProgress } from "../logic/progress";
+import { bodyWeightProgress, ChartPoint, exerciseProgress, periodProgress, scoreProgress } from "../logic/progress";
+import { presentationPoints } from "../logic/achievements";
 import { number } from "../logic/validation";
-import { Button, Card, Choice, Field, Icon, Notice, Row, Txt } from "./ui";
+import { Button, Card, Choice, Field, GoldSurface, Icon, Notice, Row, Txt } from "./ui";
 import { ChartSeries, LineChart } from "./LineChart";
 
 type PeriodMode = "month" | "year" | "all";
@@ -41,9 +42,12 @@ function PeriodChip({ label, selected, disabled, onPress }: { label: string; sel
       borderWidth: 1,
       borderColor: selected ? colors.accent : colors.border,
       backgroundColor: selected ? colors.accent : colors.surface,
+      position: "relative",
+      overflow: "hidden",
       opacity: disabled ? 0.35 : pressed ? 0.76 : 1,
     })}
   >
+    {selected && <GoldSurface />}
     <Txt size={13} weight="600" style={{ color: selected ? colors.onAccent : colors.text }}>{label}</Txt>
   </Pressable>;
 }
@@ -128,6 +132,7 @@ export function ProgressExplorer() {
   const [selected, setSelected] = useState<string[]>([]);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodMode>("month");
+  const [pointsMode, setPointsMode] = useState(false);
   const [now] = useState(() => new Date());
   const [cursor, setCursor] = useState(() => monthStart(new Date()));
   const [weight, setWeight] = useState(() => {
@@ -159,6 +164,10 @@ export function ProgressExplorer() {
     { id: "body", name: t("Peso corporal"), color: colors.text, primary: true, width: 0.75, opacity: 0.38, pointRadius: 1.25, points: filter(bodyPoints) },
     ...selected.map(id => ({ id, name: displayName(id, state.preferences), color: palette[ids.indexOf(id) % palette.length], points: filter(exerciseProgress(state.history, id, state.preferences.apparatusWeights)) })),
   ];
+  const pointsHistory = useMemo(() => scoreProgress(state).points.map(point => ({ ...point, value: presentationPoints(point.value) ?? 0 })), [state]);
+  const chartSeries = pointsMode
+    ? [...series, { id: "points", name: "A-Points", color: colors.accent, width: 1.5, pointRadius: 2, points: filter(pointsHistory) }]
+    : series;
   const periodLabel = period === "month"
     ? titleCase(cursor.toLocaleDateString(locale, { month: "long", year: "numeric" }))
     : period === "year" ? String(cursor.getFullYear()) : "Todo el historial";
@@ -168,7 +177,8 @@ export function ProgressExplorer() {
     <View style={{ gap: 4 }}><Txt weight="600" size={22}>Gráficas</Txt><Txt muted size={13}>Explora tu evolución por un mes concreto, por año o desde tu primer registro.</Txt></View>
     <PeriodSelector mode={period} onMode={setPeriod} cursor={cursor} onCursor={setCursor} minimum={minimum} maximum={now} />
     <Card><Txt weight="600">Registrar peso corporal</Txt><Field label="Peso corporal de hoy" value={weight} onChangeText={value => { setWeight(value); setError(""); setMessage(""); }} numeric suffix="kg" error={error} /><Button label="Guardar peso corporal" variant="secondary" onPress={() => { const value = number(weight); if (!Number.isFinite(value) || value < 30 || value > 350) { setError("Introduce un peso entre 30 y 350 kg."); return; } update(current => ({ ...current, profile: { ...current.profile, weight }, bodyWeights: [...(current.bodyWeights ?? []), { date: new Date().toISOString(), weight: value }] })); setMessage("Peso corporal guardado."); }} />{!!message && <Notice>{message}</Notice>}</Card>
-    <LineChart key={period + "-" + bounds.start} title={t("Peso corporal y cargas · {period}", { period: t(periodLabel) })} series={series} domainStart={Number.isFinite(bounds.start) ? hasMonthlyContext ? contextStart : bounds.start : undefined} domainEnd={Number.isFinite(bounds.end) ? bounds.end : undefined} contextBoundary={hasMonthlyContext ? bounds.start : undefined} />
+    <Row style={{ justifyContent: "flex-end", alignItems: "center", gap: 8 }}><Image source={require("../../assets/brand/icon.png")} style={{ width: 18, height: 18, borderRadius: 4, opacity: 0.82 }} accessibilityLabel="Akhyles" /><Button label="A-Points" compact tight variant={pointsMode ? "primary" : "ghost"} onPress={() => setPointsMode(value => !value)} /></Row>
+    <LineChart key={period + "-" + bounds.start + "-" + pointsMode} title={t(pointsMode ? "Peso y A-Points · {period}" : "Peso corporal y cargas · {period}", { period: t(periodLabel) })} unit={pointsMode ? "kg / pts" : "kg"} series={chartSeries} domainStart={Number.isFinite(bounds.start) ? hasMonthlyContext ? contextStart : bounds.start : undefined} domainEnd={Number.isFinite(bounds.end) ? bounds.end : undefined} contextBoundary={hasMonthlyContext ? bounds.start : undefined} />
     <Card><Txt weight="600">Ejercicios por grupo muscular</Txt><Txt muted size={13}>El peso corporal permanece como referencia tenue. Elige las cargas que quieras comparar.</Txt>{muscles.filter(muscle => muscle.id !== "balanced").map(muscle => { const group = ids.filter(id => exercises.find(exercise => exercise.id === id)?.muscle === muscle.id); const expanded = expandedGroup === muscle.id; return group.length ? <View key={muscle.id} style={{ gap: 8 }}><Pressable accessibilityRole="button" accessibilityLabel={t(expanded ? "Ocultar ejercicios de {name}" : "Mostrar ejercicios de {name}", { name: t(muscle.name) })} onPress={() => setExpandedGroup(value => value === muscle.id ? null : muscle.id)} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}><Txt weight="600">{muscle.name}</Txt><Txt muted>{expanded ? "−" : "+"}</Txt></Pressable>{expanded && group.map(id => <Choice key={id} title={displayName(id, state.preferences)} translateTitle={false} description={exerciseProgress(state.history, id, state.preferences.apparatusWeights).length ? "Carga máxima registrada · kg" : "Todavía sin registros"} selected={selected.includes(id)} onPress={() => setSelected(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id])} multiple />)}</View> : null; })}{!!selected.length && <Button label="Ocultar todos los ejercicios" compact variant="ghost" onPress={() => setSelected([])} />}</Card>
   </>;
 }

@@ -228,7 +228,6 @@ export const enScreens: Record<string, string> = {
   "Consulta tu calendario mensual y ajusta tus próximas sesiones.": "Check your monthly calendar and adjust your upcoming sessions.",
   "Primera referencia comparable de esta sesión. A partir de la próxima podrás ver la tendencia.": "This is the first comparable reference for this session. You will see a trend from the next one.",
   "Akhyles": "Akhyles",
-  "UN PASO A LA VEZ": "ONE STEP AT A TIME",
   "Entrenamiento en curso": "Workout in progress",
   "Sesión terminada": "Session complete",
   "Esto es lo que toca hoy": "Here is today's plan",

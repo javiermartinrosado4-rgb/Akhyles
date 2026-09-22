@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n";
 import { router, useLocalSearchParams } from "expo-router";
-import { Linking } from "react-native";
+import { Linking, Platform, Share } from "react-native";
 import { CloudRecovery, useAccount } from "../state/Account";
 import { useStore } from "../state/Store";
 import { accountRequest, accountUrl } from "../services/account";
 import { AppState } from "../types";
 import { displayName } from "../logic/routine";
+import { personalExport, personalExportFilename } from "../logic/personalExport";
 import { AccountGoogle } from "../components/AccountGoogle";
 import { LanguageSelector } from "../components/LanguageSelector";
 import { NotificationSettings } from "../components/NotificationSettings";
@@ -42,6 +43,15 @@ export default function Account(){
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
   const [deleting,setDeleting]=useState(false),[confirmEmail,setConfirmEmail]=useState("");
   const [archives,setArchives]=useState<CloudRecovery[]>([]),[selectedArchive,setSelectedArchive]=useState<string|null>(null);
+  const [restoreConfirm,setRestoreConfirm]=useState<string|null>(null);
+  const exportData=async()=>{
+    const contents=personalExport(state); const filename=personalExportFilename();
+    if(Platform.OS==="web") {
+      const url=URL.createObjectURL(new Blob([contents],{type:"application/json"})); const link=document.createElement("a");
+      link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);
+    } else await Share.share({title:"Datos de Akhyles",message:contents});
+    setMessage("Tus datos se han preparado para exportar.");
+  };
   const run=async(fn:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError("");setMessage("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"No se ha podido completar la operación.");}finally{setBusy(false);}};
   const switchMode=(next:Mode)=>{setMode(next);setError("");setMessage("");setPassword("");setCode("");};
   const submit=async()=>{
@@ -69,6 +79,7 @@ export default function Account(){
       </Card>
       {account.conflict&&<>
         <Notice>Hay cambios diferentes en este dispositivo y en la nube. Elige la copia que quieres seguir usando. Guardaremos las dos en el archivo de recuperación de este dispositivo.</Notice>
+        {!!account.conflict.areas.length&&<Txt muted size={12}>La diferencia afecta a: {account.conflict.areas.join(" · ")}.</Txt>}
         <Summary label="En este dispositivo" state={state}/>
         {account.conflict.remote.state&&<Summary label="En la nube" state={account.conflict.remote.state}/>}
         <Button label="Usar la copia de este dispositivo" disabled={busy} onPress={()=>void run(()=>account.resolve("local"))}/>
@@ -78,8 +89,11 @@ export default function Account(){
       <Button label="Ver copias de recuperación en la nube" variant="secondary" onPress={()=>void run(async()=>{const list=await account.listRecoveryCopies();setArchives(list);if(!list.length)setMessage("Todavía no hay copias de recuperación en la nube.");})}/>
       {archives.map(a=><Card key={a.key}><Txt size={13}>{t("{date} · {workouts} entrenamientos",{date:new Date(a.updated).toLocaleString(locale),workouts:a.state.history.length})}</Txt>
         <Button label="Revisar esta copia" variant="ghost" compact onPress={()=>setSelectedArchive(a.key)}/>
-        {selectedArchive===a.key&&<><Summary label="Copia seleccionada" state={a.state}/><Button label="Restaurar esta copia" disabled={busy} onPress={()=>void run(async()=>{await account.restoreArchive(a.key);setArchives([]);setSelectedArchive(null);})}/></>}
+        {selectedArchive===a.key&&<><Summary label="Copia seleccionada" state={a.state}/>
+          {restoreConfirm===a.key?<Card><Notice>Esta acción sustituirá los datos actuales de este dispositivo por esta copia. La copia actual se conservará en la nube antes de restaurar.</Notice><Button label="Confirmar restauración" disabled={busy} onPress={()=>void run(async()=>{await account.restoreArchive(a.key);setArchives([]);setSelectedArchive(null);setRestoreConfirm(null);setMessage("Copia restaurada correctamente.");})}/><Button label="Cancelar" compact variant="ghost" onPress={()=>setRestoreConfirm(null)}/></Card>:<Button label="Restaurar esta copia" disabled={busy} onPress={()=>setRestoreConfirm(a.key)}/>}</>}
       </Card>)}
+      <Button label="Exportar mis datos" variant="secondary" disabled={busy} icon="download" onPress={()=>void run(exportData)}/>
+      <Txt muted size={12}>Descarga una copia privada de tu rutina, historial, pesos y progreso. No incluye sesión, tokens ni datos de otros usuarios.</Txt>
       <Button label="Continuar entrenando" onPress={leave}/>
       <Button label="Cerrar sesión de la cuenta" variant="secondary" disabled={busy} onPress={()=>void run(account.logout)}/>
       <Txt muted size={12}>Al cerrar sesión, los datos locales permanecen en este dispositivo. Puedes seguir entrenando y sincronizarlos al volver a entrar.</Txt>

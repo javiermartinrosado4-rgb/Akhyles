@@ -33,7 +33,7 @@ export function comparisonSample(state: AppState, now = Date.now()): ComparisonS
       if (time < now - 28 * DAY || time > now) return [];
       return workout.records.filter(r => comparableIds.has(r.prescription.exerciseId)).flatMap(r => {
         const strengths = r.sets.filter(s => s.weight > 0 && s.reps >= 1 && s.reps <= 12)
-          .map(s => scoreLoad(r.prescription.exerciseId, storedSetLoad(s), r.apparatusWeight ?? r.barWeight) * (1 + s.reps / 30));
+          .map(s => scoreLoad(r.prescription.exerciseId, storedSetLoad(s, r.prescription.exerciseId), r.apparatusWeight ?? r.barWeight) * (1 + s.reps / 30));
         return strengths.length ? [{ exerciseId: r.prescription.exerciseId, date: workout.date, strength: Math.max(...strengths), ...(r.machineBrand ? { machineBrand: r.machineBrand } : {}) }] : [];
       });
     }),

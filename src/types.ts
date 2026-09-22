@@ -15,6 +15,8 @@ export type Variant = "machine" | "free" | "cable" | "smith" | "bodyweight";
 export type ExerciseType = "compound" | "isolation";
 export type ExerciseTier = "S+" | "S" | "A" | "B";
 export type Range = [number, number];
+// Legacy values remain readable in stored/test fixtures; the UI always
+// normalizes them to the only supported appearance: dark.
 export type ThemeMode = "system" | "light" | "dark";
 export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export interface Profile {
@@ -186,6 +188,8 @@ export interface AppState {
   /** Device-only synchronization metadata; never included in uploaded progress. */
   cloud?: import("./logic/cloud").CloudMetadata;
   programRevision?: number;
+  /** Version of the persisted load-unit normalization repairs. */
+  loadNormalizationVersion?: 2;
   signedOut?: boolean;
   bodyWeights?: { date: string; weight: number }[];
   weightReminderNotificationId?: string;

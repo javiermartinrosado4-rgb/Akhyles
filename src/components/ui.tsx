@@ -2,6 +2,7 @@ import { messages } from "../content/es";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,6 +16,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useTheme } from "../theme";
 import { space } from "../config";
 import { useLanguage } from "../i18n";
@@ -71,6 +73,36 @@ export function Icon({
   const { colors } = useTheme();
   return <Feather name={name} size={size} color={color ?? colors.accent} />;
 }
+/**
+ * Native SVG gradients can show hard bands on compact controls. Keep the
+ * reflected gold deliberately restrained: one continuous warm-metal sweep,
+ * not a shadow, bevel or separate coloured block.
+ */
+export function GoldSurface() {
+  // The parent already owns the gold fill. Avoid a stretched bitmap overlay:
+  // on long Android controls it can produce a visible rectangular seam.
+  return null;
+}
+/** One clean emerald surface for selected routine and calendar days. */
+export function EmeraldSurface() {
+  // Keep selected controls as one uninterrupted native colour surface.
+  return null;
+}
+/** Refined gold laurel used for achievement entry points. */
+function LaurelCrownVector({ size = 22, color }: { size?: number; color?: string }) {
+  const { colors } = useTheme();
+  const stroke = color ?? colors.accent;
+  const gradientId = `laurel-gold-${size}`;
+  return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" accessibilityLabel="Corona de laurel">
+    {!color && <Defs><LinearGradient id={gradientId} x1="3" y1="4" x2="21" y2="21"><Stop offset="0" stopColor={colors.accentHighlight} /><Stop offset="0.45" stopColor={colors.accent} /><Stop offset="1" stopColor={colors.accentShadow} /></LinearGradient></Defs>}
+    <Path d="M11.7 20.7C6.2 19.4 3.4 14.8 4.2 8.1M12.3 20.7c5.5-1.3 8.3-5.9 7.5-12.6" stroke={color ? stroke : `url(#${gradientId})`} strokeWidth={1.45} strokeLinecap="round" />
+    <Path d="M5.1 9.9C4.2 8.3 4.5 6.7 5.2 5.8c1.4.5 2.3 1.7 2.2 3.2-1 .4-1.7.7-2.3.9ZM4.9 13.6c-1.1-1.4-1.1-3-.6-4.1 1.5.2 2.7 1.1 2.9 2.6-.8.7-1.5 1.1-2.3 1.5ZM6.5 16.7c-1.3-.9-1.8-2.4-1.7-3.6 1.5-.3 2.9.3 3.5 1.6-.5.8-1.1 1.4-1.8 2ZM9.2 19.1c-1.5-.4-2.5-1.6-2.8-2.8 1.3-.8 2.8-.7 3.8.3-.2.9-.5 1.7-1 2.5ZM18.9 9.9c.9-1.6.6-3.2-.1-4.1-1.4.5-2.3 1.7-2.2 3.2 1 .4 1.7.7 2.3.9ZM19.1 13.6c1.1-1.4 1.1-3 .6-4.1-1.5.2-2.7 1.1-2.9 2.6.8.7 1.5 1.1 2.3 1.5ZM17.5 16.7c1.3-.9 1.8-2.4 1.7-3.6-1.5-.3-2.9.3-3.5 1.6.5.8 1.1 1.4 1.8 2ZM14.8 19.1c1.5-.4 2.5-1.6 2.8-2.8-1.3-.8-2.8-.7-3.8.3.2.9.5 1.7 1 2.5Z" fill={color ? stroke : `url(#${gradientId})`} stroke={color ? stroke : `url(#${gradientId})`} strokeWidth={0.35} strokeLinejoin="round" />
+    <Path d="M10.1 20.4 12 18.6l1.9 1.8" stroke={color ? stroke : `url(#${gradientId})`} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>;
+}
+export function LaurelCrown({ size = 22, color }: { size?: number; color?: string }) {
+  return <Image source={require("../../assets/achievements/laurel-crown.png")} accessibilityLabel="Corona de laurel dorada" resizeMode="contain" style={{ width: size, height: size, opacity: color ? 0.96 : 1 }} />;
+}
 export function Button({
   label,
   onPress,
@@ -83,6 +115,8 @@ export function Button({
   accessibilityLabel,
   testID,
   style,
+  tone = "gold",
+  laurel = false,
 }: {
   label: string;
   onPress: () => void;
@@ -97,11 +131,22 @@ export function Button({
   accessibilityLabel?: string;
   testID?: string;
   style?: ViewStyle;
+  tone?: "gold" | "green" | "danger";
+  laurel?: boolean;
 }) {
   const { colors } = useTheme();
   const { t } = useLanguage();
   const [focus, setFocus] = useState(false);
-  const fg = variant === "primary" ? colors.onAccent : colors.accent;
+  const greenTone = tone === "green";
+  const dangerTone = tone === "danger";
+  const showLaurel = laurel || label === "Ver todos mis logros";
+  // Green secondary controls need neutral, high-contrast copy. Gold belongs
+  // to primary actions and intentional highlights, not to text on green.
+  const fg = dangerTone
+    ? colors.error
+    : variant === "primary"
+      ? greenTone ? colors.text : colors.onAccent
+      : variant === "secondary" ? colors.text : colors.accent;
   return (
     <Pressable
       testID={testID}
@@ -113,27 +158,35 @@ export function Button({
       onFocus={() => setFocus(true)}
       onBlur={() => setFocus(false)}
       style={({ pressed }) => ({
-        minHeight: compact ? 42 : 54,
+              minHeight: compact ? 44 : 54,
         paddingHorizontal: tight ? 4 : compact ? 12 : 20,
         paddingVertical: 10,
-        borderRadius: 14,
+          borderRadius: 14,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: 10,
+        position: "relative",
+        overflow: "hidden",
         backgroundColor:
           variant === "primary"
-            ? colors.accent
+            ? greenTone ? colors.selection : colors.accent
             : variant === "secondary"
               ? colors.accentSoft
               : "transparent",
         opacity: disabled ? 0.45 : pressed ? 0.78 : 1,
-        borderWidth: 2,
-        borderColor: focus ? colors.text : "transparent",
+        borderWidth: variant === "primary" ? 1 : 2,
+        borderColor: focus ? colors.text : variant === "primary" ? greenTone ? colors.selectionHighlight : colors.accentHighlight : "transparent",
+        shadowColor: "transparent",
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        shadowOffset: { width: 0, height: 0 },
+        elevation: 0,
         ...style,
       })}
     >
-      {icon && <Icon name={icon} size={18} color={fg} />}
+      {variant === "primary" && !greenTone && <GoldSurface />}
+      {showLaurel ? <LaurelCrown size={18} /> : icon && <Icon name={icon} size={18} color={fg} />}
       {!hideLabel && <Txt weight="600" size={tight ? 16 : compact ? 13 : 15} style={{ color: fg, flexShrink: 1, textAlign: "center" }}>
         {label}
       </Txt>}

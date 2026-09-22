@@ -15,7 +15,7 @@ import { StrengthReferences } from "../components/StrengthReferences";
 import { DaysSelect, LevelSelect, PrioritySelect } from "../components/Selections";
 import { Button, Card, Choice, Field, Heading, Icon, Notice, Page, Row, Txt } from "../components/ui";
 import { variants } from "../data/options";
-import { nextPointsGoal, pointsTier } from "../logic/achievements";
+import { nextPointsTier, pointsTier, presentationPoints } from "../logic/achievements";
 import { scoreProgress } from "../logic/progress";
 import { exerciseMasteries } from "../logic/exerciseMastery";
 import { personalAchievements } from "../logic/personalAchievements";
@@ -57,6 +57,8 @@ export default function Profile() {
   const masteries = exerciseMasteries(state);
   const localAchievements = personalAchievements(state);
   const points = score.points.at(-1)?.value;
+  const visiblePoints = presentationPoints(points);
+  const nextTier = nextPointsTier(points);
   const social = communityProfile ?? user;
 
   useEffect(() => {
@@ -235,8 +237,8 @@ export default function Profile() {
       <Row style={{ flexWrap: "wrap" }}><Button label="Editar perfil" icon="edit-2" variant="secondary" compact onPress={openEditor} />{social && <Button label={connections ? "Ocultar conexiones" : "Personas y conexiones"} icon="users" variant="ghost" compact onPress={() => setConnections(value => !value)} />}</Row>
     </Card>
     {points !== undefined && <Card style={{ gap: 7 }}>
-      <Row style={{ justifyContent: "space-between" }}><View><Txt muted size={11}>TU PROGRESO</Txt><Txt weight="600" size={20}>{pointsTier(points).name}</Txt></View><Txt weight="700" size={22}>{points.toLocaleString(locale, { maximumFractionDigits: 1 })} <Txt muted size={12}>A-Points</Txt></Txt></Row>
-      <Txt muted size={12}>Siguiente meta: {nextPointsGoal(points).toLocaleString(locale)} A-Points · te faltan {(nextPointsGoal(points) - points).toLocaleString(locale, { maximumFractionDigits: 1 })}.</Txt>
+      <Row style={{ justifyContent: "space-between" }}><View><Txt muted size={11}>TU PROGRESO</Txt><Txt weight="600" size={20}>{pointsTier(points).name}</Txt></View><Txt weight="700" size={22}>{visiblePoints?.toLocaleString(locale, { maximumFractionDigits: 1 })} <Txt muted size={12}>A-Points</Txt></Txt></Row>
+      <Txt muted size={12}>{nextTier ? `Siguiente meta: ${nextTier.name} a los ${nextTier.minimum.toLocaleString(locale)} A-Points · te faltan ${(nextTier.minimum - visiblePoints!).toLocaleString(locale, { maximumFractionDigits: 1 })}.` : "Nivel máximo alcanzado. Tu puntuación puede seguir aumentando."}</Txt>
     </Card>}
     <Card style={{ gap: 6 }}><Txt weight="600">Logros</Txt><Txt muted size={13}>{localAchievements.length === 1 ? "1 logro personal" : `${localAchievements.length} logros personales`}{social ? ` · ${achievementCount === 1 ? "1 logro compartido" : `${achievementCount} logros compartidos`}` : ""}.</Txt>{localAchievements.slice(0, 2).map(item => <Txt key={item.id} muted size={13}><Txt weight="600">{item.title}</Txt> · {item.description}</Txt>)}{masteries.length ? <View style={{ gap: 3 }}><Txt weight="600" size={13}>Dominio por ejercicio</Txt>{masteries.slice(0, 4).map(item => <Txt key={item.exerciseId} muted size={13}>{item.name} — <Txt weight="600">{item.rank}</Txt> · {item.ratio.toLocaleString(locale, { maximumFractionDigits: 2 })}× BW</Txt>)}</View> : <Txt muted size={12}>Registra peso corporal y un básico para desbloquear tus rangos por ejercicio.</Txt>}<Button label="Ver todos mis logros" compact variant="ghost" icon="award" onPress={() => router.push("/achievements" as never)} />{social && <Button label="Ver novedades de Comunidad" compact variant="ghost" icon="star" onPress={() => router.push("/community")} />}</Card>
     {connections && social && <CommunityPeople openProfile={id => router.push({ pathname: "/community", params: { profile: id } })} />}
