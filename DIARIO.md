@@ -3,6 +3,7 @@
 ### Vinculación inicial con Expo EAS — 22 de septiembre de 2026
 
 - Creada la organización/proyecto EAS desde Expo y guardado su identificador en `app.config.ts` (`extra.eas.projectId`).
+- Corregido el nombre visible del proyecto EAS a **Akhyles**. Añadidas en el entorno `production` las URLs públicas de Cuentas y Comunidad; activados los avisos por correo de builds y envíos.
 - Instalado el complemento oficial de Expo para Codex en el perfil local de este equipo; no forma parte del repositorio y cada Mac puede instalarlo si lo desea.
 - Verificada la configuración Expo de producción con bundle ID `com.javiermartinrosado.akhyles`, versión `1.0.36`, EAS project ID correcto, modo de Comunidad local desactivado y sin tráfico cleartext.
 - La CLI EAS no terminó de descargarse en este equipo; la comprobación de acceso del propietario y de la asociación remota con `eas project:info` queda pendiente en el Mac antes de compilar.

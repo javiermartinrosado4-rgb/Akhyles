@@ -11,6 +11,11 @@ Estado de preparación: 22 de septiembre de 2026.
   mantener una carpeta `ios/` en el repositorio.
 - El repositorio está vinculado al proyecto EAS `0d55315c-62ca-4ecf-a9d1-736ba51ea21d`
   desde `extra.eas.projectId` en `app.config.ts`.
+- En el entorno EAS `production` están configuradas como texto público las URLs
+  `EXPO_PUBLIC_ACCOUNT_URL` y `EXPO_PUBLIC_COMMUNITY_URL`, apuntando a la API de
+  producción de Akhyles.
+- Las notificaciones de EAS para builds y envíos están activadas en la cuenta
+  propietaria del proyecto.
 - Icono, splash, localización español/inglés, selector de fotografías y
   notificaciones están declarados mediante la configuración de Expo.
 - Las URLs de producción de Cuentas y Comunidad se validan como HTTPS antes de
