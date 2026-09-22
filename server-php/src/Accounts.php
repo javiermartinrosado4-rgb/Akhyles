@@ -448,7 +448,10 @@ final class Accounts {
             $this->fail(400,'La copia no tiene un formato válido.');
         $allowed = ['version','programRevision','loadNormalizationVersion','profile','preferences','onboardingStep','completed','theme','volumeTargets','routine','routineVersions','history','plannedWorkouts','skippedWorkoutDates','active','bodyWeights','achievements','strengthReferences'];
         if (array_diff(array_keys($s),$allowed)) $this->fail(400,'La copia contiene campos de dispositivo o sesión.');
-        if (strlen(json_encode($s,JSON_THROW_ON_ERROR)) > 4_000_000 || count($s['history']) > 20000 || count($s['routine']) > 30)
+        // Keep the legacy endpoint usable while clients migrate to Sync V2.
+        // The payload is still encrypted at rest and bounded below MEDIUMTEXT;
+        // new clients must use entity sync so this is only a compatibility path.
+        if (strlen(json_encode($s,JSON_THROW_ON_ERROR)) > 10_000_000 || count($s['history']) > 20000 || count($s['routine']) > 30)
             $this->fail(413,'La copia supera el tamaño permitido. Tus datos permanecen guardados en el dispositivo.');
         if (!is_int($s['onboardingStep'] ?? null) || $s['onboardingStep'] < 0 || $s['onboardingStep'] > 3)
             $this->fail(400,'El estado inicial de la copia no es válido.');
