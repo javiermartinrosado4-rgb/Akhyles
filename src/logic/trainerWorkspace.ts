@@ -94,5 +94,5 @@ export const priorityClients = (clients: TrainerClientSummary[]) => [...clients]
   return rank[left.attention] - rank[right.attention] || left.name.localeCompare(right.name);
 });
 
-/** This workspace is deliberately opt-in outside local development. */
-export const trainerWorkspaceEnabled = (enabled = false) => __DEV__ || enabled;
+/** The trainer workspace is available to users who explicitly enable their professional profile. */
+export const trainerWorkspaceEnabled = (enabled = true) => __DEV__ || enabled;
